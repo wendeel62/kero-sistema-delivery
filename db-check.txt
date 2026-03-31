@@ -1,0 +1,5 @@
+Conectando...
+Conectado!
+Tabelas: categorias, produtos, precos_tamanho, configuracoes, pedidos, itens_pedido, pedidos_online, clientes, cupons, fornecedores, ingredientes, entradas_estoque, ficha_tecnica, caixa, sangrias_caixa, contas_pagar, mesas, sabores, historico_status, notificacoes
+
+Colunas da tabela motoboys:
