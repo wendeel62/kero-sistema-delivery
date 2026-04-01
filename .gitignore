@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# IDE & Tools
+.opencode/
+
 # Logs
 logs
 *.log
