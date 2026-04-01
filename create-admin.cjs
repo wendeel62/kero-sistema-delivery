@@ -1,15 +1,19 @@
 const { createClient } = require('@supabase/supabase-js');
+const { requireEnv } = require('./scripts/_env.cjs');
 
-const supabaseUrl = 'https://kmtjfapbooqzhysllrbe.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttdGpmYXBib29xemh5c2xscmJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODkwMDgsImV4cCI6MjA5MDA2NTAwOH0.eVy1GLS-DU74TUKPpIyCq8xTvGMxub1R2DIt4I3AEIw';
+const supabaseUrl = requireEnv('SUPABASE_URL');
+const supabaseKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
+const adminEmail = requireEnv('ADMIN_BOOTSTRAP_EMAIL');
+const adminPassword = requireEnv('ADMIN_BOOTSTRAP_PASSWORD');
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function createAdmin() {
-  console.log("Tentando criar admin@kero.com.br...");
-  const { data, error } = await supabase.auth.signUp({
-    email: 'admin@kero.com.br',
-    password: 'kero1234',
+  console.log(`Tentando criar ${adminEmail}...`);
+  const { data, error } = await supabase.auth.admin.createUser({
+    email: adminEmail,
+    password: adminPassword,
+    email_confirm: true,
   });
   
   if (error) {
