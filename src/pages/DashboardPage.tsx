@@ -105,23 +105,23 @@ function KpiCard({
       onDragOver={(e) => e.preventDefault()}
       onDrop={() => onDrop(data.id)}
       style={{ animationDelay: `${index * 80}ms` }}
-      className={`relative overflow-hidden bg-gradient-to-br ${colorMap[data.id] || 'from-gray-500/20 to-gray-500/5 border-gray-500/30'} p-6 rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing animate-fade-in ${
+      className={`relative overflow-hidden bg-gradient-to-br ${colorMap[data.id] || 'from-gray-500/20 to-gray-500/5 border-gray-500/30'} p-3 lg:p-6 rounded-xl lg:rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing animate-fade-in ${
         isDragging ? 'opacity-40 scale-95' : 'hover:scale-[1.02] hover:shadow-lg'
       }`}
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute top-0 right-0 w-16 lg:w-32 h-16 lg:h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
       
       <div className="flex justify-between items-start relative z-10">
         <div className="flex flex-col">
-          <span className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-2">{data.label}</span>
-          <div className="h-0.5 w-8 bg-white/20 rounded-full" />
+          <span className="text-[9px] lg:text-[11px] font-bold text-white/50 uppercase tracking-widest lg:mb-2">{data.label}</span>
+          <div className="h-0.5 w-6 lg:w-8 bg-white/20 rounded-full" />
         </div>
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconColorMap[data.id] || 'bg-white/10 text-white'}`}>
-          <span className="material-symbols-outlined text-xl">{data.icon}</span>
+        <div className={`w-8 lg:w-11 h-8 lg:h-11 rounded-lg lg:rounded-xl flex items-center justify-center ${iconColorMap[data.id] || 'bg-white/10 text-white'}`}>
+          <span className="material-symbols-outlined text-lg lg:text-xl">{data.icon}</span>
         </div>
       </div>
       
-      <h3 className={`text-3xl font-bold mt-5 tracking-tight ${textColorMap[data.id] || 'text-white'}`}>
+      <h3 className={`text-xl lg:text-3xl font-bold mt-3 lg:mt-5 tracking-tight ${textColorMap[data.id] || 'text-white'}`}>
         {valueDisplay}
       </h3>
     </div>
@@ -396,7 +396,7 @@ export default function DashboardPage() {
   }
 
   const renderChart = (id: string) => {
-    const commonClass = `bg-[#16181f] p-6 rounded-2xl border border-[#252830] transition-all duration-300 animate-fade-in relative group cursor-grab active:cursor-grabbing ${draggedChart === id ? 'opacity-30 scale-95' : 'hover:border-[#e8391a]/30'}`
+    const commonClass = `bg-[#16181f] p-3 lg:p-6 rounded-xl lg:rounded-2xl border border-[#252830] transition-all duration-300 animate-fade-in relative group cursor-grab active:cursor-grabbing ${draggedChart === id ? 'opacity-30 scale-95' : 'hover:border-[#e8391a]/30'}`
     const dragProps = {
       draggable: true,
       onDragStart: () => setDraggedChart(id),
@@ -410,34 +410,34 @@ export default function DashboardPage() {
       
       return (
         <div key="receita" {...dragProps} className={commonClass} style={{ animationDelay: '400ms' }}>
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4 lg:mb-6">
             <div>
-              <h3 className="text-lg font-bold text-white">Receita dos Últimos 7 Dias</h3>
-              <p className="text-xs text-white/40 mt-1">Volume de vendas diário</p>
+              <h3 className="text-base lg:text-lg font-bold text-white">Receita dos Últimos 7 Dias</h3>
+              <p className="text-[10px] lg:text-xs text-white/40 mt-0.5 lg:mt-1">Volume de vendas diário</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-[#e8391a]/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#e8391a]">bar_chart</span>
+            <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-lg lg:rounded-xl bg-[#e8391a]/10 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[#e8391a] text-lg lg:text-xl">bar_chart</span>
             </div>
           </div>
           
-          <div className="h-44 flex items-end justify-between gap-2 px-1">
+          <div className="h-28 lg:h-44 flex items-end justify-between gap-1 lg:gap-2 px-0.5">
             {kpis.receita7Dias.map((valor, i) => {
               const height = (valor / max) * 100
               const isToday = i === 6
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar">
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 lg:gap-2 group/bar">
                   <div className="w-full relative flex items-end justify-center h-full">
                     <div 
-                      className={`w-full max-w-[28px] rounded-t-md transition-all duration-500 ${isToday ? 'bg-gradient-to-t from-[#e8391a] to-[#ff6b4a] shadow-lg shadow-[#e8391a]/20' : 'bg-[#252830] group-hover/bar:bg-[#e8391a]/30'}`} 
+                      className={`w-full max-w-[16px] lg:max-w-[28px] rounded-t-sm lg:rounded-t-md transition-all duration-500 ${isToday ? 'bg-gradient-to-t from-[#e8391a] to-[#ff6b4a] shadow-lg shadow-[#e8391a]/20' : 'bg-[#252830] group-hover/bar:bg-[#e8391a]/30'}`} 
                       style={{ height: `${Math.max(height, 8)}%` }} 
                     />
                     {valor > 0 && (
-                      <div className="absolute -top-7 bg-[#1a1a1a] px-2 py-1 rounded-md text-[10px] font-bold text-white opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap z-10 border border-[#252830]">
+                      <div className="absolute -top-5 lg:-top-7 bg-[#1a1a1a] px-1.5 lg:px-2 py-0.5 lg:py-1 rounded text-[8px] lg:text-[10px] font-bold text-white opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap z-10 border border-[#252830]">
                         R$ {valor.toFixed(0)}
                       </div>
                     )}
                   </div>
-                  <span className={`text-[9px] font-medium ${isToday ? 'text-[#e8391a]' : 'text-white/30'}`}>{dias[i]}</span>
+                  <span className={`text-[7px] lg:text-[9px] font-medium ${isToday ? 'text-[#e8391a]' : 'text-white/30'}`}>{dias[i]}</span>
                 </div>
               )
             })}
@@ -619,24 +619,24 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6 px-1 lg:px-0">
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div className="animate-fade-in space-y-4 lg:space-y-6 px-2 lg:px-0">
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 lg:gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-white tracking-tight">Dashboard</h1>
-          <p className="text-white/50 mt-1">Visão geral do seu estabelecimento</p>
+          <h1 className="text-2xl lg:text-4xl font-bold text-white tracking-tight">Dashboard</h1>
+          <p className="text-white/50 mt-1 text-sm lg:text-base">Visão geral do seu estabelecimento</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 lg:gap-3">
           <button
             onClick={toggleLoja}
             disabled={loadingLoja}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all ${
+            className={`flex items-center gap-2 px-3 lg:px-5 py-2 lg:py-2.5 rounded-xl border transition-all text-xs lg:text-sm ${
               lojaAberta 
                 ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' 
                 : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
             }`}
           >
             <div className={`w-2 h-2 rounded-full ${lojaAberta ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
-            <span className={`text-xs font-bold uppercase tracking-wider ${lojaAberta ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`font-bold uppercase tracking-wider ${lojaAberta ? 'text-emerald-400' : 'text-red-400'}`}>
               {lojaAberta ? 'Loja Aberta' : 'Loja Fechada'}
             </span>
           </button>
@@ -645,16 +645,16 @@ export default function DashboardPage() {
             href={linkCardapio} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#e8391a]/10 px-4 py-2.5 rounded-xl border border-[#e8391a]/30 hover:bg-[#e8391a]/20 transition-all group"
+            className="flex items-center gap-2 bg-[#e8391a]/10 px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl border border-[#e8391a]/30 hover:bg-[#e8391a]/20 transition-all group"
           >
             <span className="material-symbols-outlined text-[#e8391a]">qr_code_2</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#e8391a]">Cardápio</span>
+            <span className="text-xs lg:text-sm font-bold uppercase tracking-wider text-[#e8391a] hidden sm:inline">Cardápio</span>
             <span className="material-symbols-outlined text-[#e8391a]/60 text-sm group-hover:translate-x-0.5 transition-transform">open_in_new</span>
           </a>
           
           <button
             onClick={() => navigator.clipboard.writeText(linkCardapio)}
-            className="p-2.5 bg-[#16181f] rounded-xl border border-[#252830] hover:border-[#e8391a]/30 transition-all"
+            className="p-2 lg:p-2.5 bg-[#16181f] rounded-xl border border-[#252830] hover:border-[#e8391a]/30 transition-all"
             title="Copiar Link"
           >
             <span className="material-symbols-outlined text-white/60 text-lg">content_copy</span>
@@ -662,13 +662,13 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         {order.map((id, index) => (
           <KpiCard key={id} data={kpiMap[id]} index={index} onDragStart={setDraggedKpi} onDrop={handleDropKpi} isDragging={draggedKpi === id} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-4">
         {chartsOrder.map(renderChart)}
       </div>
     </div>
