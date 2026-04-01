@@ -265,16 +265,16 @@ export default function EntregasPage() {
   const resumoHistorico = { totalEntregas: entregasHistorico.filter(e => e.status === 'entregue').length, tempoMedio: entregasHistorico.filter(e => e.status === 'entregue' && e.entregue_em).length > 0 ? Math.round(entregasHistorico.filter(e => e.status === 'entregue' && e.entregue_em).reduce((sum, e) => sum + differenceInMinutes(parseISO(e.entregue_em!), parseISO(e.atribuido_em)), 0) / entregasHistorico.filter(e => e.status === 'entregue' && e.entregue_em).length) : 0 }
 
   return (
-    <div className="animate-fade-in pb-10 p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+    <div className="animate-fade-in pb-10 p-3 sm:p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
           <span className="text-[#f57c24] font-bold uppercase tracking-[0.3em] text-[10px] mb-2 block">Logística</span>
-          <h2 className="text-4xl font-bold text-white tracking-tight">Entregas</h2>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">Entregas</h2>
         </div>
-        <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830]">
+        <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830] overflow-x-auto">
           {[{ id: 'ativas', label: 'Ativas', icon: 'local_shipping' }, { id: 'motoboys', label: 'Motoboys', icon: 'two_wheeler' }, { id: 'historico', label: 'Histórico', icon: 'history' }].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-[#e8391a] text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-[#252830]'}`}>
-              <span className="material-symbols-outlined text-lg">{tab.icon}</span>{tab.label}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#e8391a] text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-[#252830]'}`}>
+              <span className="material-symbols-outlined text-base sm:text-lg">{tab.icon}</span><span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>

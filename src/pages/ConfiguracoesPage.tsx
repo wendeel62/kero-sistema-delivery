@@ -277,19 +277,19 @@ export default function ConfiguracoesPage() {
   if (!config) return (<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-[#e8391a] border-t-transparent rounded-full animate-spin" /></div>)
 
   return (
-    <div className="animate-fade-in p-6">
-      <div className="mb-8 flex items-end justify-between">
+    <div className="animate-fade-in p-3 sm:p-4 md:p-6">
+      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px] mb-2 block">Sistema</span>
-          <h2 className="text-5xl font-[Outfit] font-bold text-white tracking-tighter">Configurações</h2>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-[Outfit] font-bold text-white tracking-tighter">Configurações</h2>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setActiveTab('config')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'config' ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400 border border-[#252830]'}`}>Loja</button>
-          <button onClick={() => setActiveTab('atendente')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'atendente' ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400 border border-[#252830]'}`}>Atendente IA</button>
-          <button onClick={() => setActiveTab('gestor')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'gestor' ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400 border border-[#252830]'}`}>Gestor Consultor</button>
+        <div className="flex gap-2 overflow-x-auto">
+          <button onClick={() => setActiveTab('config')} className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase whitespace-nowrap transition-all ${activeTab === 'config' ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400 border border-[#252830]'}`}>Loja</button>
+          <button onClick={() => setActiveTab('atendente')} className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase whitespace-nowrap transition-all ${activeTab === 'atendente' ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400 border border-[#252830]'}`}>Atendente IA</button>
+          <button onClick={() => setActiveTab('gestor')} className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold uppercase whitespace-nowrap transition-all ${activeTab === 'gestor' ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400 border border-[#252830]'}`}>Gestor</button>
         </div>
         {activeTab === 'config' && (
-          <button onClick={save} disabled={saving} className={`px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${saved ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
+          <button onClick={save} disabled={saving} className={`px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${saved ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
             {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : saved ? '✓ Salvo!' : 'Salvar'}
           </button>
         )}

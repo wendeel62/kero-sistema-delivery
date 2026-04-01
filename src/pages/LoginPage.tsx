@@ -38,7 +38,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-background text-on-background min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="bg-background text-on-background min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
       {/* Background kinetic decorations - pointer-events-none is CRITICAL here */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-container opacity-[0.03] blur-[120px] rounded-full pointer-events-none select-none" />
       <div className="absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-secondary opacity-[0.03] blur-[100px] rounded-full pointer-events-none select-none" />
@@ -52,12 +52,12 @@ export default function LoginPage() {
         />
       </div>
 
-      <div className="w-full max-w-[1200px] grid lg:grid-cols-2 items-center gap-12 relative z-10">
+      <div className="w-full max-w-[1200px] grid lg:grid-cols-2 items-center gap-8 lg:gap-12 relative z-10">
         {/* Left Side: Brand Narrative */}
         <div className="hidden lg:flex flex-col space-y-8 pr-12">
           <div className="space-y-2">
             <span className="text-primary font-body text-xs uppercase tracking-[0.2em] font-bold">Gestão Inteligente</span>
-            <h1 className="text-5xl font-soft font-bold leading-[1.1] tracking-tight text-on-surface">
+            <h1 className="text-4xl xl:text-5xl font-soft font-bold leading-[1.1] tracking-tight text-on-surface">
               O CONTROLE <br />QUE SEU DELIVERY <br /><span className="text-primary-container italic font-soft">MERECE.</span>
             </h1>
           </div>
@@ -84,22 +84,22 @@ export default function LoginPage() {
 
         {/* Right Side: Login Card */}
         <div className="flex justify-center lg:justify-end">
-          <div className="w-full max-w-md bg-surface-container rounded-2xl p-10 shadow-2xl relative overflow-hidden group border border-outline-variant/10 z-50">
+          <div className="w-full max-w-md bg-surface-container rounded-2xl p-6 sm:p-8 lg:p-10 shadow-2xl relative overflow-hidden group border border-outline-variant/10 z-50">
             {/* Subtle Gradient Glow */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary-container/5 to-transparent pointer-events-none" />
             
             <div className="relative z-10 flex flex-col items-center">
               {/* Logo Header */}
-              <div className="mb-10 text-center">
+              <div className="mb-8 lg:mb-10 text-center">
                 <div className="inline-flex items-center justify-center mb-4">
-                  <span className="text-4xl font-black italic tracking-tighter text-primary-container font-headline">KERO</span>
+                  <span className="text-3xl sm:text-4xl font-black italic tracking-tighter text-primary-container font-headline">KERO</span>
                 </div>
-                <h2 className="text-xl font-headline font-bold text-on-surface tracking-tight">Bem-vindo de volta</h2>
+                <h2 className="text-lg sm:text-xl font-headline font-bold text-on-surface tracking-tight">Bem-vindo de volta</h2>
                 <p className="text-xs text-on-surface-variant mt-1 uppercase tracking-widest font-body">Painel de Controle</p>
               </div>
 
               {/* Form Content */}
-              <form onSubmit={handleSubmit} className="w-full space-y-6">
+              <form onSubmit={handleSubmit} className="w-full space-y-5">
                 {error && (
                   <div className="bg-error-container/20 text-error text-xs p-3 rounded-lg text-center font-bold">
                     {error}
@@ -111,7 +111,7 @@ export default function LoginPage() {
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">alternate_email</span>
                     <input 
-                      className="w-full bg-surface-container-lowest border-none focus:ring-1 focus:ring-primary rounded-xl py-4 pl-12 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-all cursor-text"
+                      className="w-full bg-surface-container-lowest border-none focus:ring-1 focus:ring-primary rounded-xl py-3.5 sm:py-4 pl-12 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-all cursor-text"
                       id="email" 
                       placeholder="exemplo@kerodelivery.com.br" 
                       type="email"
@@ -130,7 +130,7 @@ export default function LoginPage() {
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">lock</span>
                     <input 
-                      className="w-full bg-surface-container-lowest border-none focus:ring-1 focus:ring-primary rounded-xl py-4 pl-12 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-all cursor-text"
+                      className="w-full bg-surface-container-lowest border-none focus:ring-1 focus:ring-primary rounded-xl py-3.5 sm:py-4 pl-12 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/40 transition-all cursor-text"
                       id="password" 
                       placeholder="••••••••••••" 
                       type="password"
@@ -143,7 +143,7 @@ export default function LoginPage() {
                 
                 {/* Submit Button */}
                 <button 
-                  className="w-full bg-primary-container text-on-primary-fixed font-headline font-bold text-sm uppercase tracking-widest py-5 rounded-xl transition-all active:scale-[0.98] hover:shadow-[0_0_30px_-10px_rgba(255,86,55,0.4)] flex items-center justify-center gap-2 group cursor-pointer" 
+                  className="w-full bg-primary-container text-on-primary-fixed font-headline font-bold text-sm uppercase tracking-widest py-4 sm:py-5 rounded-xl transition-all active:scale-[0.98] hover:shadow-[0_0_30px_-10px_rgba(255,86,55,0.4)] flex items-center justify-center gap-2 group cursor-pointer" 
                   type="submit"
                   disabled={submitting}
                 >
@@ -171,7 +171,7 @@ export default function LoginPage() {
 
 
               {/* Footer Options */}
-              <div className="mt-10 pt-8 border-t border-outline-variant/10 w-full text-center">
+              <div className="mt-8 lg:mt-10 pt-6 lg:pt-8 border-t border-outline-variant/10 w-full text-center">
                 <p className="text-xs text-on-surface-variant font-body">Não possui conta? <a className="text-primary font-bold hover:underline" href="#">Solicite acesso</a></p>
               </div>
             </div>

@@ -164,23 +164,23 @@ export default function PdvPage() {
   }
 
   return (
-    <div className="animate-fade-in flex gap-6 h-[calc(100vh-8rem)] p-6">
+    <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] p-2 sm:p-3 lg:p-6">
       {/* Left - Product Grid */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="mb-6 flex items-end justify-between">
+      <div className="flex-1 flex flex-col min-w-0 order-2 lg:order-1">
+        <div className="mb-3 lg:mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3">
           <div>
-            <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px] mb-1 block">Ponto de Venda</span>
-            <h2 className="text-4xl font-[Outfit] font-bold text-white tracking-tighter">PDV</h2>
+            <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px] mb-0.5 block">Ponto de Venda</span>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-[Outfit] font-bold text-white tracking-tighter">PDV</h2>
           </div>
-          <div className="flex bg-[#1a1a1a] rounded-xl p-1 border border-[#252830]">
-            <button onClick={() => setTabPdv('mesas')} className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${tabPdv === 'mesas' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Mesas</button>
-            <button onClick={() => setTabPdv('produtos')} className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Produtos</button>
+          <div className="flex bg-[#1a1a1a] rounded-lg sm:rounded-xl p-0.5 sm:p-1 border border-[#252830]">
+            <button onClick={() => setTabPdv('mesas')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'mesas' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Mesas</button>
+            <button onClick={() => setTabPdv('produtos')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Produtos</button>
           </div>
         </div>
 
         {tabPdv === 'mesas' && (
-          <div className="mb-4">
-            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+          <div className="mb-3">
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
               {mesas.filter(m => m.status !== 'inativa').map(mesa => (
                 <div key={mesa.id} className="relative">
                   <button
@@ -201,12 +201,12 @@ export default function PdvPage() {
                         setShowDivisaoConta(true)
                       }
                     }}
-                    className={`w-full p-4 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${getStatusColor(mesa.status)}`}
+                    className={`w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-0.5 ${getStatusColor(mesa.status)}`}
                   >
-                    <span className="text-2xl font-bold">{mesa.numero}</span>
-                    <span className="text-[10px] uppercase">{mesa.status === 'livre' ? 'Livre' : mesa.status === 'ocupada' ? 'Ocupada' : 'Aguardando'}</span>
+                    <span className="text-lg sm:text-xl font-bold">{mesa.numero}</span>
+                    <span className="text-[8px] sm:text-[10px] uppercase">{mesa.status === 'livre' ? 'Livre' : mesa.status === 'ocupada' ? 'Ocupada' : 'Aguardando'}</span>
                     {mesa.status === 'ocupada' && mesa.aberta_em && (
-                      <span className="text-[10px] opacity-70">{getTempoOcupada(mesa.aberta_em)}</span>
+                      <span className="text-[8px] sm:text-[10px] opacity-70">{getTempoOcupada(mesa.aberta_em)}</span>
                     )}
                   </button>
                   {(mesa.status === 'ocupada' || mesa.status === 'aguardando_pagamento') && (
@@ -224,7 +224,7 @@ export default function PdvPage() {
                         setMesaFechar(mesa)
                         setShowDivisaoConta(true)
                       }}
-                      className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black text-xs font-bold"
+                      className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black text-[10px] sm:text-xs font-bold"
                       title="Fechar Conta"
                     >
                       $
@@ -237,31 +237,31 @@ export default function PdvPage() {
         )}
 
         {tabPdv === 'produtos' && (
-          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-5 text-sm text-white mb-4 placeholder:text-gray-500" />
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-2 sm:py-3 px-4 sm:px-5 text-xs sm:text-sm text-white mb-3 lg:mb-4 placeholder:text-gray-500" />
         )}
 
-        <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
-          <button onClick={() => setFiltro(null)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${!filtro ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>Todos</button>
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 lg:mb-4">
+          <button onClick={() => setFiltro(null)} className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${!filtro ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>Todos</button>
           {categorias.map(c => (
-            <button key={c.id} onClick={() => setFiltro(c.id)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${filtro === c.id ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>{c.nome}</button>
+            <button key={c.id} onClick={() => setFiltro(c.id)} className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${filtro === c.id ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>{c.nome}</button>
           ))}
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto flex-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 overflow-y-auto flex-1 pb-2">
           {filteredProdutos.map(p => (
             <button key={p.id} onClick={() => addItem(p)} className="bg-[#1a1a1a] p-0 rounded-xl border border-[#252830] hover:border-[#e8391a]/30 hover:scale-[1.02] transition-all text-left overflow-hidden group">
-              <div className="w-full h-24 overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              <div className="w-full h-16 sm:h-20 lg:h-24 overflow-hidden" style={{ aspectRatio: '16/9' }}>
                 {p.imagem_url ? (
                   <img src={p.imagem_url} alt={p.nome} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-[#252830]">
-                    <span className="material-symbols-outlined text-3xl text-gray-600">restaurant</span>
+                    <span className="material-symbols-outlined text-2xl sm:text-3xl text-gray-600">restaurant</span>
                   </div>
                 )}
               </div>
-              <div className="p-3">
-                <h4 className="font-[Outfit] font-bold text-sm truncate text-white">{p.nome}</h4>
-                <p className="text-sm font-bold text-[#e8391a] mt-1">{Number(p.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              <div className="p-2 sm:p-3">
+                <h4 className="font-[Outfit] font-bold text-[11px] sm:text-xs lg:text-sm truncate text-white">{p.nome}</h4>
+                <p className="text-[11px] sm:text-xs lg:text-sm font-bold text-[#e8391a] mt-0.5">{Number(p.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
               </div>
             </button>
           ))}
@@ -269,12 +269,12 @@ export default function PdvPage() {
       </div>
 
       {/* Right - Cart / Order */}
-      <div className="w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col">
-        <div className="p-6 border-b border-[#252830]">
-          <h3 className="font-[Outfit] font-bold text-lg mb-4 text-white">Pedido Atual</h3>
+      <div className="w-full lg:w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0">
+        <div className="p-4 lg:p-6 border-b border-[#252830]">
+          <h3 className="font-[Outfit] font-bold text-base lg:text-lg mb-3 lg:mb-4 text-white">Pedido Atual</h3>
           <div className="flex gap-2">
             {(['balcao', 'entrega', 'mesa'] as const).map(t => (
-              <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
+              <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-2 lg:py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
             ))}
           </div>
           {tipo === 'mesa' && (
@@ -311,7 +311,7 @@ export default function PdvPage() {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[#252830] space-y-3">
+        <div className="p-4 lg:p-6 border-t border-[#252830] space-y-3">
           <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white">
             <option value="dinheiro">Dinheiro</option>
             <option value="pix">PIX</option>
@@ -324,13 +324,13 @@ export default function PdvPage() {
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-400">Desconto</span>
-            <input type="number" value={desconto || ''} onChange={e => setDesconto(Number(e.target.value))} className="w-24 text-right bg-transparent border-b border-[#252830] text-sm py-0 text-white" />
+            <input type="number" value={desconto || ''} onChange={e => setDesconto(Number(e.target.value))} className="w-20 sm:w-24 text-right bg-transparent border-b border-[#252830] text-sm py-0 text-white" />
           </div>
           <div className="flex justify-between pt-2 border-t border-[#252830]">
-            <span className="font-bold text-lg text-white">Total</span>
-            <span className="text-2xl font-[Outfit] font-bold text-[#e8391a]">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+            <span className="font-bold text-base lg:text-lg text-white">Total</span>
+            <span className="text-xl lg:text-2xl font-[Outfit] font-bold text-[#e8391a]">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
           </div>
-          <button onClick={salvarPedido} disabled={itens.length === 0 || salvando} className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${sucesso ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
+          <button onClick={salvarPedido} disabled={itens.length === 0 || salvando} className={`w-full py-3.5 lg:py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${sucesso ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
             {salvando ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : sucesso ? '✓ Pedido Salvo!' : 'Finalizar Pedido'}
           </button>
         </div>

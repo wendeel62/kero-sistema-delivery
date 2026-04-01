@@ -64,30 +64,31 @@ export default function EstoquePage() {
   }
 
   return (
-    <div className="animate-fade-in pb-10 p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+    <div className="animate-fade-in pb-10 p-3 sm:p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
           <span className="text-[#f57c24] font-bold uppercase tracking-[0.3em] text-[10px] mb-2 block">Backoffice & Insumos</span>
-          <h2 className="text-4xl font-bold text-white tracking-tight">Estoque</h2>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">Estoque</h2>
         </div>
         
-        <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830]">
+        <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830] overflow-x-auto">
           {[
             { id: 'movimentacao', label: 'Insumos', icon: 'inventory_2' },
-            { id: 'ficha_tecnica', label: 'Fichas Técnicas', icon: 'receipt_long' },
+            { id: 'ficha_tecnica', label: 'Fichas', icon: 'receipt_long' },
             { id: 'fornecedores', label: 'Fornecedores', icon: 'local_shipping' }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeTab === tab.id 
                 ? 'bg-[#e8391a] text-white shadow-lg' 
                 : 'text-white/60 hover:text-white hover:bg-[#252830]'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-              {tab.label}
+              <span className="material-symbols-outlined text-base sm:text-lg">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>
