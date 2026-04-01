@@ -1,3 +1,8 @@
+-- DEPRECATED bootstrap file.
+-- Este arquivo deixava sabores publicamente acessiveis sem isolamento por tenant.
+-- Nao execute este SQL em novos ambientes. Use apenas migrations versionadas em
+-- `supabase/migrations/`, especialmente `20260401123000_security_hardening.sql`.
+
 -- Kero Delivery — Módulo de Sabores (Pizzas Meio a Meio)
 
 -- 1. Tabela de Sabores

@@ -1,3 +1,8 @@
+-- DEPRECATED bootstrap file.
+-- Este arquivo continha politicas permissivas para motoboys e entregas.
+-- Nao execute este SQL em novos ambientes. Use apenas migrations versionadas em
+-- `supabase/migrations/`, especialmente `20260401123000_security_hardening.sql`.
+
 -- Migration: Módulo de Entregas
 -- Adicionar campos na tabela motoboys (se não existirem)
 ALTER TABLE motoboys ADD COLUMN IF NOT EXISTS token_acesso uuid DEFAULT gen_random_uuid();

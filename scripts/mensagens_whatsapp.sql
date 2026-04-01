@@ -6,7 +6,7 @@
 -- 1. CRIAR TABELA
 CREATE TABLE mensagens_whatsapp (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL,
+  tenant_id uuid REFERENCES auth.users(id) NOT NULL,
   contato_telefone text NOT NULL,
   contato_nome text,
   direcao text NOT NULL CHECK (direcao IN ('recebida', 'enviada')),
@@ -29,11 +29,22 @@ CREATE INDEX idx_mensagens_created ON mensagens_whatsapp(created_at DESC);
 ALTER TABLE mensagens_whatsapp ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage suas mensagens" ON mensagens_whatsapp;
-CREATE POLICY "Users can manage suas mensagens" ON mensagens_whatsapp
-FOR ALL
-USING (tenant_id IN (
-  SELECT tenant_id FROM configuracoes WHERE tenant_id = auth.uid()
-));
+CREATE POLICY "mensagens_whatsapp_tenant_select" ON mensagens_whatsapp
+FOR SELECT TO authenticated
+USING (tenant_id = auth.uid());
+
+CREATE POLICY "mensagens_whatsapp_tenant_insert" ON mensagens_whatsapp
+FOR INSERT TO authenticated
+WITH CHECK (tenant_id = auth.uid());
+
+CREATE POLICY "mensagens_whatsapp_tenant_update" ON mensagens_whatsapp
+FOR UPDATE TO authenticated
+USING (tenant_id = auth.uid())
+WITH CHECK (tenant_id = auth.uid());
+
+CREATE POLICY "mensagens_whatsapp_tenant_delete" ON mensagens_whatsapp
+FOR DELETE TO authenticated
+USING (tenant_id = auth.uid());
 
 -- 4. REALTIME
 ALTER PUBLICATION supabase_realtime ADD TABLE mensagens_whatsapp;

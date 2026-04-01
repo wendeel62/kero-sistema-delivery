@@ -1,3 +1,8 @@
+-- DEPRECATED bootstrap file.
+-- Este arquivo continha politicas permissivas incompatíveis com isolamento multi-tenant.
+-- Nao execute este SQL em novos ambientes. Use apenas migrations versionadas em
+-- `supabase/migrations/`, especialmente `20260401123000_security_hardening.sql`.
+
 -- Kero Delivery — Database Schema (Fase 1)
 -- Execute no Supabase SQL Editor
 
