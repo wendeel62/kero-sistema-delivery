@@ -199,8 +199,9 @@ Required in `.env`:
 ```
 VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
-VITE_SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
+
+Segredos server-only como `SUPABASE_SERVICE_ROLE_KEY` nao devem usar prefixo `VITE_` e nao podem ficar no frontend.
 
 ## ESLint Rules (Relaxed)
 
