@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase, supabaseAdmin } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -128,25 +128,7 @@ export default function CardapioAdminPage() {
     const ext = selectedFile.name.split('.').pop() || 'jpg'
     const filePath = `${tenantId}/${produtoId}.${ext}`
     
-    let bucketExists = false
-    try {
-      const { data } = await supabase.storage.getBucket('produtos')
-      bucketExists = !!data
-    } catch (e) {
-      bucketExists = false
-    }
-    
-    if (!bucketExists) {
-      const { error: createError } = await supabaseAdmin.storage.createBucket('produtos', { 
-        public: true,
-        fileSizeLimit: 5242880
-      })
-      if (createError) {
-        console.error('Erro ao criar bucket:', createError)
-      }
-    }
-    
-    const { error } = await supabaseAdmin.storage
+    const { error } = await supabase.storage
       .from('produtos')
       .upload(filePath, selectedFile, { 
         upsert: true,
@@ -155,7 +137,7 @@ export default function CardapioAdminPage() {
     
     if (error) {
       console.error('Erro ao fazer upload:', error)
-      alert(`Erro ao fazer upload: ${error.message}`)
+      alert('Erro ao fazer upload. Verifique se o bucket "produtos" existe e se a policy de upload do Supabase esta configurada para o usuario autenticado.')
       return null
     }
     
