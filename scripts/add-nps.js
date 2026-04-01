@@ -1,9 +1,6 @@
-const { Client } = require('pg')
+import { createPgClient } from './_env.mjs'
 
-const client = new Client({
-  connectionString: 'postgresql://postgres:Daviwendeel62@@db.kmtjfapbooqzhysllrbe.supabase.co:5432/postgres',
-  ssl: { rejectUnauthorized: false }
-})
+const client = createPgClient()
 
 async function run() {
   try {
