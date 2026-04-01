@@ -1,0 +1,21 @@
+name: deploy to vercel
+on:
+ push:
+  branches:
+   -master
+jobs:
+   deploy:
+    runs-on: ubuntu-latest
+    steps:
+       - name: checkout code
+         uses: actions/checkout@v3
+       - name: setup Node.js
+         uses: actions/setup-node@v3
+         with:
+           node-version: '24'
+       - name: Pull vercel environment
+         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+       - name: Build Project
+         run: vercel build --prod --token-${{ secrets.VERCEL_TOKEN }}
+       - name: Deploy to vercel
+         run: vercel deploy --prebuilt --prod --token==${{ secrets.VERCEL_TOKEN }}
