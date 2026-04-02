@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase'
 import { syncCliente } from '../lib/syncCliente'
 import NpsWidget from '../components/NpsWidget'
 import { useRealtime } from '../hooks/useRealtime'
+import ProductCard from '../components/ProductCard'
+import CategoryFilters from '../components/CategoryFilters'
 
-interface Categoria { id: string; nome: string }
-interface Produto { id: string; categoria_id: string; nome: string; descricao: string; preco: number | undefined; disponivel: boolean; imagem_url: string }
+export interface Categoria { id: string; nome: string }
+export interface Produto { id: string; categoria_id: string; nome: string; descricao: string; preco: number | undefined; disponivel: boolean; imagem_url: string }
 interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
 interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 interface CartItem { produto: Produto; quantidade: number; tamanho?: string; precoUnitario: number; tipoPizza?: 'inteiro' | 'meio-a-meio'; sabor1?: string; sabor2?: string }
@@ -286,81 +288,23 @@ export default function CardapioOnlinePage() {
         {step === 'menu' && (
           <div className="animate-fade-in">
             <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar no cardápio..." className="w-full bg-surface-container border border-outline-variant/10 rounded-xl py-3 px-5 text-sm text-on-surface mb-6 placeholder:text-on-surface-variant/40" />
-            <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
-              <button onClick={() => setFiltroCategoria(null)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${!filtroCategoria ? 'bg-primary-container text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>Tudo</button>
-              {categorias.map(c => (
-                <button key={c.id} onClick={() => setFiltroCategoria(c.id)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${filtroCategoria === c.id ? 'bg-primary-container text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>{c.nome}</button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
+            <CategoryFilters 
+              categorias={categorias} 
+              filtroAtivo={filtroCategoria} 
+              onSetFiltro={setFiltroCategoria} 
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredProdutos.map(p => {
-                const inCart = cart.find(i => i.produto.id === p.id)
                 const preco = precosTamanho[p.id]?.length 
                   ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco)))
                   : p.preco
                 return (
-                  <div 
-                    key={p.id} 
-                    className="rounded-2xl overflow-hidden"
-                    style={{ backgroundColor: '#111111', boxShadow: '0 2px 12px rgba(0,0,0,0.4)' }}
-                  >
-                    <div 
-                      className="w-full overflow-hidden"
-                      style={{ aspectRatio: '4/5' }}
-                    >
-                      {p.imagem_url ? (
-                        <img 
-                          src={p.imagem_url} 
-                          alt={p.nome}
-                          className="w-full h-full"
-                          style={{ objectFit: 'cover', objectPosition: 'center' }}
-                        />
-                      ) : (
-                        <div 
-                          className="w-full h-full flex items-center justify-center"
-                          style={{ backgroundColor: '#1a1a1a' }}
-                        >
-                          <svg className="w-12 h-12" style={{ color: '#333' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 md:p-3.5">
-                      <h4 
-                        className="font-bold uppercase truncate"
-                        style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', color: '#ffffff' }}
-                      >
-                        {p.nome}
-                      </h4>
-                      <p 
-                        className="mt-1 truncate"
-                        style={{ fontSize: '12px', color: '#888888', lineHeight: 1.4 }}
-                      >
-                        {p.descricao}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span 
-                          className="font-bold"
-                          style={{ fontSize: '18px', fontWeight: 700, color: '#e8391a' }}
-                        >
-                          {preco ? `R$ ${Number(preco).toFixed(2).replace('.', ',')}` : 'Consulte'}
-                        </span>
-                        <button 
-                          onClick={() => handleAddToCart(p)}
-                          className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                          style={{ backgroundColor: '#e8391a' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f57c24')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e8391a')}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <ProductCard 
+                    key={p.id}
+                    produto={p}
+                    preco={preco}
+                    onAddToCart={handleAddToCart}
+                  />
                 )
               })}
             </div>
