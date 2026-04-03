@@ -131,7 +131,7 @@ export default function ClientesPage() {
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">Clientes</h2>
         </div>
         
-        <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830] overflow-x-auto">
+        <div className="w-full md:w-auto flex bg-[#16181f] rounded-2xl p-1 border border-[#252830] overflow-x-hidden">
           {[
             { id: 'gestao', label: 'Gestão', icon: 'group' },
             { id: 'fidelidade', label: 'Fidelidade', icon: 'stars' },
@@ -140,9 +140,9 @@ export default function ClientesPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeTab === tab.id 
-                ? 'bg-[#e8391a] text-white shadow-lg' 
+                ? 'bg-[#e8391a] text-white shadow-lg shadow-[#e8391a]/20' 
                 : 'text-white/60 hover:text-white hover:bg-[#252830]'
               }`}
             >
@@ -193,12 +193,12 @@ export default function ClientesPage() {
                 className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-white/40 focus:border-[#e8391a] outline-none transition-all"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-4 md:flex gap-1 sm:gap-2 w-full md:w-auto">
               {['todos', 'novo', 'recorrente', 'vip'].map((p) => (
                 <button
                   key={p}
                   onClick={() => setFilterPerfil(p)}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border ${
+                  className={`w-full md:w-auto px-1 sm:px-4 py-2 rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-tighter transition-all border whitespace-nowrap ${
                     filterPerfil === p 
                     ? 'bg-[#e8391a]/20 border-[#e8391a]/30 text-[#e8391a]' 
                     : 'border-[#252830] text-white/60 hover:bg-[#252830] hover:text-white'

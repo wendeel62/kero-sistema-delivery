@@ -267,22 +267,22 @@ export default function CardapioAdminPage() {
   }
 
   return (
-    <div className="animate-fade-in p-6">
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="animate-fade-in p-4 sm:p-6">
+      <div className="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
         <div>
-          <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px] mb-2 block">Gestao</span>
-          <h2 className="text-5xl font-[Outfit] font-bold text-white tracking-tighter">Cardapio</h2>
+          <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[8px] sm:text-[10px] mb-1 sm:mb-2 block">Gestão</span>
+          <h2 className="text-3xl sm:text-5xl font-[Outfit] font-bold text-white tracking-tighter">Cardápio</h2>
         </div>
-        <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-[#252830]">
-          <button onClick={() => setTab('produtos')} className={`px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${tab === 'produtos' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Produtos</button>
-          <button onClick={() => setTab('complementos')} className={`px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${tab === 'complementos' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Complementos</button>
-          <button onClick={() => setTab('categorias')} className={`px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${tab === 'categorias' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Categorias</button>
+        <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-[#252830] w-full">
+          <button onClick={() => setTab('produtos')} className={`flex-1 px-1 sm:px-6 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-normal sm:tracking-widest transition-all whitespace-nowrap ${tab === 'produtos' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Produtos</button>
+          <button onClick={() => setTab('complementos')} className={`flex-1 px-1 sm:px-6 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-normal sm:tracking-widest transition-all whitespace-nowrap ${tab === 'complementos' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Complementos</button>
+          <button onClick={() => setTab('categorias')} className={`flex-1 px-1 sm:px-6 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-normal sm:tracking-widest transition-all whitespace-nowrap ${tab === 'categorias' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Categorias</button>
         </div>
       </div>
 
       {tab === 'categorias' && (
         <div>
-          <button onClick={() => { setEditCategoria({}); setShowCategoriaModal(true) }} className="mb-8 bg-[#e8391a] text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] active:scale-95 transition-all">
+          <button onClick={() => { setEditCategoria({}); setShowCategoriaModal(true) }} className="mb-6 sm:mb-8 w-full sm:w-auto bg-[#e8391a] text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] active:scale-95 transition-all">
             <span className="material-symbols-outlined text-lg">add</span> Nova Categoria
           </button>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -320,7 +320,7 @@ export default function CardapioAdminPage() {
 
       {tab === 'produtos' && (
         <div>
-          <button onClick={() => { setEditProduto({}); setShowProdutoModal(true) }} className="mb-8 bg-[#e8391a] text-white px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] active:scale-95 transition-all">
+          <button onClick={() => { setEditProduto({}); setShowProdutoModal(true) }} className="mb-6 sm:mb-8 w-full sm:w-auto bg-[#e8391a] text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] active:scale-95 transition-all">
             <span className="material-symbols-outlined text-lg">add</span> Novo Produto
           </button>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -525,9 +525,9 @@ export default function CardapioAdminPage() {
       )}
 
       {showCategoriaModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-6" onClick={() => setShowCategoriaModal(false)}>
-          <div className="bg-[#1a1a1a] rounded-3xl p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in" onClick={e => e.stopPropagation()}>
-            <h3 className="text-3xl font-bold mb-8 text-white tracking-tight">{editCategoria?.id ? 'Editar' : 'Nova'} Categoria</h3>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={() => setShowCategoriaModal(false)}>
+          <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editCategoria?.id ? 'Editar' : 'Nova'} Categoria</h3>
             <div className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Nome da Categoria</label>
@@ -547,9 +547,9 @@ export default function CardapioAdminPage() {
       )}
 
       {showSaborModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-6" onClick={() => setShowSaborModal(false)}>
-          <div className="bg-[#1a1a1a] rounded-3xl p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in" onClick={e => e.stopPropagation()}>
-            <h3 className="text-3xl font-bold mb-8 text-white tracking-tight">{editSabor?.id ? 'Editar' : 'Novo'} Sabor</h3>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={() => setShowSaborModal(false)}>
+          <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editSabor?.id ? 'Editar' : 'Novo'} Sabor</h3>
             <div className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Nome do Sabor</label>
@@ -576,9 +576,9 @@ export default function CardapioAdminPage() {
       )}
 
       {showProdutoModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-[4px] z-[999] flex items-center justify-center p-4 md:p-6" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }}>
-          <div className="w-full max-w-[600px] max-h-[90vh] overflow-y-auto rounded-2xl bg-[#16181f] p-8 md:max-h-[90vh] md:rounded-3xl md:p-10 no-scrollbar animate-fade-in" onClick={e => e.stopPropagation()}>
-            <h3 className="font-headline text-3xl font-bold mb-8 text-white tracking-tight">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-[4px] z-[999] flex items-center justify-center p-3 sm:p-4 md:p-6" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }}>
+          <div className="w-full max-w-[600px] max-h-[95vh] overflow-y-auto rounded-2xl bg-[#16181f] p-5 sm:p-8 md:rounded-3xl md:p-10 no-scrollbar animate-fade-in" onClick={e => e.stopPropagation()}>
+            <h3 className="font-headline text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
             <div className="space-y-6">
               <div className="flex justify-center mb-6">
                 <div className="relative w-full max-w-[200px] aspect-[4/5]">

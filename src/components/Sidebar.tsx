@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -21,14 +22,10 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { signOut } = useAuth()
+  const [isHovered, setIsHovered] = useState(false)
 
-  const renderIcon = (item: typeof navItems[0], isActive: boolean) => {
-    return (
-      <span className={`material-symbols-outlined text-2xl transition-all duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(255,86,55,0.4)]' : 'group-hover:scale-110'}`}>
-        {item.icon}
-      </span>
-    )
-  }
+  // No mobile usamos a prop isOpen, no desktop usamos hover
+  const expanded = isHovered || (isOpen && window.innerWidth < 768)
 
   return (
     <>
@@ -40,53 +37,86 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
       
-      <aside className={`
-        fixed left-0 top-0 h-screen bg-background flex flex-col items-center py-3 md:py-4 lg:py-6 z-50 border-r border-outline-variant/10
-        transition-transform duration-300 ease-in-out
-        w-16 lg:w-20
-        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        <div className="mb-6 lg:mb-10">
-          <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-lg lg:rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-            <span className="material-symbols-outlined text-white text-lg lg:text-xl font-bold">restaurant</span>
+      <aside 
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`
+          fixed left-0 top-0 h-screen bg-[#16181f] flex flex-col py-3 md:py-4 lg:py-6 z-50 border-r border-[#252830]
+          transition-all duration-300 ease-in-out
+          ${expanded ? 'w-64' : 'w-16 lg:w-20'}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
+        {/* Logo Area */}
+        <div className={`mb-6 lg:mb-10 px-4 transition-all duration-300 ${expanded ? 'items-start' : 'items-center'} flex flex-col`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 lg:w-10 h-8 lg:h-10 shrink-0 rounded-lg lg:rounded-xl bg-[#e8391a] flex items-center justify-center shadow-lg shadow-[#e8391a]/30">
+              <span className="material-symbols-outlined text-white text-lg lg:text-xl font-bold">restaurant</span>
+            </div>
+            {expanded && (
+              <span className="font-[Outfit] font-black text-white text-xl italic tracking-tighter animate-in fade-in slide-in-from-left-2 duration-300">
+                KERO <span className="text-[#e8391a]">SISTEMA</span>
+              </span>
+            )}
           </div>
         </div>
 
-        <nav className="flex-1 w-full space-y-2 lg:space-y-4 px-1 lg:px-2 overflow-y-auto no-scrollbar">
+        {/* Navigation Items */}
+        <nav className="flex-1 w-full space-y-1 lg:space-y-2 px-2 overflow-y-auto no-scrollbar">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              title={item.label}
               end={item.path === '/'}
               onClick={onClose}
               className={({ isActive }) =>
-                `group relative flex items-center justify-center w-10 lg:w-12 h-10 lg:h-12 mx-auto rounded-lg lg:rounded-xl transition-all duration-300 ${
+                `group relative flex items-center h-10 lg:h-12 rounded-lg lg:rounded-xl transition-all duration-300 overflow-hidden ${
                   isActive
-                    ? 'bg-primary-container/10 text-primary shadow-[inset_0_0_12px_rgba(255,86,55,0.1)]'
-                    : 'text-on-surface/40 hover:text-primary hover:bg-surface-container-high/20'
+                    ? 'bg-[#e8391a]/10 text-[#e8391a]'
+                    : 'text-gray-500 hover:text-white hover:bg-white/5'
                 }`
               }
             >
               {({ isActive }) => (
-                <>
-                  {renderIcon(item, isActive)}
-                  {isActive && (
-                    <div className="absolute left-0 w-1 h-5 lg:h-6 bg-primary rounded-r-full shadow-lg shadow-primary/50" />
+                <div className="flex items-center w-full px-2 lg:px-3 gap-3">
+                  <span className={`material-symbols-outlined text-2xl transition-all duration-300 shrink-0 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(232,57,26,0.4)]' : 'group-hover:scale-110'}`}>
+                    {item.icon}
+                  </span>
+                  
+                  {expanded && (
+                    <span className="text-sm font-bold truncate animate-in fade-in slide-in-from-left-2 duration-300">
+                      {item.label}
+                    </span>
                   )}
-                </>
+
+                  {isActive && !expanded && (
+                    <div className="absolute left-0 w-1 h-5 lg:h-6 bg-[#e8391a] rounded-r-full shadow-lg shadow-[#e8391a]/50" />
+                  )}
+                  
+                  {isActive && expanded && (
+                    <div className="absolute right-0 w-1 h-5 lg:h-6 bg-[#e8391a] rounded-l-full" />
+                  )}
+                </div>
               )}
             </NavLink>
           ))}
         </nav>
 
-        <div className="py-2 lg:py-4 mt-auto">
+        {/* Logout Button */}
+        <div className="px-2 mt-auto">
           <button
             onClick={signOut}
-            className="w-10 lg:w-12 h-10 lg:h-12 flex items-center justify-center text-error/40 hover:text-error hover:bg-error-container/10 rounded-lg lg:rounded-xl transition-all"
-            title="Sair"
+            className={`
+              w-full h-10 lg:h-12 flex items-center transition-all duration-300 rounded-lg lg:rounded-xl
+              text-red-500/40 hover:text-red-500 hover:bg-red-500/10 px-2 lg:px-3 gap-3
+            `}
           >
-            <span className="material-symbols-outlined text-xl lg:text-2xl">logout</span>
+            <span className="material-symbols-outlined text-xl lg:text-2xl shrink-0">logout</span>
+            {expanded && (
+              <span className="text-sm font-bold animate-in fade-in slide-in-from-left-2 duration-300">
+                Sair do Sistema
+              </span>
+            )}
           </button>
         </div>
       </aside>

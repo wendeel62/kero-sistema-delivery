@@ -104,12 +104,12 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-      <div className="bg-surface-container-high rounded-3xl p-8 w-full max-w-2xl border border-outline-variant shadow-2xl max-h-[90vh] overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6">
+      <div className="bg-surface-container-high rounded-2xl sm:rounded-3xl p-4 sm:p-8 w-full max-w-2xl border border-outline-variant shadow-2xl max-h-[95vh] overflow-y-auto animate-fade-in relative">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h3 className="font-[Outfit] text-2xl font-bold text-on-surface">Fechar Mesa {mesa.numero}</h3>
-            <p className="text-sm text-on-surface-variant">Selecione a forma de divisão</p>
+            <h3 className="font-[Outfit] text-xl sm:text-2xl font-bold text-on-surface leading-tight">Fechar Mesa {mesa.numero}</h3>
+            <p className="text-[10px] sm:text-sm text-on-surface-variant uppercase tracking-wider font-bold">Divisão de Conta</p>
           </div>
           <button onClick={onCancelar} className="text-on-surface-variant hover:text-on-surface">
             <span className="material-symbols-outlined">close</span>
