@@ -38,6 +38,7 @@ export default function CardapioOnlinePage() {
   const [savedCustomer, setSavedCustomer] = useState<SavedCustomer | null>(null)
   const [showDadosResumo, setShowDadosResumo] = useState(false)
   const [veioDeDadosSalvos, setVeioDeDadosSalvos] = useState(false)
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
 
   // Dados do cliente
   const [nome, setNome] = useState('')
@@ -255,29 +256,33 @@ export default function CardapioOnlinePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-outline-variant/10 px-6 py-4">
+      <header className="sticky top-0 z-50 bg-[#16181f]/80 backdrop-blur-md border-b border-[#252830] px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-black italic text-primary-container font-[Outfit]">KERO</h1>
-          <button onClick={() => setStep(step === 'menu' ? 'dados' : 'menu')} className="relative bg-primary-container text-on-primary-fixed px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg">shopping_cart</span>
-            {cart.length > 0 && <span className="bg-on-primary-fixed text-primary-container w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold">{cart.reduce((s, i) => s + i.quantidade, 0)}</span>}
+          <div className="flex flex-col">
+            <h1 className="text-xl sm:text-2xl font-black italic text-[#e8391a] font-[Outfit] leading-none">KERO</h1>
+            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Delivery Online</span>
+          </div>
+          <button onClick={() => setStep(step === 'menu' ? 'dados' : 'menu')} className="relative bg-[#e8391a] text-white p-2.5 sm:px-5 sm:py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-[#e8391a]/20 active:scale-95 transition-transform">
+            <span className="material-symbols-outlined text-lg sm:text-xl">shopping_basket</span>
+            <span className="hidden sm:inline">Carrinho</span>
+            {cart.length > 0 && <span className="absolute -top-1.5 -right-1.5 bg-white text-[#e8391a] w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-black shadow-md">{cart.reduce((s, i) => s + i.quantidade, 0)}</span>}
           </button>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-32 sm:pb-8">
         {/* Stepper */}
-        {/* Stepper - não mostrar no menu e reconhecimento */}
+        {/* Stepper */}
         {step !== 'menu' && step !== 'reconhecimento' && (
-          <div className="flex items-center gap-4 mb-8">
-            {['Carrinho', 'Dados', 'Pagamento'].map((s, i) => {
+          <div className="flex items-center justify-between gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-x-auto no-scrollbar pb-2">
+            {['Cesto', 'Dados', 'Pagar'].map((s, i) => {
               const stepMap: Step[] = ['menu', 'dados', 'pagamento']
               const active = stepMap.indexOf(step) >= i
               return (
-                <div key={s} className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${active ? 'bg-primary-container text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>{i + 1}</div>
-                  <span className={`text-sm font-bold ${active ? 'text-on-surface' : 'text-on-surface-variant/50'}`}>{s}</span>
-                  {i < 2 && <div className={`w-8 h-[2px] ${active ? 'bg-primary-container' : 'bg-surface-container-high'}`} />}
+                <div key={s} className="flex items-center gap-2 flex-shrink-0">
+                  <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black ${active ? 'bg-[#e8391a] text-white shadow-lg shadow-[#e8391a]/30' : 'bg-[#252830] text-gray-500'}`}>{i + 1}</div>
+                  <span className={`text-[11px] sm:text-sm font-bold ${active ? 'text-white' : 'text-gray-600'}`}>{s}</span>
+                  {i < 2 && <div className={`w-4 sm:w-8 h-[1px] ${active ? 'bg-[#e8391a]/50' : 'bg-[#252830]'}`} />}
                 </div>
               )
             })}
@@ -293,7 +298,7 @@ export default function CardapioOnlinePage() {
               filtroAtivo={filtroCategoria} 
               onSetFiltro={setFiltroCategoria} 
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {filteredProdutos.map(p => {
                 const preco = precosTamanho[p.id]?.length 
                   ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco)))
@@ -304,12 +309,13 @@ export default function CardapioOnlinePage() {
                     produto={p}
                     preco={preco}
                     onAddToCart={handleAddToCart}
+                    onImageClick={url => setSelectedImageUrl(url)}
                   />
                 )
               })}
             </div>
             {cart.length > 0 && (
-              <div className="sticky bottom-4 mt-8">
+              <div className="fixed bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-[#16181f] via-[#16181f]/95 to-transparent z-[60] lg:sticky lg:bottom-4 lg:bg-none">
                 <button 
                   onClick={() => {
                     if (savedCustomer) {
@@ -320,10 +326,14 @@ export default function CardapioOnlinePage() {
                       setStep('dados')
                     }
                   }} 
-                  className="w-full bg-primary-container text-on-primary-fixed py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-3 shadow-[0_0_40px_-10px_rgba(255,86,55,0.4)]"
+                  className="w-full max-w-lg mx-auto bg-[#e8391a] text-white py-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-3 shadow-[0_10_40px_-5px_rgba(232,57,26,0.5)] active:scale-95 transition-all animate-in slide-in-from-bottom-5 duration-500"
                 >
-                  Ver Carrinho ({cart.reduce((s, i) => s + i.quantidade, 0)} itens) — {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  <span className="material-symbols-outlined">arrow_forward</span>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg sm:text-xl">shopping_basket</span>
+                    <span>VER CARRINHO ({cart.reduce((s, i) => s + i.quantidade, 0)})</span>
+                  </div>
+                  <div className="w-[1px] h-4 bg-white/20" />
+                  <span>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </button>
               </div>
             )}
@@ -539,67 +549,85 @@ export default function CardapioOnlinePage() {
       {/* Modal Seleção Tamanho e Sabores */}
       {showTamanhoModal && produtoSelecionado && precosTamanho[produtoSelecionado.id] && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setShowTamanhoModal(false)}>
-          <div className="bg-surface-container-high rounded-3xl p-8 w-full max-w-md border border-outline-variant shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="font-[Outfit] text-2xl font-bold mb-2 text-on-surface">{produtoSelecionado.nome}</h3>
-            <p className="text-sm text-on-surface-variant mb-4">Selecione o tamanho:</p>
+          <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-8 w-full max-w-md border border-[#252830] shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="font-[Outfit] text-2xl font-black text-white italic tracking-tighter">{produtoSelecionado.nome}</h3>
+                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">Personalize seu pedido</p>
+              </div>
+              <button 
+                onClick={() => setShowTamanhoModal(false)}
+                className="w-10 h-10 rounded-xl bg-[#252830] text-gray-400 flex items-center justify-center active:scale-90 transition-transform"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
             
-            <div className="space-y-2 mb-6">
-              {precosTamanho[produtoSelecionado.id].map((pt) => (
-                <button
-                  key={pt.id}
-                  onClick={() => setTamanhoSelecionado(pt.tamanho)}
-                  className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${
-                    tamanhoSelecionado === pt.tamanho 
-                      ? 'border-primary-container bg-primary-container/10' 
-                      : 'border-outline-variant/10 hover:border-outline-variant/30'
-                  }`}
-                >
-                  <span className="font-bold text-on-surface">{pt.tamanho}</span>
-                  <span className="font-bold text-primary">{Number(pt.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                </button>
-              ))}
+            <div className="space-y-3 mb-8">
+              <label className="text-[10px] font-black text-[#e8391a] uppercase tracking-widest ml-1">Selecione o tamanho</label>
+              <div className="grid grid-cols-1 gap-2">
+                {precosTamanho[produtoSelecionado.id].map((pt) => (
+                  <button
+                    key={pt.id}
+                    onClick={() => setTamanhoSelecionado(pt.tamanho)}
+                    className={`group w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                      tamanhoSelecionado === pt.tamanho 
+                        ? 'border-[#e8391a] bg-[#e8391a]/5' 
+                        : 'border-[#252830] hover:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${tamanhoSelecionado === pt.tamanho ? 'border-[#e8391a]' : 'border-gray-600'}`}>
+                        {tamanhoSelecionado === pt.tamanho && <div className="w-2.5 h-2.5 rounded-full bg-[#e8391a]" />}
+                      </div>
+                      <span className={`font-bold ${tamanhoSelecionado === pt.tamanho ? 'text-white' : 'text-gray-400'}`}>{pt.tamanho}</span>
+                    </div>
+                    <span className="font-black text-[#e8391a]">{Number(pt.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Toggle Inteiro / Meio a Meio */}
-            <div className="flex bg-surface-container rounded-xl p-1 mb-6">
+            <div className="flex bg-[#252830] rounded-2xl p-1.5 mb-8">
               <button 
                 onClick={() => { setTipoPizza('inteiro'); setSabor1(''); setSabor2('') }} 
-                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tipoPizza === 'inteiro' ? 'bg-primary-container text-on-primary-fixed' : 'text-on-surface-variant'}`}
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${tipoPizza === 'inteiro' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
               >
                 Inteiro
               </button>
               <button 
                 onClick={() => { setTipoPizza('meio-a-meio'); setSabor1(sabores[0]?.nome || ''); setSabor2(sabores[1]?.nome || '') }} 
-                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tipoPizza === 'meio-a-meio' ? 'bg-primary-container text-on-primary-fixed' : 'text-on-surface-variant'}`}
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${tipoPizza === 'meio-a-meio' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
               >
-                Meio a Meio
+                2 Sabores
               </button>
             </div>
 
             {/* Seleção de Sabores */}
             {tipoPizza === 'meio-a-meio' && (
-              <div className="space-y-4 mb-6">
+              <div className="space-y-4 mb-8 bg-[#16181f] p-4 rounded-2xl border border-[#252830]">
                 <div>
-                  <label className="text-xs font-bold text-on-surface-variant mb-2 block">1º Sabor</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">1º Sabor</label>
                   <select 
                     value={sabor1} 
                     onChange={(e) => setSabor1(e.target.value)}
-                    className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface"
+                    className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-bold appearance-none cursor-pointer"
                   >
-                    <option value="">Selecione</option>
+                    <option value="">Selecione...</option>
                     {sabores.filter(s => s.disponivel).map(s => (
                       <option key={s.id} value={s.nome}>{s.nome}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-on-surface-variant mb-2 block">2º Sabor</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">2º Sabor</label>
                   <select 
                     value={sabor2} 
                     onChange={(e) => setSabor2(e.target.value)}
-                    className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface"
+                    className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-bold appearance-none cursor-pointer"
                   >
-                    <option value="">Selecione</option>
+                    <option value="">Selecione...</option>
                     {sabores.filter(s => s.disponivel).map(s => (
                       <option key={s.id} value={s.nome}>{s.nome}</option>
                     ))}
@@ -609,14 +637,14 @@ export default function CardapioOnlinePage() {
             )}
 
             {tipoPizza === 'inteiro' && sabores.length > 0 && (
-              <div className="mb-6">
-                <label className="text-xs font-bold text-on-surface-variant mb-2 block">Sabor</label>
+              <div className="mb-8">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">Observação de Sabor</label>
                 <select 
                   value={sabor1} 
                   onChange={(e) => setSabor1(e.target.value)}
-                  className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface"
+                  className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-bold appearance-none cursor-pointer"
                 >
-                  <option value="">Selecione</option>
+                  <option value="">Opcional: Selecione...</option>
                   {sabores.filter(s => s.disponivel).map(s => (
                     <option key={s.id} value={s.nome}>{s.nome}</option>
                   ))}
@@ -625,21 +653,16 @@ export default function CardapioOnlinePage() {
             )}
 
             {/* Preço Total */}
-            {tamanhoSelecionado && (tipoPizza === 'inteiro' ? (sabor1 || sabores.length === 0) : (sabor1 && sabor2)) && (
-              <div className="bg-primary-container/20 p-4 rounded-xl mb-6 text-center">
-                <span className="text-sm text-on-surface-variant">Total: </span>
-                <span className="text-2xl font-bold text-primary">
+            {tamanhoSelecionado && (tipoPizza === 'inteiro' ? true : (sabor1 && sabor2)) && (
+              <div className="bg-[#e8391a] p-5 rounded-2xl mb-4 text-center shadow-[0_10px_40px_-5px_rgba(232,57,26,0.5)]">
+                <div className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Valor Total</div>
+                <div className="text-3xl font-black text-white italic tracking-tighter">
                   {(() => {
                     const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
                     let preco = precoTamanho ? Number(precoTamanho.preco) : 0
-                    
-                    if (tipoPizza === 'meio-a-meio' && sabor1 && sabor2) {
-                      preco = preco 
-                    }
-                    
                     return preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                   })()}
-                </span>
+                </div>
               </div>
             )}
 
@@ -649,15 +672,61 @@ export default function CardapioOnlinePage() {
                 const preco = precoTamanho ? Number(precoTamanho.preco) : 0
                 addToCart(produtoSelecionado, preco, tamanhoSelecionado)
               }}
-              disabled={(tipoPizza === 'inteiro' && !sabor1 && sabores.length > 0) || (tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
-              className="w-full py-4 rounded-xl bg-primary-container text-on-primary-fixed font-bold text-sm disabled:opacity-50"
+              disabled={(tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
+              className="w-full py-5 rounded-2xl bg-white text-black font-black text-xs uppercase tracking-widest shadow-xl disabled:opacity-30 active:scale-95 transition-all"
             >
-              Adicionar ao Carrinho
+              Confirmar e Adicionar
             </button>
+          </div>
+        </div>
+      )}
 
-            <button onClick={() => setShowTamanhoModal(false)} className="w-full mt-3 py-3 rounded-xl border border-outline-variant/20 text-on-surface-variant font-bold text-sm">
-              Cancelar
+      {/* Modal Zoom Foto (Stories Style) */}
+      {selectedImageUrl && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black animate-in fade-in zoom-in duration-300 flex flex-col items-center justify-center overflow-hidden"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          {/* Header com botão fechar */}
+          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent z-10 pointer-events-none">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-10 bg-[#e8391a] rounded-full" />
+              <div className="flex flex-col">
+                <span className="text-white font-black text-xl italic tracking-tighter leading-none">KERO VISUAL</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Alta Qualidade</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setSelectedImageUrl(null)}
+              className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md text-white flex items-center justify-center pointer-events-auto active:scale-90 transition-transform"
+            >
+              <span className="material-symbols-outlined text-2xl font-bold">close</span>
             </button>
+          </div>
+
+          {/* Imagem Central */}
+          <div className="w-full h-full p-2 sm:p-0 flex items-center justify-center">
+             <img 
+              src={selectedImageUrl || undefined} 
+              alt="Produto em destaque"
+              className="w-full h-full object-contain sm:object-cover sm:max-w-md sm:max-h-[80vh] sm:rounded-3xl shadow-2xl"
+            />
+          </div>
+
+          {/* Footer Informativo */}
+          <div className="absolute bottom-0 left-0 right-0 p-8 w-full bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center gap-4 pb-12 pointer-events-none">
+             <div className="flex items-center gap-1 mb-2">
+                <div className="w-8 h-1 bg-white/30 rounded-full" />
+                <div className="w-8 h-1 bg-white/10 rounded-full" />
+                <div className="w-8 h-1 bg-white/10 rounded-full" />
+             </div>
+             <button 
+               onClick={() => setSelectedImageUrl(null)}
+               className="bg-white text-black px-10 py-4 rounded-2xl font-black text-xs tracking-widest uppercase shadow-2xl pointer-events-auto active:scale-95 transition-all flex items-center gap-2"
+             >
+               <span className="material-symbols-outlined text-sm">arrow_back</span>
+               Voltar para o Cardápio
+             </button>
           </div>
         </div>
       )}

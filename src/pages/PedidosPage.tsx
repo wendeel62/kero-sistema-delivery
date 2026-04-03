@@ -73,6 +73,8 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [activeTab, setActiveTab] = useState<'kanban' | 'whatsapp' | 'gestor'>('kanban')
+  const [activeColIndex, setActiveColIndex] = useState(0)
+  const kanbanRef = useRef<HTMLDivElement>(null)
 
   const [filtroData, setFiltroData] = useState<'hoje' | 'ontem' | 'semana' | 'mes' | 'personalizado'>('hoje')
   const [dataInicio, setDataInicio] = useState('')
@@ -432,9 +434,27 @@ export default function PedidosPage() {
     }
   }
 
-  const tabs = [
-    { id: 'kanban', label: 'Kanban', icon: 'view_kanban' },
-  ]
+  const scrollToColumn = (index: number) => {
+    setActiveColIndex(index)
+    if (kanbanRef.current) {
+      const colWidth = kanbanRef.current.scrollWidth / COLUMNS.length
+      kanbanRef.current.scrollTo({
+        left: index * colWidth,
+        behavior: 'smooth'
+      })
+    }
+  }
+
+  const handleScroll = () => {
+    if (kanbanRef.current) {
+      const scrollLeft = kanbanRef.current.scrollLeft
+      const colWidth = kanbanRef.current.offsetWidth // Use offsetWidth for viewport width
+      const index = Math.min(Math.floor((scrollLeft + colWidth/2) / colWidth), COLUMNS.length - 1)
+      if (index !== activeColIndex) {
+        setActiveColIndex(index)
+      }
+    }
+  }
 
   return (
     <div className="min-h-[calc(100vh-80px)] md:h-screen w-full flex flex-col px-3 sm:px-4 md:px-6 pt-12 md:pt-6 pb-4 animate-fade-in">
@@ -451,13 +471,26 @@ export default function PedidosPage() {
               </p>
             </div>
             
-            {/* Resumo rápido mobile */}
-            <div className="flex items-center gap-3 sm:gap-4 text-xs">
-              {COLUMNS.filter(c => c.id !== 'cancelado').map(col => (
-                <div key={col.id} className="flex items-center gap-1">
+            {/* Resumo rápido mobile — Agora clicável como abas */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              {COLUMNS.map((col, idx) => (
+                <button 
+                  key={col.id} 
+                  onClick={() => scrollToColumn(idx)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all shrink-0 ${
+                    activeColIndex === idx 
+                      ? `${col.color} bg-[#16181f] shadow-lg shadow-${col.color.split('-')[1]}-500/10` 
+                      : 'border-transparent bg-[#16181f]/40 opacity-40'
+                  }`}
+                >
                   <div className={`w-2 h-2 rounded-full ${col.color.replace('border-', 'bg-')}`} />
-                  <span className="text-white/40 font-medium">{columnsData[col.id]?.length || 0}</span>
-                </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${activeColIndex === idx ? 'text-white' : 'text-white/60'}`}>
+                    {col.title.split(' ')[0]}
+                  </span>
+                  <span className={`text-[10px] font-bold ${activeColIndex === idx ? col.textColor : 'text-white/40'}`}>
+                    {columnsData[col.id]?.length || 0}
+                  </span>
+                </button>
               ))}
             </div>
           </div>
@@ -497,13 +530,22 @@ export default function PedidosPage() {
       </header>
 
       {/* Kanban Board */}
-      <div className="flex-1 w-full overflow-x-auto no-scrollbar pb-2">
-        <div className="flex md:grid md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 min-w-0 md:min-w-0 h-full items-stretch">
-          {COLUMNS.map(col => {
+      <div 
+        ref={kanbanRef}
+        onScroll={handleScroll}
+        className="flex-1 w-full overflow-x-auto no-scrollbar pb-2 scroll-smooth"
+        style={{ scrollSnapType: 'x mandatory' }}
+      >
+        <div className="flex md:grid md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 h-full items-stretch">
+          {COLUMNS.map((col, idx) => {
             const colPedidos = columnsData[col.id] || []
             
             return (
-              <div key={col.id} className="min-w-[260px] sm:min-w-[280px] md:min-w-0 flex flex-col h-full max-h-full overflow-hidden">
+              <div 
+                key={col.id} 
+                className="min-w-[85vw] sm:min-w-[45vw] md:min-w-0 flex flex-col h-full max-h-full overflow-hidden"
+                style={{ scrollSnapAlign: 'start' }}
+              >
                 {/* Column Header */}
                 <div className={`shrink-0 flex justify-between items-center p-2.5 sm:p-3 lg:p-4 rounded-t-xl lg:rounded-t-2xl border-t-4 ${col.color} bg-gradient-to-r ${col.gradient} border-x border-[#252830] border-b border-[#252830]/50`}>
                   <h2 className={`font-bold text-xs sm:text-sm leading-tight ${col.textColor}`}>{col.title}</h2>

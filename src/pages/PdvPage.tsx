@@ -3,20 +3,32 @@ import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import DivisaoConta from '../components/DivisaoConta'
 import { syncCliente } from '../lib/syncCliente'
+import type { Produto } from './CardapioOnlinePage'
+import ProductCard from '../components/ProductCard'
 
-interface Produto { id: string; nome: string; preco: number; categoria_id: string; imagem_url?: string }
 interface Categoria { id: string; nome: string }
-interface ItemPedido { produto: Produto; quantidade: number; observacoes: string }
+interface ItemPedido { produto: Produto; quantidade: number; observacoes: string; tamanho?: string; sabor1?: string; sabor2?: string; tipoPizza?: 'inteiro' | 'meio-a-meio' }
 interface Mesa { id: string; numero: number; capacidade: number; status: string; responsavel: string; pessoas: number; aberta_em: string }
+interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
+interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 
 export default function PdvPage() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [mesas, setMesas] = useState<Mesa[]>([])
   const [itens, setItens] = useState<ItemPedido[]>([])
+  const [cartPulse, setCartPulse] = useState(false)
+  const [precosTamanho, setPrecosTamanho] = useState<Record<string, PrecoTamanho[]>>({})
+  const [sabores, setSabores] = useState<Sabor[]>([])
+  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null)
+  const [showVariacoesModal, setShowVariacoesModal] = useState(false)
+  const [tamanhoSelecionado, setTamanhoSelecionado] = useState<string>('')
+  const [tipoPizza, setTipoPizza] = useState<'inteiro' | 'meio-a-meio'>('inteiro')
+  const [sabor1, setSabor1] = useState<string>('')
+  const [sabor2, setSabor2] = useState<string>('')
   const [filtro, setFiltro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
-  const [tabPdv, setTabPdv] = useState<'mesas' | 'produtos'>('produtos')
+  const [tabPdv, setTabPdv] = useState<'mesas' | 'produtos' | 'carrinho'>('produtos')
   const [showOcuparMesa, setShowOcuparMesa] = useState(false)
   const [mesaSelecionada, setMesaSelecionada] = useState<Mesa | null>(null)
   const [pessoasMesa, setPessoasMesa] = useState(1)
@@ -36,14 +48,25 @@ export default function PdvPage() {
   const [sucesso, setSucesso] = useState(false)
 
   const fetchData = useCallback(async () => {
-    const [{ data: prods }, { data: cats }, { data: mesasData }] = await Promise.all([
+    const [{ data: prods }, { data: cats }, { data: mesasData }, { data: precos }, { data: saboresData }] = await Promise.all([
       supabase.from('produtos').select('*').eq('disponivel', true).order('ordem'),
       supabase.from('categorias').select('*').order('ordem'),
       supabase.from('mesas').select('*').order('numero'),
+      supabase.from('precos_tamanho').select('*'),
+      supabase.from('sabores').select('*').eq('disponivel', true).order('nome'),
     ])
     if (prods) setProdutos(prods)
     if (cats) setCategorias(cats)
     if (mesasData) setMesas(mesasData)
+    if (saboresData) setSabores(saboresData)
+    if (precos) {
+      const grouped: Record<string, PrecoTamanho[]> = {}
+      precos.forEach(p => {
+        if (!grouped[p.produto_id]) grouped[p.produto_id] = []
+        grouped[p.produto_id].push(p)
+      })
+      setPrecosTamanho(grouped)
+    }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -75,11 +98,50 @@ export default function PdvPage() {
   }
 
   const addItem = (p: Produto) => {
+    const variants = precosTamanho[p.id]
+    if (variants && variants.length > 0) {
+      setProdutoSelecionado(p)
+      setTamanhoSelecionado(variants[0].tamanho)
+      setTipoPizza('inteiro')
+      setSabor1('')
+      setSabor2('')
+      setShowVariacoesModal(true)
+      return
+    }
+    
+    addToCart(p, Number(p.preco) || 0)
+  }
+
+  const addToCart = (p: Produto, preco: number, tamanho?: string, s1?: string, s2?: string, tipo?: 'inteiro' | 'meio-a-meio') => {
     setItens(prev => {
-      const existing = prev.find(i => i.produto.id === p.id)
-      if (existing) return prev.map(i => i.produto.id === p.id ? { ...i, quantidade: i.quantidade + 1 } : i)
-      return [...prev, { produto: p, quantidade: 1, observacoes: '' }]
+      const existing = prev.find(i => 
+        i.produto.id === p.id && 
+        i.tamanho === tamanho && 
+        i.sabor1 === s1 && 
+        i.sabor2 === s2
+      )
+      if (existing) {
+        return prev.map(i => 
+          (i.produto.id === p.id && i.tamanho === tamanho && i.sabor1 === s1 && i.sabor2 === s2) 
+            ? { ...i, quantidade: i.quantidade + 1 } 
+            : i
+        )
+      }
+      return [...prev, { 
+        produto: { ...p, preco }, 
+        quantidade: 1, 
+        observacoes: '', 
+        tamanho, 
+        sabor1: s1, 
+        sabor2: s2, 
+        tipoPizza: tipo 
+      }]
     })
+    
+    setCartPulse(true)
+    setTimeout(() => setCartPulse(false), 300)
+    setShowVariacoesModal(false)
+    setProdutoSelecionado(null)
   }
 
   const removeItem = (id: string) => {
@@ -91,6 +153,19 @@ export default function PdvPage() {
 
   const salvarPedido = async () => {
     if (itens.length === 0) return
+    
+    // Validação: Obrigatório apenas para entrega
+    if (tipo === 'entrega') {
+      if (!clienteNome || !clienteTelefone) {
+        alert('Nome e Telefone são obrigatórios para pedidos de entrega!')
+        return
+      }
+      if (!enderecoEntrega) {
+        alert('Endereço de entrega é obrigatório!')
+        return
+      }
+    }
+
     setSalvando(true)
 
     const { data: pedido, error: errPed } = await supabase.from('pedidos').insert({
@@ -117,7 +192,7 @@ export default function PdvPage() {
       const itensInsert = itens.map(i => ({
         pedido_id: pedido.id,
         produto_id: i.produto.id,
-        produto_nome: i.produto.nome,
+        produto_nome: i.produto.nome + (i.tamanho ? ` (${i.tamanho})` : '') + (i.sabor1 ? ` - ${i.sabor1}` : '') + (i.sabor2 ? ` + ${i.sabor2}` : ''),
         quantidade: i.quantidade,
         preco_unitario: i.produto.preco,
         total: Number(i.produto.preco) * i.quantidade,
@@ -131,7 +206,9 @@ export default function PdvPage() {
       }
     }
 
-    await syncCliente(clienteNome, clienteTelefone, total)
+    if (clienteNome || clienteTelefone) {
+      await syncCliente(clienteNome, clienteTelefone, total)
+    }
 
     setSalvando(false)
     setSucesso(true)
@@ -164,9 +241,9 @@ export default function PdvPage() {
   }
 
   return (
-    <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] p-2 sm:p-3 lg:p-6">
-      {/* Left - Product Grid */}
-      <div className="flex-1 flex flex-col min-w-0 order-2 lg:order-1">
+    <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] p-2 sm:p-3 lg:p-6 overflow-hidden">
+      {/* Left - Product Grid / Mesas */}
+      <div className={`flex-1 flex flex-col min-w-0 ${tabPdv === 'carrinho' ? 'hidden lg:flex' : 'flex'}`}>
         <div className="mb-3 lg:mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3">
           <div>
             <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px] mb-0.5 block">Ponto de Venda</span>
@@ -174,13 +251,21 @@ export default function PdvPage() {
           </div>
           <div className="flex bg-[#1a1a1a] rounded-lg sm:rounded-xl p-0.5 sm:p-1 border border-[#252830]">
             <button onClick={() => setTabPdv('mesas')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'mesas' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Mesas</button>
-            <button onClick={() => setTabPdv('produtos')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Produtos</button>
+            <button onClick={() => setTabPdv('produtos')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Menu</button>
+            <button onClick={() => setTabPdv('carrinho')} className={`lg:hidden flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'carrinho' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'} ${cartPulse ? 'scale-110' : ''}`}>
+              Carrinho
+              {itens.length > 0 && (
+                <span className={`w-4 h-4 flex items-center justify-center rounded-full text-[8px] animate-in fade-in zoom-in duration-300 ${tabPdv === 'carrinho' ? 'bg-white text-[#e8391a]' : 'bg-[#e8391a] text-white'}`}>
+                  {itens.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
         {tabPdv === 'mesas' && (
           <div className="mb-3">
-            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
               {mesas.filter(m => m.status !== 'inativa').map(mesa => (
                 <div key={mesa.id} className="relative">
                   <button
@@ -247,31 +332,38 @@ export default function PdvPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 overflow-y-auto flex-1 pb-2">
-          {filteredProdutos.map(p => (
-            <button key={p.id} onClick={() => addItem(p)} className="bg-[#1a1a1a] p-0 rounded-xl border border-[#252830] hover:border-[#e8391a]/30 hover:scale-[1.02] transition-all text-left overflow-hidden group">
-              <div className="w-full h-16 sm:h-20 lg:h-24 overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                {p.imagem_url ? (
-                  <img src={p.imagem_url} alt={p.nome} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#252830]">
-                    <span className="material-symbols-outlined text-2xl sm:text-3xl text-gray-600">restaurant</span>
-                  </div>
-                )}
-              </div>
-              <div className="p-2 sm:p-3">
-                <h4 className="font-[Outfit] font-bold text-[11px] sm:text-xs lg:text-sm truncate text-white">{p.nome}</h4>
-                <p className="text-[11px] sm:text-xs lg:text-sm font-bold text-[#e8391a] mt-0.5">{Number(p.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-              </div>
-            </button>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-3 overflow-y-auto flex-1 pb-4 custom-scrollbar pr-2 pt-1">
+          {filteredProdutos.map(p => {
+             // Buscar preço mínimo se houver variações
+             const preco = precosTamanho[p.id]?.length 
+               ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco)))
+               : Number(p.preco)
+
+             return (
+               <ProductCard 
+                 key={p.id}
+                 produto={p}
+                 preco={preco}
+                 onAddToCart={() => addItem(p)}
+               />
+             )
+          })}
         </div>
       </div>
 
       {/* Right - Cart / Order */}
-      <div className="w-full lg:w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0">
+      <div className={`w-full lg:w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
         <div className="p-4 lg:p-6 border-b border-[#252830]">
-          <h3 className="font-[Outfit] font-bold text-base lg:text-lg mb-3 lg:mb-4 text-white">Pedido Atual</h3>
+          <div className="flex justify-between items-center mb-3 lg:mb-4">
+            <h3 className="font-[Outfit] font-bold text-base lg:text-lg text-white">Pedido Atual</h3>
+            <button 
+              onClick={() => setTabPdv('produtos')} 
+              className="lg:hidden flex items-center gap-1 text-[#e8391a] text-xs font-bold uppercase transition-all hover:opacity-80"
+            >
+              <span className="material-symbols-outlined text-sm">arrow_back</span>
+              Continuar Comprando
+            </button>
+          </div>
           <div className="flex gap-2">
             {(['balcao', 'entrega', 'mesa'] as const).map(t => (
               <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-2 lg:py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
@@ -283,8 +375,8 @@ export default function PdvPage() {
           {tipo === 'entrega' && (
             <input value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)} placeholder="Endereço de entrega completo" className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
           )}
-          <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder="Nome do cliente" className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
-          <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder="Telefone (WhatsApp)" className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
+          <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder={tipo === 'entrega' ? "Nome do cliente *" : "Nome do cliente (Opcional)"} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
+          <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder={tipo === 'entrega' ? "Telefone (WhatsApp) *" : "Telefone (WhatsApp - Opcional)"} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
         </div>
 
         {/* Items */}
@@ -390,6 +482,103 @@ export default function PdvPage() {
           }}
         />
       )}
+
+      {/* Modal Seleção Tamanho e Sabores - PDV */}
+      {showVariacoesModal && produtoSelecionado && precosTamanho[produtoSelecionado.id] && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6" onClick={() => setShowVariacoesModal(false)}>
+          <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-8 w-full max-w-md border border-[#252830] shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="font-[Outfit] text-xl sm:text-2xl font-bold mb-1 text-white">{produtoSelecionado.nome}</h3>
+            <p className="text-xs text-gray-400 mb-6">Personalize o produto</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Tamanho</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {precosTamanho[produtoSelecionado.id].map((pt) => (
+                    <button
+                      key={pt.id}
+                      onClick={() => setTamanhoSelecionado(pt.tamanho)}
+                      className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                        tamanhoSelecionado === pt.tamanho 
+                          ? 'border-[#e8391a] bg-[#e8391a]/10' 
+                           : 'border-[#252830] hover:border-gray-700'
+                       }`}
+                     >
+                       <span className="font-bold text-white text-xs">{pt.tamanho}</span>
+                       <span className="font-bold text-[#e8391a] text-[10px]">{Number(pt.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                     </button>
+                   ))}
+                 </div>
+               </div>
+
+               <div>
+                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Formato</label>
+                 <div className="flex bg-[#16181f] rounded-xl p-1">
+                   <button 
+                     onClick={() => { setTipoPizza('inteiro'); setSabor1(''); setSabor2('') }} 
+                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tipoPizza === 'inteiro' ? 'bg-[#e8391a] text-white' : 'text-gray-400'}`}
+                   >
+                     Inteiro
+                   </button>
+                   <button 
+                     onClick={() => { setTipoPizza('meio-a-meio'); setSabor1(sabores[0]?.nome || ''); setSabor2(sabores[1]?.nome || '') }} 
+                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tipoPizza === 'meio-a-meio' ? 'bg-[#e8391a] text-white' : 'text-gray-400'}`}
+                   >
+                     Meio a Meio
+                   </button>
+                 </div>
+               </div>
+
+               <div className="space-y-3">
+                 <div>
+                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">{tipoPizza === 'inteiro' ? 'Sabor' : '1º Sabor'}</label>
+                   <select 
+                     value={sabor1} 
+                     onChange={(e) => setSabor1(e.target.value)}
+                     className="w-full bg-[#16181f] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white outline-none focus:border-[#e8391a]"
+                   >
+                     <option value="">Selecione</option>
+                     {sabores.filter(s => s.disponivel).map(s => (
+                       <option key={s.id} value={s.nome}>{s.nome}</option>
+                     ))}
+                   </select>
+                 </div>
+                 
+                 {tipoPizza === 'meio-a-meio' && (
+                   <div>
+                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">2º Sabor</label>
+                     <select 
+                       value={sabor2} 
+                       onChange={(e) => setSabor2(e.target.value)}
+                       className="w-full bg-[#16181f] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white outline-none focus:border-[#e8391a]"
+                     >
+                       <option value="">Selecione</option>
+                       {sabores.filter(s => s.disponivel).map(s => (
+                         <option key={s.id} value={s.nome}>{s.nome}</option>
+                       ))}
+                     </select>
+                   </div>
+                 )}
+               </div>
+             </div>
+
+             <div className="flex gap-3 mt-8">
+               <button onClick={() => setShowVariacoesModal(false)} className="flex-1 py-3.5 rounded-xl border border-[#252830] text-gray-400 font-bold text-sm">Cancelar</button>
+               <button 
+                 onClick={() => {
+                   const pt = precosTamanho[produtoSelecionado.id]?.find(x => x.tamanho === tamanhoSelecionado)
+                   const preco = pt ? Number(pt.preco) : 0
+                   addToCart(produtoSelecionado, preco, tamanhoSelecionado, sabor1, sabor2, tipoPizza)
+                 }}
+                 disabled={(tipoPizza === 'inteiro' && !sabor1 && sabores.length > 0) || (tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
+                 className="flex-1 py-3.5 rounded-xl bg-[#e8391a] text-white font-bold text-sm disabled:opacity-50"
+               >
+                 Adicionar
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   )
 }

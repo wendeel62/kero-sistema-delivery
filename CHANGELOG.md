@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 - `CONTEXT.md`: High-level project documentation and architecture overview.
 - `CHANGELOG.md`: Track project evolution and recent changes.
 - Installed **KERO Skill**: Orchestration system for the Kero SaaS (GESTOR -> PLATFORM -> SUBGESTOR).
+- **Public Menu Redesign**: New `ProductCard` and `CategoryFilters` components (iFood Dark style).
+- **Deploy**: Production update live on Vercel.
 
 ## [0.1.0] - 2026-03-28
 ### Added
