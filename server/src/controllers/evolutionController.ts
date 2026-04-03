@@ -135,18 +135,32 @@ export async function sendMessage(req: Request, res: Response) {
 
 export async function handleWebhook(req: Request, res: Response) {
   try {
-    const { instanceName, data } = req.body;
+    const { event, data, instance } = req.body;
+    
+    // We only care about new messages for now
+    if (event !== 'MESSAGES_UPSERT' || !data || !data.messages || data.messages.length === 0) {
+      return res.json({ success: true, ignored: true });
+    }
 
     const pool = getPool();
-    const instance = await pool.query(
+    const instanceName = instance;
+    const msg = data.messages[0];
+    const remoteJid = msg.key.remoteJid;
+    
+    // Extract message content safely
+    const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+    const fromMe = msg.key.fromMe || false;
+    const phoneNumber = remoteJid.split('@')[0];
+
+    const instanceResult = await pool.query(
       'SELECT id FROM instances WHERE instance_name = $1',
       [instanceName],
     );
 
-    if (instance.rows.length > 0 && data.message) {
+    if (instanceResult.rows.length > 0 && messageText) {
       await pool.query(
         'INSERT INTO messages (instance_id, phone_number, message_text, direction, status) VALUES ($1, $2, $3, $4, $5)',
-        [instance.rows[0].id, data.sender, data.message, 'incoming', 'received'],
+        [instanceResult.rows[0].id, phoneNumber, messageText, fromMe ? 'outgoing' : 'incoming', 'received'],
       );
     }
 
