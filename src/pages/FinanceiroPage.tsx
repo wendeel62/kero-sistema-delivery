@@ -144,15 +144,17 @@ export default function FinanceiroPage() {
     }
 
     try {
+      console.log('Salvando meta:', { periodo, valor: value, tenantId: user?.id })
       await saveMeta(periodo, value)
       setToast('Salvo ✓')
       setTimeout(() => setToast(null), 2000)
     } catch (error) {
-      console.error('Erro ao salvar meta:', error)
+      console.error('Erro completo ao salvar meta:', error)
       setToast('Erro ao salvar')
       setTimeout(() => setToast(null), 2000)
     } finally {
       setEditingMeta(false)
+      setMetaInput('')
     }
   }
 

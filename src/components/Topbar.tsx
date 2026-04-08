@@ -2,6 +2,8 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useMetaPeriodo } from '../contexts/MetaPeriodoContext'
 import { useMetasFaturamento } from '../hooks/useMetasFaturamento'
+import { useTheme } from '../contexts/ThemeContext'
+import { Sun, Moon } from 'lucide-react'
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -9,6 +11,7 @@ function formatCurrency(value: number) {
 
 export default function Topbar() {
   const { user } = useAuth()
+  const { toggleTheme, isDark } = useTheme()
   const location = useLocation()
   const { periodo } = useMetaPeriodo()
   const isFinanceiro = location.pathname === '/financeiro'
@@ -32,12 +35,26 @@ export default function Topbar() {
       </div>
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-4">
-          <button className="relative text-on-surface hover:opacity-80 transition-opacity">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-0 right-0 w-2 h-2 bg-primary-container rounded-full" />
+          <button className="relative text-on-surface hover:opacity-80 transition-all p-1 rounded-lg hover:bg-surface-container-high/50">
+            <span className="material-symbols-outlined text-lg">notifications</span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full flex items-center justify-center">
+              <span className="w-1.5 h-1.5 bg-on-primary rounded-full animate-pulse" />
+            </span>
           </button>
-          <button className="text-on-surface hover:opacity-80 transition-opacity">
-            <span className="material-symbols-outlined">account_circle</span>
+          <button className="text-on-surface hover:opacity-80 transition-all p-1 rounded-lg hover:bg-surface-container-high/50 relative group">
+            <span className="material-symbols-outlined text-lg">account_circle</span>
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-surface" />
+            <span className="hidden absolute right-0 top-full mt-2 bg-surface-container-high border border-outline-variant rounded-lg py-2 px-4 shadow-2xl group-hover:block z-50 whitespace-nowrap text-sm">Perfil</span>
+          </button>
+          {/* Theme Toggle */}
+          <button 
+            onClick={toggleTheme}
+            className="p-2 rounded-xl glass-hover hover:rotate-12 transition-all duration-300 hover:scale-110 group relative"
+            title="Alternar tema"
+            aria-label="Alternar tema claro/escuro"
+          >
+            <Sun className={`w-5 h-5 transition-all duration-300 ${isDark ? 'opacity-20 scale-75' : ''}`} />
+            <Moon className={`w-5 h-5 absolute inset-0 transition-all duration-300 ${isDark ? '' : 'opacity-20 scale-75'}`} />
           </button>
         </div>
         {currentMeta ? (

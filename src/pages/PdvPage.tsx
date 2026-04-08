@@ -69,7 +69,9 @@ export default function PdvPage() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [])
   useRealtime('produtos', fetchData)
   useRealtime('mesas', fetchData)
 
@@ -88,14 +90,14 @@ export default function PdvPage() {
     fetchData()
   }
 
-  const getTempoOcupada = (abertaEm: string) => {
+  const getTempoOcupada = useCallback((abertaEm: string) => {
     if (!abertaEm) return ''
     const diff = Date.now() - new Date(abertaEm).getTime()
     const mins = Math.floor(diff / 60000)
     if (mins < 60) return `${mins}min`
     const hours = Math.floor(mins / 60)
     return `${hours}h ${mins % 60}min`
-  }
+  }, [])
 
   const addItem = (p: Produto) => {
     const variants = precosTamanho[p.id]
