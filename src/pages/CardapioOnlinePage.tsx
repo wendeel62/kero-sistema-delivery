@@ -82,7 +82,9 @@ export default function CardapioOnlinePage() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [])
   
   useRealtime('produtos', () => fetchData())
 

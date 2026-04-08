@@ -43,8 +43,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`
-          fixed left-0 top-0 h-screen bg-[#16181f] flex flex-col py-3 md:py-4 lg:py-6 z-50 border-r border-[#252830]
-          transition-all duration-300 ease-in-out
+          fixed left-0 top-0 h-screen bg-surface-container-high flex flex-col py-3 md:py-4 lg:py-6 z-50 
+          border-r border-outline-variant shadow-2xl glass-hover backdrop-blur-xl
+          transition-all duration-500 ease-out
           ${expanded ? 'w-64' : 'w-16 lg:w-20'}
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
@@ -52,14 +53,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Logo Area */}
         <div className={`mb-6 lg:mb-10 px-4 transition-all duration-300 ${expanded ? 'items-start' : 'items-center'} flex flex-col`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 lg:w-10 h-8 lg:h-10 shrink-0 rounded-lg lg:rounded-xl bg-[#e8391a] flex items-center justify-center shadow-lg shadow-[#e8391a]/30">
-              <span className="material-symbols-outlined text-white text-lg lg:text-xl font-bold">restaurant</span>
+            <div className="w-10 h-10 shrink-0 rounded-xl glass bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-xl animate-float">
+              <span className="material-symbols-outlined text-on-primary text-xl font-bold !text-lg drop-shadow-lg">fastfood</span>
             </div>
             {expanded && (
-              <span className="font-[Outfit] font-black text-white text-xl italic tracking-tighter animate-in fade-in slide-in-from-left-2 duration-300">
-                KERO <span className="text-[#e8391a]">SISTEMA</span>
+              <span className="font-headline font-black text-on-surface-variant text-xl tracking-tight animate-fade-in-up">
+                KERO <span className="text-primary font-black drop-shadow-sm">SISTEMA</span>
               </span>
             )}
+
           </div>
         </div>
 

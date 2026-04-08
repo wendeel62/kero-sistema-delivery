@@ -227,7 +227,9 @@ export default function DashboardPage() {
     })
   }, [])
 
-  useEffect(() => { fetchKpis() }, [fetchKpis])
+  useEffect(() => {
+    fetchKpis()
+  }, [])
   useEffect(() => {
     setLinkCardapio(window.location.origin + '/cardapio')
   }, [])

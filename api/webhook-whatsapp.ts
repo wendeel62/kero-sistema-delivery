@@ -24,7 +24,7 @@ export default async function handler(req, res) {
         
         if (numero && conteudo && msgKey?.fromMe === false) {
           await supabase.from('mensagens_whatsapp').insert({
-            tenant_id: 'default', // TODO: Map instance to tenant
+            tenant_id: payload.instance_id || 'default',
             contato_telefone: numero,
             contato_nome: msg.pushName || null,
             direcao: 'recebida',
@@ -41,3 +41,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error' })
   }
 }
+

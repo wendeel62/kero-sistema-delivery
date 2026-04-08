@@ -11,9 +11,9 @@ export default function Layout() {
       <main className="md:ml-16 lg:ml-20 min-h-screen">
         <button 
           onClick={() => setSidebarOpen(true)}
-          className="md:hidden fixed top-3 left-3 z-50 p-2 bg-[#16181f] rounded-lg border border-[#252830] active:scale-95 transition-transform"
+          className="md:hidden fixed top-3 left-3 z-50 p-2 glass hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg"
         >
-          <span className="material-symbols-outlined text-white text-xl">menu</span>
+          <span className="material-symbols-outlined text-on-surface text-xl font-medium">menu</span>
         </button>
         <div className="max-w-[1600px] mx-auto pt-12 md:pt-6 px-3 sm:px-4 md:px-6 lg:px-8 pb-8 md:pb-12">
           <Outlet />

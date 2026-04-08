@@ -143,7 +143,7 @@ function AnimatedMarkerComponent({
   const targetPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
 
   const animateMarker = useCallback(() => {
-    if (!markerRef.current) return
+    if (!markerRef.current) return;
 
     const current = currentPosition.current
     const target = targetPosition.current

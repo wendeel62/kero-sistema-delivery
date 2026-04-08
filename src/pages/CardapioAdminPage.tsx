@@ -61,7 +61,13 @@ export default function CardapioAdminPage() {
     if (data) setPrecos(data)
   }, [])
 
-  useEffect(() => { fetchCategorias(); fetchProdutos(); fetchSabores() }, [fetchCategorias, fetchProdutos, fetchSabores])
+  useEffect(() => {
+    const loadData = async () => {
+      await Promise.all([fetchCategorias(), fetchProdutos(), fetchSabores()])
+    }
+    loadData()
+  }, [])
+
   useRealtime('produtos', fetchProdutos)
 
   const saveCategoria = async () => {
