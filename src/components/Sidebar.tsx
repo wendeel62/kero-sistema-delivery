@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
@@ -15,13 +15,15 @@ const navItems = [
   { path: '/configuracoes', icon: 'settings', label: 'Configurações' },
 ]
 
+const kitchenItem = { icon: 'restaurant', label: 'Cozinha KDS' }
+
 interface SidebarProps {
   isOpen?: boolean
   onClose?: () => void
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const [isHovered, setIsHovered] = useState(false)
 
   // No mobile usamos a prop isOpen, no desktop usamos hover
@@ -100,6 +102,37 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
+          
+          {/* Cozinha KDS - Item especial abas nova */}
+          <button
+            onClick={() => {
+              const tenantId = user?.id
+              if (tenantId) {
+                window.open(`/cozinha?tenant=${tenantId}`, '_blank')
+              }
+            }}
+            className="group relative flex items-center h-10 lg:h-12 rounded-lg lg:rounded-xl transition-all duration-300 overflow-hidden text-gray-500 hover:text-white hover:bg-white/5 w-full"
+          >
+            <div className="flex items-center w-full px-2 lg:px-3 gap-3">
+              <span className="material-symbols-outlined text-2xl transition-all duration-300 shrink-0 group-hover:scale-110">
+                {kitchenItem.icon}
+              </span>
+              
+              {expanded && (
+                <span className="text-sm font-bold truncate animate-in fade-in slide-in-from-left-2 duration-300 flex items-center gap-2">
+                  {kitchenItem.label}
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#22c55e]/20 text-[#22c55e] animate-pulse">
+                    <span className="w-1 h-1 rounded-full bg-[#22c55e] animate-pulse" />
+                    AO VIVO
+                  </span>
+                </span>
+              )}
+              
+              {!expanded && (
+                <div className="absolute left-0 w-1 h-2 bg-[#22c55e] rounded-r-full animate-pulse" />
+              )}
+            </div>
+          </button>
         </nav>
 
         {/* Logout Button */}

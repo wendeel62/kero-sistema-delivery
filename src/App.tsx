@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
+import { MetaPeriodoProvider } from './contexts/MetaPeriodoContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
@@ -18,6 +19,7 @@ import EntregasPage from './pages/EntregasPage'
 import MotoboyApp from './pages/MotoboyApp'
 import PedidoStatusPage from './pages/PedidoStatusPage'
 import WhatsappInboxPage from './pages/WhatsappInboxPage'
+import CozinhaPage from './pages/CozinhaPage'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60, retry: 1, refetchOnWindowFocus: false } },
@@ -44,9 +46,10 @@ export default function App() {
             <Route path="/mesa/:numero" element={<MesaPage />} />
             <Route path="/motoboy" element={<MotoboyApp />} />
             <Route path="/pedido/:numero" element={<PedidoStatusPage />} />
+            <Route path="/cozinha" element={<CozinhaPage />} />
 
             {/* Rotas privadas */}
-            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute><MetaPeriodoProvider><Layout /></MetaPeriodoProvider></ProtectedRoute>}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/pdv" element={<PdvPage />} />

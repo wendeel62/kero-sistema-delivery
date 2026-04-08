@@ -1,7 +1,57 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { useAuth } from '../contexts/AuthContext'
+import { useMetaPeriodo } from '../contexts/MetaPeriodoContext'
+import { useMetasFaturamento, type MetaFaturamentoPeriodo, type MetaPeriodo } from '../hooks/useMetasFaturamento'
+
+const periodos: Array<{ key: MetaPeriodo; label: string }> = [
+  { key: 'dia', label: 'Hoje' },
+  { key: 'semana', label: 'Semana' },
+  { key: 'mes', label: 'Mês' },
+]
+
+function formatCurrency(value: number) {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function easeValue(progress: number) {
+  return progress * progress * (3 - 2 * progress)
+}
+
+function useAnimatedNumber(target: number, duration = 700) {
+  const [animated, setAnimated] = useState(target)
+  const previous = useRef(target)
+
+  useEffect(() => {
+    const from = previous.current
+    const change = target - from
+    if (from === target) {
+      return
+    }
+
+    let frame = 0
+    const start = performance.now()
+
+    const animate = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1)
+      const eased = easeValue(progress)
+      setAnimated(Math.round((from + change * eased) * 100) / 100)
+
+      if (progress < 1) {
+        frame = requestAnimationFrame(animate)
+      } else {
+        previous.current = target
+      }
+    }
+
+    frame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(frame)
+  }, [target, duration])
+
+  return animated
+}
 
 interface ContaPagar {
   id: string
@@ -24,12 +74,18 @@ interface Caixa {
 export default function FinanceiroPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'contas_pagar' | 'caixa'>('dashboard')
   const [contas, setContas] = useState<ContaPagar[]>([])
+  const { user } = useAuth()
   const [caixaAtivo, setCaixaAtivo] = useState<Caixa | null>(null)
   const [faturamentoTotal, setFaturamentoTotal] = useState(0)
   const [dateRange, setDateRange] = useState({ 
     start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
     end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   })
+  const [editingMeta, setEditingMeta] = useState(false)
+  const [metaInput, setMetaInput] = useState('')
+  const [toast, setToast] = useState<string | null>(null)
+  const { periodo, setPeriodo } = useMetaPeriodo()
+  const { data: metasData, saveMeta } = useMetasFaturamento(user?.id ?? '', true)
 
   const fetchData = useCallback(async () => {
     const { data: pedidos } = await supabase
@@ -70,6 +126,34 @@ export default function FinanceiroPage() {
     pendente: contas.filter(c => c.status === 'pendente').reduce((acc, c) => acc + Number(c.valor), 0),
     atrasado: contas.filter(c => c.status === 'atrasado').reduce((acc, c) => acc + Number(c.valor), 0),
     lucro_estimado: faturamentoTotal - contas.filter(c => c.status === 'pago').reduce((acc, c) => acc + Number(c.valor), 0)
+  }
+
+  const currentMeta = metasData?.[periodo] ?? { meta: null, realizado: 0, percentual: 0, cor: '#22c55e', falta: 0 }
+  const animatedRealizado = useAnimatedNumber(currentMeta.realizado)
+  const animatedMeta = useAnimatedNumber(currentMeta.meta ?? 0)
+  const animatedFalta = useAnimatedNumber(currentMeta.falta)
+  const animatedPercentual = useAnimatedNumber(currentMeta.percentual)
+  const statusLabel = currentMeta.percentual >= 80 ? 'No caminho' : currentMeta.percentual >= 50 ? 'Atenção' : 'Crítico'
+  const showMetaPlaceholder = currentMeta.meta == null
+
+  const handleSaveMeta = async () => {
+    const value = Number(metaInput.replace(',', '.'))
+    if (!metaInput.trim() || Number.isNaN(value)) {
+      setEditingMeta(false)
+      return
+    }
+
+    try {
+      await saveMeta(periodo, value)
+      setToast('Salvo ✓')
+      setTimeout(() => setToast(null), 2000)
+    } catch (error) {
+      console.error('Erro ao salvar meta:', error)
+      setToast('Erro ao salvar')
+      setTimeout(() => setToast(null), 2000)
+    } finally {
+      setEditingMeta(false)
+    }
   }
 
   return (
@@ -121,6 +205,124 @@ export default function FinanceiroPage() {
 
       {activeTab === 'dashboard' && (
         <>
+          <div className="bg-[#16181f] rounded-[2.5rem] border border-[#252830] p-6 shadow-lg mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+              <div>
+                <span className="text-[#f57c24] font-bold uppercase tracking-[0.3em] text-[10px]">Meta de Faturamento</span>
+                <h3 className="text-2xl font-bold text-white mt-2">Acompanhe o desempenho e ajuste a meta</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {periodos.map(item => {
+                  const active = periodo === item.key
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => {
+                        setPeriodo(item.key)
+                        setEditingMeta(false)
+                      }}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${active ? 'text-slate-950' : 'text-white/70 bg-[#252830]'} ${active ? 'bg-white' : ''}`}
+                      style={active ? { backgroundColor: currentMeta.cor, color: '#0f172a' } : {}}
+                    >
+                      {item.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[320px_1fr] items-center">
+              <div className="relative mx-auto w-[220px] h-[220px]">
+                <svg viewBox="0 0 220 220" className="w-full h-full">
+                  <defs>
+                    <filter id="donut-glow">
+                      <feGaussianBlur stdDeviation="6" result="blur" />
+                    </filter>
+                  </defs>
+                  <circle cx="110" cy="110" r="82" fill="none" stroke="#1a1d26" strokeWidth="18" />
+                  <circle
+                    cx="110"
+                    cy="110"
+                    r="82"
+                    fill="none"
+                    stroke={currentMeta.cor}
+                    strokeWidth="18"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(animatedPercentual / 100) * 2 * Math.PI * 82} ${2 * Math.PI * 82}`}
+                    strokeDashoffset="0"
+                    transform="rotate(-90 110 110)"
+                    style={{ transition: 'stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1)' }}
+                  />
+                  <circle
+                    cx="110"
+                    cy="110"
+                    r="82"
+                    fill="none"
+                    stroke={currentMeta.cor}
+                    strokeWidth="18"
+                    strokeLinecap="round"
+                    opacity="0.18"
+                    filter="url(#donut-glow)"
+                    strokeDasharray={`${(animatedPercentual / 100) * 2 * Math.PI * 82} ${2 * Math.PI * 82}`}
+                    strokeDashoffset="0"
+                    transform="rotate(-90 110 110)"
+                    style={{ transition: 'stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1)' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[36px] font-[Syne] font-bold" style={{ color: currentMeta.cor }}>{Math.round(animatedPercentual)}%</span>
+                  <span className="text-[11px] uppercase tracking-[0.3em] font-bold text-white/40 mt-1">atingido</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-white text-sm">
+                <div className="bg-[#16181f] rounded-3xl p-5 border border-[#252830]">
+                  <span className="block text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Realizado</span>
+                  <span className="block text-lg font-bold" style={{ color: currentMeta.cor }}>R$ {formatCurrency(animatedRealizado)}</span>
+                </div>
+                <div className="bg-[#16181f] rounded-3xl p-5 border border-[#252830]">
+                  <span className="block text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Meta</span>
+                  {editingMeta ? (
+                    <input
+                      autoFocus
+                      type="number"
+                      step="0.01"
+                      value={metaInput}
+                      onChange={e => setMetaInput(e.target.value)}
+                      onBlur={handleSaveMeta}
+                      onKeyDown={e => e.key === 'Enter' && (e.currentTarget.blur())}
+                      className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl px-3 py-2 text-sm text-white outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingMeta(true)
+                        setMetaInput(currentMeta.meta != null ? currentMeta.meta.toString() : '')
+                      }}
+                      className="text-left text-lg font-bold text-white/90 hover:text-white"
+                    >
+                      {showMetaPlaceholder ? 'Definir meta' : `R$ ${formatCurrency(animatedMeta)}`}
+                    </button>
+                  )}
+                </div>
+                <div className="bg-[#16181f] rounded-3xl p-5 border border-[#252830]">
+                  <span className="block text-xs uppercase tracking-[0.3em] text-white/50 mb-3">Falta</span>
+                  <span className="block text-lg font-bold text-white">R$ {formatCurrency(animatedFalta)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-bold text-white/80">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: currentMeta.cor }} />
+              {statusLabel}
+            </div>
+            {toast ? (
+              <div className="mt-4 inline-flex items-center rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-bold text-emerald-300">
+                {toast}
+              </div>
+            ) : null}
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
              {[
                { label: 'Faturamento Bruto', value: kpis.faturamento, color: 'text-[#e8391a]', icon: 'trending_up', gradient: 'from-[#e8391a]/20 to-[#e8391a]/5', border: 'border-[#e8391a]/30' },
