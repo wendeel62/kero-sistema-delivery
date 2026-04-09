@@ -43,9 +43,9 @@ const SUB_TABS_OPERACIONAL = [
 ] as const
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  novo: { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500' },
-  em_preparo: { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500' },
-  preparando: { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500' },
+  novo: { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary' },
+  em_preparo: { bg: 'bg-secondary/10', text: 'text-secondary', border: 'border-secondary' },
+  preparando: { bg: 'bg-secondary/10', text: 'text-secondary', border: 'border-secondary' },
   saiu_entrega: { bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500' },
   pronto: { bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500' },
   entregue: { bg: 'bg-green-500/10', text: 'text-green-500', border: 'border-green-500' },
@@ -61,8 +61,8 @@ const mapKanbanStatus = (rawStatus: string): UnifiedPedido['status_kanban'] => {
 }
 
 const COLUMNS = [
-  { id: 'novo', title: 'Novo', color: 'border-blue-500', headerBg: 'bg-blue-500/10', textColor: 'text-blue-500', gradient: 'from-blue-500/20 to-blue-500/5' },
-  { id: 'em_preparo', title: 'Em Preparo', color: 'border-orange-500', headerBg: 'bg-orange-500/10', textColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
+  { id: 'novo', title: 'Novo', color: 'border-primary', headerBg: 'bg-primary/10', textColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
+  { id: 'em_preparo', title: 'Em Preparo', color: 'border-secondary', headerBg: 'bg-secondary/10', textColor: 'text-secondary', gradient: 'from-secondary/20 to-secondary/5' },
   { id: 'saiu_entrega', title: 'Saiu para Entrega', color: 'border-purple-500', headerBg: 'bg-purple-500/10', textColor: 'text-purple-500', gradient: 'from-purple-500/20 to-purple-500/5' },
   { id: 'entregue', title: 'Entregue', color: 'border-green-500', headerBg: 'bg-green-500/10', textColor: 'text-green-500', gradient: 'from-green-500/20 to-green-500/5' },
   { id: 'cancelado', title: 'Cancelado', color: 'border-red-500', headerBg: 'bg-red-500/10', textColor: 'text-red-500', gradient: 'from-red-500/20 to-red-500/5' },
@@ -516,7 +516,7 @@ export default function PedidosPage() {
                 }}
                 className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border ${
                   filtroData === btn.id 
-                    ? 'bg-[#e8391a]/20 text-[#e8391a] border-[#e8391a]/30 shadow-lg shadow-[#e8391a]/10' 
+                    ? 'bg-red-500/20 text-red-500 border-red-500/30 shadow-lg shadow-red-500/10' 
                     : 'bg-[#16181f] border-[#252830] text-white/50 hover:bg-[#252830] hover:text-white/80'
                 }`}
               >

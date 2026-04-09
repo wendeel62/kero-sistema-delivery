@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, lazy, Suspense } from 'react'
+import { useCallback, useEffect, useState, useMemo, lazy, Suspense, useRef } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
@@ -68,7 +68,8 @@ export default function DashboardPage() {
   const [lojaAberta, setLojaAberta] = useState(true)
   const [loadingLoja, setLoadingLoja] = useState(false)
   const [recentPedidos, setRecentPedidos] = useState<any[]>([])
-  const [ref, inView] = useInView({ once: true, amount: 0.2 })
+  const ref = useRef<HTMLDivElement | null>(null)
+  const inView = useInView(ref, { amount: 0.2 })
 
   // Lógica dados 100% preservada
   const fetchKpis = useCallback(async () => {
@@ -85,12 +86,20 @@ export default function DashboardPage() {
     const abertos = allPedidos.filter(p => !['entregue', 'cancelado'].includes(p.status))
     
     const faturamento = validos.reduce((sum, p) => sum + Number(p.total || 0), 0)
-    // ... resto lógica idêntica até setKpis ...
+
+    const temposMedios: TemposMedios = { novo: 0, preparo: 0, entrega: 0, total: 0 }
+    const visualizacoes = 0
+    const avaliacaoMedia = 0
+    const allNpsData: any[] = []
+    const receitaPorDia = [0, 0, 0, 0, 0, 0, 0]
+    const addCarrinho = 0
+    const checkoutIniciado = 0
+    const compras = 0
+    const pedidosPorHora = Array(24).fill(0)
 
     // Recent pedidos para nova seção
     setRecentPedidos(allPedidos.slice(0, 5))
 
-    // setKpis completa igual original
     setKpis({
       faturamento,
       totalPedidos: allPedidos.length,
@@ -337,7 +346,6 @@ export default function DashboardPage() {
                 dataKey="value" 
                 cornerRadius={10}
                 background 
-                minAngle={15}
               />
               <Tooltip />
             </RadialBarChart>

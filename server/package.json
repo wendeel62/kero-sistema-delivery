@@ -24,8 +24,7 @@
     "@types/node": "^22.7.4",
     "@types/cors": "^2.8.17",
     "@types/pg": "^8.12.10",
-    "@types/redis": "^4.0.12",
-    "@types/helmet": "^4.0.0",
-    "express-rate-limit": "^7.4.0"
+    "@types/redis": "^4.0.11",
+    "@types/helmet": "^4.0.0"
   }
 }

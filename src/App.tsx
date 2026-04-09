@@ -52,7 +52,7 @@ export default function App() {
 
               {/* Rotas privadas */}
               <Route element={<ProtectedRoute><MetaPeriodoProvider><Layout /></MetaPeriodoProvider></ProtectedRoute>}>
-              <Route path="/" element={<NewDashboardPage />} />
+                <Route path="/" element={<DashboardPage />} />
                 <Route path="/pedidos" element={<PedidosPage />} />
                 <Route path="/pdv" element={<PdvPage />} />
                 <Route path="/cardapio-admin" element={<CardapioAdminPage />} />
