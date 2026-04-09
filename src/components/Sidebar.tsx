@@ -43,10 +43,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`
-          fixed left-0 top-0 h-screen bg-surface-container-high flex flex-col py-3 md:py-4 lg:py-6 z-50 
-          border-r border-outline-variant shadow-2xl glass-hover backdrop-blur-xl
+          fixed left-0 top-0 h-screen bg-surface-container-lowest flex flex-col py-3 md:py-4 lg:py-6 z-50 
+          border-r border-outline shadow-2xl backdrop-blur-xl
           transition-all duration-500 ease-out
-          ${expanded ? 'w-64' : 'w-16 lg:w-20'}
+          ${expanded ? 'w-64 animate-slide-in-left' : 'w-16 lg:w-20'}
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
@@ -76,14 +76,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               className={({ isActive }) =>
                 `group relative flex items-center h-10 lg:h-12 rounded-lg lg:rounded-xl transition-all duration-300 overflow-hidden ${
                   isActive
-                    ? 'bg-[#e8391a]/10 text-[#e8391a]'
-                    : 'text-gray-500 hover:text-white hover:bg-white/5'
+                    ? 'bg-primary/15 text-primary shadow-lg shadow-primary/20'
+                    : 'text-on-surface-variant hover:text-primary hover:bg-primary/10'
                 }`
               }
             >
               {({ isActive }) => (
                 <div className="flex items-center w-full px-2 lg:px-3 gap-3">
-                  <span className={`material-symbols-outlined text-2xl transition-all duration-300 shrink-0 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(232,57,26,0.4)]' : 'group-hover:scale-110'}`}>
+                  <span className={`material-symbols-outlined text-2xl transition-all duration-300 shrink-0 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(211,47,47,0.4)] animate-glow' : 'group-hover:scale-110 group-hover:animate-glow'}`}>
                     {item.icon}
                   </span>
                   
@@ -94,11 +94,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   )}
 
                   {isActive && !expanded && (
-                    <div className="absolute left-0 w-1 h-5 lg:h-6 bg-[#e8391a] rounded-r-full shadow-lg shadow-[#e8391a]/50" />
+                    <div className="absolute left-0 w-1 h-5 lg:h-6 bg-primary rounded-r-full shadow-lg shadow-primary/50 animate-glow" />
                   )}
                   
                   {isActive && expanded && (
-                    <div className="absolute right-0 w-1 h-5 lg:h-6 bg-[#e8391a] rounded-l-full" />
+                    <div className="absolute right-0 w-1 h-5 lg:h-6 bg-primary rounded-l-full animate-glow" />
                   )}
                 </div>
               )}
@@ -113,10 +113,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 window.open(`/cozinha?tenant=${tenantId}`, '_blank')
               }
             }}
-            className="group relative flex items-center h-10 lg:h-12 rounded-lg lg:rounded-xl transition-all duration-300 overflow-hidden text-gray-500 hover:text-white hover:bg-white/5 w-full"
+            className="group relative flex items-center h-10 lg:h-12 rounded-lg lg:rounded-xl transition-all duration-300 overflow-hidden text-on-surface-variant hover:text-primary hover:bg-primary/10 w-full"
           >
             <div className="flex items-center w-full px-2 lg:px-3 gap-3">
-              <span className="material-symbols-outlined text-2xl transition-all duration-300 shrink-0 group-hover:scale-110">
+              <span className="material-symbols-outlined text-2xl transition-all duration-300 shrink-0 group-hover:scale-110 group-hover:animate-glow">
                 {kitchenItem.icon}
               </span>
               
@@ -143,7 +143,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             onClick={signOut}
             className={`
               w-full h-10 lg:h-12 flex items-center transition-all duration-300 rounded-lg lg:rounded-xl
-              text-red-500/40 hover:text-red-500 hover:bg-red-500/10 px-2 lg:px-3 gap-3
+              text-primary/40 hover:text-primary hover:bg-primary/10 px-2 lg:px-3 gap-3
             `}
           >
             <span className="material-symbols-outlined text-xl lg:text-2xl shrink-0">logout</span>

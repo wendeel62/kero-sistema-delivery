@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import type { ReactNode } from 'react'
 
 interface ThemeContextType {
   theme: 'dark' | 'light'
@@ -12,25 +13,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
   useEffect(() => {
-    // Carregar tema salvo
-    const saved = localStorage.getItem('theme') as 'dark' | 'light' | null
-    if (saved) {
-      setTheme(saved)
-    } else {
-      // Detectar preferência sistema
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      setTheme(prefersDark ? 'dark' : 'light')
-    }
+    // Sempre aplicar dark theme como padrão
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+    setTheme('dark')
   }, [])
 
   useEffect(() => {
-    // Aplicar tema ao document
+    // Aplicar tema ao document quando mudar
     if (theme === 'dark') {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
-    // Salvar localStorage
     localStorage.setItem('theme', theme)
   }, [theme])
 

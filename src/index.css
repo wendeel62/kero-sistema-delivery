@@ -6,48 +6,37 @@
   --font-soft: "Outfit", sans-serif;
   --font-body: "Manrope", sans-serif;
 
-  /* Dark Theme (default) */
-  --color-primary: #e8391a;
+  /* Primária - Vermelho */
+  --color-primary: #d32f2f;
+  --color-primary-bright: #ff5722;
   --color-on-primary: #ffffff;
-  --color-primary-container: #ff7c5c;
-  --color-on-primary-container: #4e1105;
+  --color-primary-container: #ff9800;
+  --color-on-primary-container: #fff3e0;
   
-  --color-secondary: #f57c24;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #ffcea3;
-  --color-on-secondary-container: #2f1500;
+  /* Secundária - Laranja */
+  --color-secondary: #ff9800;
+  --color-secondary-bright: #ffb74d;
+  --color-on-secondary: #000000;
+  --color-secondary-container: #ffe0b2;
+  --color-on-secondary-container: #e65100;
   
-  --color-background: #0c0e15;
-  --color-on-background: #dde0ee;
-  --color-surface: #0c0e15;
-  --color-on-surface: #dde0ee;
-  --color-surface-variant: #252830;
-  --color-on-surface-variant: #c3c6d4;
-  --color-outline: #444755;
-  --color-outline-variant: #252830;
+  /* Backgrounds - Dark Theme */
+  --color-background: #0a0a0a;
+  --color-on-background: #ffffff;
+  --color-surface: #1a1a1a;
+  --color-on-surface: #e8ecf1;
+  --color-surface-variant: #2a2a2a;
+  --color-on-surface-variant: #b0b0b0;
+  --color-outline: #4a4a4a;
+  --color-outline-variant: #1f1f1f;
   
-  --color-surface-bright: #373941;
-  --color-surface-dim: #0c0e15;
-  --color-surface-container: #16181f;
-  --color-surface-container-low: #11131a;
-  --color-surface-container-lowest: #080a0f;
-  --color-surface-container-high: #1c1e26;
-  --color-surface-container-highest: #252830;
-
-  /* Light Theme Overrides (Tailwind dark: prefix + CSS vars) */
-  --color-background-light: #fafbff;
-  --color-on-background-light: #1c1c1e;
-  --color-surface-light: #ffffff;
-  --color-on-surface-light: #1c1c1e;
-  --color-surface-variant-light: #f1f3f4;
-  --color-on-surface-variant-light: #636466;
-  --color-outline-light: #c7c7cc;
-  --color-outline-variant-light: #e5e5e7;
-  
-  --color-surface-container-light: #f8f9ff;
-  --color-surface-container-low-light: #f5f5f7;
-  --color-surface-container-high-light: #ffffff;
-  --color-surface-container-highest-light: #ffffff;
+  --color-surface-bright: #454545;
+  --color-surface-dim: #0a0a0a;
+  --color-surface-container: #1f1f1f;
+  --color-surface-container-low: #151515;
+  --color-surface-container-lowest: #0f0f0f;
+  --color-surface-container-high: #2d2d2d;
+  --color-surface-container-highest: #353535;
 
   --radius-full: 9999px;
   --radius-xl: 1.5rem;
@@ -56,51 +45,59 @@
 }
 
 @layer base {
-  html.dark {
-    --color-background: var(--color-background-light);
-    --color-on-background: var(--color-on-background-light);
-    --color-surface: var(--color-surface-light);
-    --color-on-surface: var(--color-on-surface-light);
-    --color-surface-variant: var(--color-surface-variant-light);
-    --color-on-surface-variant: var(--color-on-surface-variant-light);
-    --color-outline: var(--color-outline-light);
-    --color-outline-variant: var(--color-outline-variant-light);
-    --color-surface-container: var(--color-surface-container-light);
-    --color-surface-container-low: var(--color-surface-container-low-light);
-    --color-surface-container-high: var(--color-surface-container-high-light);
-    --color-surface-container-highest: var(--color-surface-container-highest-light);
-    
-    /* Light shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow: 0 1px 2px -1px rgb(0 0 0 / 0.1), 0 1px 5px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  }
-  
-  * { @apply border-outline-variant/20; }
+  * { @apply border-outline/20; }
+  html { scroll-behavior: smooth; }
   body { @apply bg-background text-on-background font-body antialiased transition-colors duration-300; }
+  *:focus-visible { @apply outline-none; }
 }
 
 @layer utilities {
-  /* Glassmorphism */
+  /* Glassmorphism Dark */
   .glass {
-    @apply backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-black/20;
+    @apply backdrop-blur-xl bg-white/5 dark:bg-white/10 border border-white/10 dark:border-white/20;
   }
   .glass-hover {
-    @apply glass hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-300;
+    @apply backdrop-blur-xl bg-white/5 dark:bg-white/10 border border-white/10 dark:border-white/20 hover:bg-white/10 dark:hover:bg-white/15 transition-all duration-300 cursor-pointer;
   }
   
-  /* Neumorphism Light */
-  .neumorph {
-    @apply bg-gradient-to-br from-surface-container-high to-surface-container shadow-inner;
+  /* Red/Orange Glow */
+  .glow-red {
+    @apply shadow-lg shadow-red-500/20;
+  }
+  .glow-orange {
+    @apply shadow-lg shadow-orange-500/20;
   }
   
-  /* Shimmer */
-  .shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
+  /* Smooth Transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  /* Focus Rings */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-[#d32f2f] focus:ring-offset-2 focus:ring-offset-[#0a0a0a];
+  }
+  
+  /* Animação classes */
+  .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+  .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
+  .animate-slide-in-left { animation: slideInLeft 0.4s ease-out forwards; }
+  .animate-slide-in-right { animation: slideInRight 0.4s ease-out forwards; }
+  .animate-slide-in-down { animation: slideInDown 0.4s ease-out forwards; }
+  .animate-slide-in-up { animation: slideInUp 0.4s ease-out forwards; }
+  .animate-scale-in { animation: scaleIn 0.3s ease-out forwards; }
+  .animate-glow { animation: glow 2s ease-in-out infinite; }
+  .animate-glow-border { animation: glowBorder 2s ease-in-out infinite; }
+  .animate-shimmer { animation: shimmerDark 2s infinite; }
+  .animate-pulse-sm { animation: pulse 2s ease-in-out infinite; }
+  .animate-bounce-sm { animation: bounce 1s ease-in-out infinite; }
+  .animate-ripple { animation: ripple 0.6s ease-out; }
+  .animate-float { animation: float 3s ease-in-out infinite; }
+  
+  /* Stagger animations para listas */
+  .animate-stagger > * {
+    animation: fadeInUp 0.5s ease-out forwards;
+    animation-delay: calc(0.1s * var(--i, 0));
   }
 }
 
@@ -108,50 +105,132 @@
 .font-headline { font-family: var(--font-headline); }
 .font-soft { font-family: var(--font-soft); }
 
-/* Scrollbar Responsiva */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { @apply bg-surface-container; }
-::-webkit-scrollbar-thumb { 
-  @apply bg-surface-variant rounded-full transition-all hover:bg-outline-variant; 
+/* Animações Fluidas */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Animações Avançadas */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
 }
-@keyframes staggerFade {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+
+@keyframes slideInLeft {
+  from { 
+    opacity: 0; 
+    transform: translateX(-30px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
 }
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232,57,26,0.4); }
-  50% { box-shadow: 0 0 0 20px rgba(232,57,26,0); }
+
+@keyframes slideInRight {
+  from { 
+    opacity: 0; 
+    transform: translateX(30px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
 }
+
+@keyframes slideInDown {
+  from { 
+    opacity: 0; 
+    transform: translateY(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes slideInUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+@keyframes glow {
+  0%, 100% { 
+    box-shadow: 0 0 5px rgba(211, 47, 47, 0.3), 0 0 15px rgba(255, 87, 34, 0); 
+  }
+  50% { 
+    box-shadow: 0 0 10px rgba(211, 47, 47, 0.6), 0 0 25px rgba(255, 87, 34, 0.3); 
+  }
+}
+
+@keyframes glowBorder {
+  0%, 100% { 
+    border-color: rgba(211, 47, 47, 0.5); 
+    box-shadow: inset 0 0 0 1px rgba(211, 47, 47, 0.2); 
+  }
+  50% { 
+    border-color: rgba(255, 87, 34, 0.8); 
+    box-shadow: inset 0 0 0 1px rgba(255, 87, 34, 0.4); 
+  }
+}
+
+@keyframes shimmerDark {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-8px); }
 }
 
-.animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-.animate-stagger { animation: staggerFade 0.4s ease-out forwards; }
-.animate-pulse-glow { animation: pulseGlow 2s infinite; }
-.animate-float { animation: float 3s ease-in-out infinite; }
-
-/* Stagger children */
-.animate-stagger > * { animation-delay: calc(0.1s * var(--i, 0)); }
-
-/* Loading Skeleton */
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-}
-@keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.dark .skeleton { 
-  background: linear-gradient(90deg, #2a2a2a 25%, #1e1e1e 50%, #2a2a2a 75%);
+/* Scrollbar Responsiva */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-surface-container; }
+::-webkit-scrollbar-thumb { 
+  @apply bg-primary rounded-full transition-all hover:bg-primary-bright; 
 }

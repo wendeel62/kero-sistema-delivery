@@ -262,14 +262,14 @@ export default function DashboardPage() {
   useRealtime('pedidos_online', fetchKpis)
 
   const kpiData = [
-    { id: 'faturamento', icon: 'payments', label: 'Faturamento Hoje', value: kpis.faturamento, color: '#e8391a', isCurrency: true },
-    { id: 'totalPedidos', icon: 'shopping_cart', label: 'Total Pedidos', value: kpis.totalPedidos, color: '#e8391a' },
-    { id: 'pedidosAbertos', icon: 'schedule', label: 'Em Preparo', value: kpis.pedidosAbertos, color: '#f57c24' },
-    { id: 'totalEntregues', icon: 'check_circle', label: 'Entregues', value: kpis.totalEntregues, color: '#16a34a', colorClass: 'from-emerald-500/20' },
-    { id: 'ticketMedio', icon: 'trending_up', label: 'Ticket Médio', value: kpis.ticketMedio, color: '#f57c24', isCurrency: true },
-    { id: 'tempoEntrega', icon: 'timer', label: 'Tempo Médio', value: `${kpis.tempoEntrega} min`, color: '#f57c24' },
-    { id: 'avaliacao', icon: 'star', label: 'NPS', value: `${kpis.avaliacao.toFixed(1)}`, color: '#eab308' },
-    { id: 'visualizacoes', icon: 'visibility', label: 'Visitas Cardápio', value: kpis.visualizacoes, color: '#e8391a' },
+    { id: 'faturamento', icon: 'payments', label: 'Faturamento Hoje', value: kpis.faturamento, color: '#d32f2f', isCurrency: true },
+    { id: 'totalPedidos', icon: 'shopping_cart', label: 'Total Pedidos', value: kpis.totalPedidos, color: '#d32f2f' },
+    { id: 'pedidosAbertos', icon: 'schedule', label: 'Em Preparo', value: kpis.pedidosAbertos, color: '#ff9800' },
+    { id: 'totalEntregues', icon: 'check_circle', label: 'Entregues', value: kpis.totalEntregues, color: '#4caf50' },
+    { id: 'ticketMedio', icon: 'trending_up', label: 'Ticket Médio', value: kpis.ticketMedio, color: '#ff9800', isCurrency: true },
+    { id: 'tempoEntrega', icon: 'timer', label: 'Tempo Médio', value: `${kpis.tempoEntrega} min`, color: '#ff9800' },
+    { id: 'avaliacao', icon: 'star', label: 'NPS', value: `${kpis.avaliacao.toFixed(1)}`, color: '#ffb74d' },
+    { id: 'visualizacoes', icon: 'visibility', label: 'Visitas Cardápio', value: kpis.visualizacoes, color: '#d32f2f' },
   ]
 
   const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -281,12 +281,12 @@ export default function DashboardPage() {
   const horaPico = kpis.pedidosPorHora.indexOf(maxPicos)
 
   return (
-    <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8">
+    <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-slide-in-down">
         <div>
-          <h1 className="text-3xl lg:text-4xl font-bold font-headline text-white tracking-tight">Dashboard</h1>
-          <p className="text-white/60 mt-1 text-lg">Visão geral do dia</p>
+          <h1 className="text-3xl lg:text-4xl font-bold font-headline text-on-background tracking-tight">Dashboard</h1>
+          <p className="text-on-surface-variant mt-1 text-lg">Visão geral do dia</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -294,17 +294,17 @@ export default function DashboardPage() {
             disabled={loadingLoja}
             className={`px-6 py-3 rounded-lg font-bold border-2 transition-all flex items-center gap-2 text-sm ${
               lojaAberta
-                ? 'border-emerald-500/50 bg-emerald-500/5 hover:border-emerald-400 text-emerald-400 hover:bg-emerald-500/10 shadow-lg'
-                : 'border-red-500/50 bg-red-500/5 hover:border-red-400 text-red-400 hover:bg-red-500/10 shadow-lg'
+                ? 'border-secondary/50 bg-secondary/5 hover:border-secondary-bright text-secondary-bright hover:bg-secondary/10 shadow-lg shadow-secondary/20'
+                : 'border-primary/50 bg-primary/5 hover:border-primary-bright text-primary hover:bg-primary/10 shadow-lg shadow-primary/20'
             }`}
           >
-            <div className={`w-3 h-3 rounded-full ${lojaAberta ? 'bg-emerald-400 shadow-lg' : 'bg-red-400'}`} />
+            <div className={`w-3 h-3 rounded-full ${lojaAberta ? 'bg-secondary shadow-lg' : 'bg-primary'}`} />
             {lojaAberta ? 'Loja Aberta' : 'Loja Fechada'}
           </button>
           <a 
             href={linkCardapio} 
             target="_blank" 
-            className="px-6 py-3 bg-gradient-to-r from-[#e8391a] to-[#f57c24]/80 hover:from-[#e8391a]/90 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all border border-transparent flex items-center gap-2 text-sm"
+            className="px-6 py-3 bg-gradient-to-r from-primary to-primary-bright hover:from-primary-bright hover:to-secondary text-white font-bold rounded-lg shadow-lg hover:shadow-primary/50 hover:shadow-xl transition-all border border-transparent flex items-center gap-2 text-sm animate-slide-in-right"
             rel="noopener noreferrer"
           >
             <span className="material-symbols-outlined !text-lg">qr_code_scanner</span>
@@ -314,21 +314,23 @@ export default function DashboardPage() {
       </div>
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-stagger">
         {kpiData.map((kpi, i) => (
-          <div key={kpi.id} className="group p-6 rounded-2xl border border-white/10 bg-surface-container hover:border-white/20 hover:bg-surface-container-high shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${kpi.color === '#e8391a' || kpi.color === '#f57c24' ? `bg-[${kpi.color}]/10` : 'bg-white/5'}`}>
-                  <span className="material-symbols-outlined text-xl" style={{ color: kpi.color }}>
+          <div 
+            key={kpi.id} 
+            className="group p-6 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 hover:bg-surface-container-high shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up"
+            style={{ '--i': i } as any}
+          >
+            <div className="flex flex-col gap-3 h-full">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${kpi.color === '#d32f2f' ? 'bg-primary/10' : kpi.color === '#ff9800' ? 'bg-secondary/10' : 'bg-surface-variant'}`}>
+                  <span className="material-symbols-outlined text-lg md:text-xl group-hover:animate-glow" style={{ color: kpi.color }}>
                     {kpi.icon}
                   </span>
                 </div>
-                <div>
-                  <p className="text-white/60 text-sm uppercase tracking-wide font-medium">{kpi.label}</p>
-                </div>
               </div>
-              <div className={`text-2xl lg:text-3xl font-black ${kpi.color === '#e8391a' ? 'text-[#e8391a]' : kpi.color === '#f57c24' ? 'text-[#f57c24]' : 'text-white'}`}>
+              <p className="text-on-surface-variant text-xs md:text-sm uppercase tracking-wide font-medium line-clamp-2 flex-1">{kpi.label}</p>
+              <div className={`text-xl md:text-2xl font-black truncate`} style={{ color: kpi.color }}>
                 {kpi.isCurrency ? formatCurrency(kpi.value as number) : kpi.value}
               </div>
             </div>
@@ -339,81 +341,81 @@ export default function DashboardPage() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Receita 7 Dias */}
-        <div className="p-6 lg:p-8 rounded-2xl border border-white/10 bg-surface-container hover:border-white/20 shadow-lg hover:shadow-xl transition-all">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white">Receita 7 Dias</h3>
-              <p className="text-white/50 text-sm mt-1">Vendas diárias</p>
+              <h3 className="text-xl font-bold text-on-background">Receita 7 Dias</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Vendas diárias</p>
             </div>
-            <div className="w-12 h-12 bg-[#e8391a]/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#e8391a] text-xl">bar_chart</span>
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-primary text-xl">bar_chart</span>
             </div>
           </div>
           <div className="grid grid-cols-7 gap-2 h-32 items-end">
             {kpis.receita7Dias.map((valor, i) => (
-              <div key={i} className="flex flex-col items-center">
+              <div key={i} className="flex flex-col items-center group">
                 <div 
-                  className="w-4 rounded transition-all duration-700" 
+                  className="w-4 rounded transition-all duration-700 group-hover:shadow-lg group-hover:shadow-primary/50" 
                   style={{ 
                     height: `${(valor / maxReceita) * 100}%`,
-                    background: valor === kpis.receita7Dias[6] ? 'linear-gradient(to top, #e8391a, #ff6b47)' : '#f57c24'
+                    background: valor === kpis.receita7Dias[6] ? 'linear-gradient(to top, #d32f2f, #ff5722)' : '#ff9800'
                   }}
                 />
-                <span className="text-xs text-white/50 mt-1">{dias[i]}</span>
+                <span className="text-xs text-on-surface-variant mt-1">{dias[i]}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Picos por Hora */}
-        <div className="p-6 lg:p-8 rounded-2xl border border-white/10 bg-surface-container hover:border-white/20 shadow-lg hover:shadow-xl transition-all">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white">Picos Hora</h3>
-              <p className="text-white/50 text-sm mt-1">Hoje</p>
+              <h3 className="text-xl font-bold text-on-background">Picos Hora</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Hoje</p>
             </div>
-            <div className="w-12 h-12 bg-[#f57c24]/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#f57c24] text-xl">insights</span>
+            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-secondary text-xl">insights</span>
             </div>
           </div>
           <div className="grid grid-cols-12 gap-1 h-32 items-end">
             {kpis.pedidosPorHora.map((count, hour) => (
-              <div key={hour} className="flex flex-col items-center">
+              <div key={hour} className="flex flex-col items-center group">
                 <div 
-                  className={`w-3 rounded transition-all ${count === maxPicos ? 'bg-[#e8391a]' : 'bg-[#f57c24]/60'}`} 
+                  className={`w-3 rounded transition-all group-hover:shadow-lg group-hover:shadow-primary/50 ${count === maxPicos ? 'bg-primary' : 'bg-secondary/60'}`} 
                   style={{ height: `${(count / maxPicos) * 100}%` }}
                 />
-                {hour % 3 === 0 && <span className="text-[10px] text-white/40">{hour}h</span>}
+                {hour % 3 === 0 && <span className="text-[10px] text-on-surface-variant">{hour}h</span>}
               </div>
             ))}
           </div>
-          <div className="mt-6 pt-4 border-t border-white/10 flex justify-between">
-            <span className="text-sm text-white/60">Total hoje</span>
-            <span className="text-lg font-bold text-[#e8391a]">{kpis.totalPedidos}</span>
+          <div className="mt-6 pt-4 border-t border-outline flex justify-between">
+            <span className="text-sm text-on-surface-variant">Total hoje</span>
+            <span className="text-lg font-bold text-primary">{kpis.totalPedidos}</span>
           </div>
         </div>
 
         {/* Funil Vendas */}
-        <div className="p-6 lg:p-8 rounded-2xl border border-white/10 bg-surface-container hover:border-white/20 shadow-lg hover:shadow-xl transition-all col-span-1 lg:col-span-2">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth col-span-1 lg:col-span-2 animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white">Funil Vendas</h3>
-              <p className="text-white/50 text-sm mt-1">Jornada cliente hoje</p>
+              <h3 className="text-xl font-bold text-on-background">Funil Vendas</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Jornada cliente hoje</p>
             </div>
-            <div className="w-12 h-12 bg-[#f57c24]/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#f57c24] text-xl">tune</span>
+            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-secondary text-xl">tune</span>
             </div>
           </div>
           <div className="space-y-3">
             {[
-              { label: 'Visitas Cardápio', value: kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#e8391a' },
-              { label: 'Adicionado Carrinho', value: kpis.funnelData.addCarrinho, color: '#f57c24' },
-              { label: 'Checkout Iniciado', value: kpis.funnelData.checkoutIniciado, color: '#eab308' },
-              { label: 'Compras Feitas', value: kpis.funnelData.compras, color: '#16a34a' }
+              { label: 'Visitas Cardápio', value: kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
+              { label: 'Adicionado Carrinho', value: kpis.funnelData.addCarrinho, color: '#ff9800' },
+              { label: 'Checkout Iniciado', value: kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
+              { label: 'Compras Feitas', value: kpis.funnelData.compras, color: '#4caf50' }
             ].map((item, i) => (
-              <div key={i} className="flex justify-between items-center">
-                <span className="text-sm text-white/80">{item.label}</span>
-                <div className="w-32 h-3 bg-white/5 rounded-full overflow-hidden">
+              <div key={i} className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">{item.label}</span>
+                <div className="w-32 h-3 bg-surface-variant rounded-full overflow-hidden group-hover:shadow-lg group-hover:shadow-primary/20">
                   <div 
                     className="h-full rounded-full transition-all" 
                     style={{ 
@@ -422,7 +424,7 @@ export default function DashboardPage() {
                     }}
                   />
                 </div>
-                <span className={`font-bold text-sm ${item.color === '#e8391a' ? 'text-[#e8391a]' : item.color === '#f57c24' ? 'text-[#f57c24]' : 'text-white'}`}>
+                <span className={`font-bold text-sm`} style={{ color: item.color }}>
                   {item.value}
                 </span>
               </div>
@@ -431,40 +433,40 @@ export default function DashboardPage() {
         </div>
 
         {/* Tempos Médios */}
-        <div className="p-6 lg:p-8 rounded-2xl border border-white/10 bg-surface-container hover:border-white/20 shadow-lg hover:shadow-xl transition-all">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white">Tempo por Etapa</h3>
-              <p className="text-white/50 text-sm mt-1">Média hoje</p>
+              <h3 className="text-xl font-bold text-on-background">Tempo por Etapa</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Média hoje</p>
             </div>
-            <div className="w-12 h-12 bg-[#f57c24]/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#f57c24] text-xl">access_time</span>
+            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-secondary text-xl">access_time</span>
             </div>
           </div>
           <div className="space-y-4">
             {[
-              { label: 'Novo → Prep', value: kpis.temposMedios.novo, color: '#3b82f6' },
-              { label: 'Preparo', value: kpis.temposMedios.preparo, color: '#f59e0b' },
-              { label: 'Entrega', value: kpis.temposMedios.entrega, color: '#8b5cf6' }
+              { label: 'Novo → Prep', value: kpis.temposMedios.novo, color: '#2196f3' },
+              { label: 'Preparo', value: kpis.temposMedios.preparo, color: '#ff9800' },
+              { label: 'Entrega', value: kpis.temposMedios.entrega, color: '#9c27b0' }
             ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between">
+              <div key={i} className="flex items-center justify-between group">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.color === '#f59e0b' ? 'bg-[#f59e0b]/10' : 'bg-white/5'}`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all group-hover:scale-110 ${item.color === '#ff9800' ? 'bg-secondary/10' : 'bg-surface-variant'}`}>
                     <span className="material-symbols-outlined text-sm" style={{ color: item.color }}>schedule</span>
                   </div>
                   <div>
-                    <p className="text-white/80 text-sm font-medium">{item.label}</p>
+                    <p className="text-on-surface text-sm font-medium group-hover:text-on-background">{item.label}</p>
                   </div>
                 </div>
-                <span className={`text-lg font-bold ${item.color === '#f59e0b' ? 'text-[#f59e0b]' : 'text-white'}`}>
+                <span className={`text-lg font-bold`} style={{ color: item.color }}>
                   {item.value} min
                 </span>
               </div>
             ))}
-            <div className="pt-4 mt-4 border-t border-white/10">
+            <div className="pt-4 mt-4 border-t border-outline">
               <div className="flex items-center justify-between">
-                <span className="text-white/60 text-sm">Total Médio</span>
-                <span className="text-2xl font-black text-[#e8391a]">{kpis.tempoEntrega} min</span>
+                <span className="text-on-surface-variant text-sm">Total Médio</span>
+                <span className="text-2xl font-black text-primary">{kpis.tempoEntrega} min</span>
               </div>
             </div>
           </div>
