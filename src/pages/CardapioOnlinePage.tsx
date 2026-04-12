@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { syncCliente } from '../lib/syncCliente'
 import NpsWidget from '../components/NpsWidget'
@@ -11,12 +12,13 @@ export interface Produto { id: string; categoria_id: string; nome: string; descr
 interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
 interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 interface CartItem { produto: Produto; quantidade: number; tamanho?: string; precoUnitario: number; tipoPizza?: 'inteiro' | 'meio-a-meio'; sabor1?: string; sabor2?: string }
-interface Config { taxa_entrega: number; pedido_minimo: number; loja_aberta: boolean }
+interface Config { taxa_entrega: number; pedido_minimo: number; loja_aberta: boolean; nome_fantasia?: string; logo_url?: string }
 interface SavedCustomer { nome: string; telefone: string; email?: string; endereco?: string; numero?: string; bairro?: string; cidade?: string }
 
 type Step = 'menu' | 'reconhecimento' | 'dados' | 'pagamento'
-
 export default function CardapioOnlinePage() {
+  const { slug } = useParams<{ slug: string }>()
+  const [tenantId, setTenantId] = useState<string | null>(null)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [precosTamanho, setPrecosTamanho] = useState<Record<string, PrecoTamanho[]>>({})
@@ -54,33 +56,42 @@ export default function CardapioOnlinePage() {
   const [observacoes, setObservacoes] = useState('')
 
   const fetchData = useCallback(async () => {
-    const [{ data: cats }, { data: prods }, { data: precos }, { data: configData }, { data: saboresData }] = await Promise.all([
-      supabase.from('categorias').select('*').eq('ativo', true).order('ordem'),
-      supabase.from('produtos').select('*').eq('disponivel', true).order('ordem'),
-      supabase.from('precos_tamanho').select('*'),
-      supabase.from('configuracoes').select('*').limit(1).single(),
-      supabase.from('sabores').select('*').eq('disponivel', true).order('nome'),
-    ])
-    if (cats) setCategorias(cats)
-    if (prods) setProdutos(prods)
-    if (saboresData) setSabores(saboresData)
-    if (configData) {
+    if (!slug) return
+
+    const { data: menuData, error } = await supabase.rpc('get_public_menu', { p_slug: slug })
+    
+    if (error || !menuData) {
+      console.error('Erro ao carregar cardápio:', error)
+      return
+    }
+
+    setTenantId(menuData.tenant_id)
+    setCategorias(menuData.categorias)
+    setProdutos(menuData.produtos)
+    
+    if (menuData.config) {
       setConfig({
-        taxa_entrega: configData.taxa_entrega || 0,
-        pedido_minimo: configData.pedido_minimo || 0,
-        loja_aberta: configData.loja_aberta ?? true
+        taxa_entrega: menuData.config.taxa_entrega || 0,
+        pedido_minimo: menuData.config.pedido_minimo || 0,
+        loja_aberta: menuData.config.loja_aberta ?? true,
+        nome_fantasia: menuData.config.nome_fantasia,
+        logo_url: menuData.config.logo_url
       })
     }
     
-    if (precos) {
+    if (menuData.precos_tamanho) {
       const grouped: Record<string, PrecoTamanho[]> = {}
-      precos.forEach(p => {
+      menuData.precos_tamanho.forEach((p: PrecoTamanho) => {
         if (!grouped[p.produto_id]) grouped[p.produto_id] = []
         grouped[p.produto_id].push(p)
       })
       setPrecosTamanho(grouped)
     }
-  }, [])
+
+    if (menuData.sabores) {
+      setSabores(menuData.sabores)
+    }
+  }, [slug])
 
   useEffect(() => {
     fetchData()
@@ -91,16 +102,15 @@ export default function CardapioOnlinePage() {
   // Tracking de eventos para o funil de vendas
   const trackEvent = useCallback(async (tipo: 'visualizacao' | 'add_carrinho' | 'checkout_iniciado' | 'compra', quantidade: number = 1) => {
     try {
-      const { data: configData } = await supabase.from('configuracoes').select('tenant_id').limit(1).single()
-      if (configData?.tenant_id) {
+      if (tenantId) {
         await supabase.from('eventos_jornada').insert({
-          tenant_id: configData.tenant_id,
+          tenant_id: tenantId,
           tipo_evento: tipo,
           quantidade
         })
       }
     } catch { /* ignore tracking errors */ }
-  }, [])
+  }, [tenantId])
 
   // Verificar dados salvos no localStorage
   useEffect(() => {
@@ -184,24 +194,27 @@ export default function CardapioOnlinePage() {
       tamanho: item.tamanho,
     }))
 
-    const { data: pedidoCriado, error: insertError } = await supabase.from('pedidos_online').insert({
-      cliente_nome: nome,
-      cliente_telefone: telefone,
-      cep, endereco, numero_endereco: numero, complemento, bairro, cidade, estado,
-      itens: JSON.stringify(itens),
-      subtotal, taxa_entrega: taxaEntrega, total,
-      forma_pagamento: formaPagamento,
-      observacoes,
-    }).select('id').single()
+    const { data: pedidoIdResult, error: insertError } = await supabase.rpc('submit_public_order', {
+      p_order_data: {
+        tenant_id: tenantId,
+        cliente_nome: nome,
+        cliente_telefone: telefone,
+        cep, endereco, numero_endereco: numero, complemento, bairro, cidade, estado,
+        itens: JSON.stringify(itens),
+        subtotal, taxa_entrega: taxaEntrega, total,
+        forma_pagamento: formaPagamento,
+        observacoes,
+      }
+    })
 
-    console.log('Pedido criado:', pedidoCriado, 'Erro:', insertError)
+    console.log('Pedido criado:', pedidoIdResult, 'Erro:', insertError)
 
     await syncCliente(nome, telefone, total)
 
-    if (pedidoCriado?.id) {
-      console.log('Setting pedidoId:', pedidoCriado.id)
+    if (pedidoIdResult) {
+      console.log('Setting pedidoId:', pedidoIdResult)
       trackEvent('compra', 1)
-      setPedidoId(pedidoCriado.id)
+      setPedidoId(pedidoIdResult)
       
       // Salvar dados do cliente no localStorage após pedido confirmado
       try {
@@ -260,9 +273,12 @@ export default function CardapioOnlinePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#16181f]/80 backdrop-blur-md border-b border-[#252830] px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div className="flex flex-col">
-            <h1 className="text-xl sm:text-2xl font-black italic text-[#e8391a] font-[Outfit] leading-none">KERO</h1>
-            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Delivery Online</span>
+          <div className="flex items-center gap-3">
+            {config.logo_url && <img src={config.logo_url} alt="Logo" className="w-8 h-8 rounded-full object-cover" />}
+            <div className="flex flex-col">
+              <h1 className="text-xl sm:text-2xl font-black italic text-[#e8391a] font-[Outfit] leading-none uppercase">{config.nome_fantasia || 'KERO'}</h1>
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{config.nome_fantasia ? 'Cardápio Online' : 'Delivery Online'}</span>
+            </div>
           </div>
           <button onClick={() => setStep(step === 'menu' ? 'dados' : 'menu')} className="relative bg-[#e8391a] text-white p-2.5 sm:px-5 sm:py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-[#e8391a]/20 active:scale-95 transition-transform">
             <span className="material-symbols-outlined text-lg sm:text-xl">shopping_basket</span>
@@ -661,7 +677,7 @@ export default function CardapioOnlinePage() {
                 <div className="text-3xl font-black text-white italic tracking-tighter">
                   {(() => {
                     const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
-                    let preco = precoTamanho ? Number(precoTamanho.preco) : 0
+                    const preco = precoTamanho ? Number(precoTamanho.preco) : 0
                     return preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                   })()}
                 </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
@@ -81,6 +82,8 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function ConsultorDashboardPage() {
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [activeTab, setActiveTab] = useState<'vendas' | 'gestor'>('vendas')
   const queryClient = useQueryClient()
   
@@ -193,6 +196,7 @@ export default function ConsultorDashboardPage() {
 
   const handleExecutarSugestao = async (index: number, sugestao: AnaliseData['sugestoes'][0]) => {
     await supabase.from('historico_agente').insert({
+      tenant_id: tenantId,
       tipo: 'executado',
       descricao: sugestao.titulo,
       executado_em: new Date().toISOString()
@@ -206,6 +210,7 @@ export default function ConsultorDashboardPage() {
 
   const handleIgnorarSugestao = async (index: number, sugestao: AnaliseData['sugestoes'][0]) => {
     await supabase.from('historico_agente').insert({
+      tenant_id: tenantId,
       tipo: 'ignorado',
       descricao: sugestao.titulo
     })

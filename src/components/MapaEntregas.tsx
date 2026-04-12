@@ -141,6 +141,7 @@ function AnimatedMarkerComponent({
   const animationRef = useRef<number | null>(null)
   const currentPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
   const targetPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
+  const animateFnRef = useRef<(() => void) | null>(null)
 
   const animateMarker = useCallback(() => {
     if (!markerRef.current) return;
@@ -164,8 +165,10 @@ function AnimatedMarkerComponent({
     currentPosition.current = { lat: newLat, lng: newLng }
     markerRef.current.setLatLng([newLat, newLng])
 
-    animationRef.current = requestAnimationFrame(animateMarker)
+    animationRef.current = requestAnimationFrame(animateFnRef.current!)
   }, [])
+
+  animateFnRef.current = animateMarker
 
   useEffect(() => {
     if (motoboy.latitude !== null && motoboy.longitude !== null) {

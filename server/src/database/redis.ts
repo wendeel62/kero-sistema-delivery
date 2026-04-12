@@ -1,16 +1,29 @@
 import { createClient } from 'redis';
 
-let redisClient: ReturnType<typeof createClient>;
+let redisClient: ReturnType<typeof createClient> | null = null;
 
 export async function initializeRedis() {
+  if (!process.env.REDIS_URL) {
+    console.log('Redis URL not found, skipping initialization (running in local-memory mode)');
+    return;
+  }
+  
   redisClient = createClient({
     url: process.env.REDIS_URL,
   });
 
-  redisClient.on('error', (err) => console.error('Redis error:', err));
+  redisClient.on('error', (err) => {
+    console.error('Redis error:', err);
+    redisClient = null;
+  });
 
-  await redisClient.connect();
-  console.log('Connected to Redis');
+  try {
+    await redisClient.connect();
+    console.log('Connected to Redis');
+  } catch (err) {
+    console.error('Failed to connect to Redis:', err);
+    redisClient = null;
+  }
 }
 
 export function getRedisClient() {

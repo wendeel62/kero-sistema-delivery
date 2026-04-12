@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -69,6 +70,8 @@ const COLUMNS = [
 ] as const
 
 export default function PedidosPage() {
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [pedidos, setPedidos] = useState<UnifiedPedido[]>([])
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -128,8 +131,8 @@ export default function PedidosPage() {
     try {
       const { inicio, fim } = getDateRange()
 
-      const { data: pdvList } = await supabase.from('pedidos').select('*, itens_pedido(*)').gte('created_at', inicio).lte('created_at', fim)
-      const { data: onlineList } = await supabase.from('pedidos_online').select('*').gte('created_at', inicio).lte('created_at', fim)
+      const { data: pdvList } = await supabase.from('pedidos').select('*, itens_pedido(*)').eq('tenant_id', tenantId).gte('created_at', inicio).lte('created_at', fim)
+      const { data: onlineList } = await supabase.from('pedidos_online').select('*').eq('tenant_id', tenantId).gte('created_at', inicio).lte('created_at', fim)
 
       const unified: UnifiedPedido[] = []
 
@@ -289,15 +292,16 @@ export default function PedidosPage() {
     }
 
     try {
-      const { error } = await supabase.from(pedido.tipo_tabela).update({ status: nextRaw }).eq('id', pedido.id)
+      const { error } = await supabase.from(pedido.tipo_tabela).update({ status: nextRaw }).eq('id', pedido.id).eq('tenant_id', tenantId)
       if (!error) {
         if (nextRaw === 'entregue' && pedido.cliente_telefone) {
-           const { data: config } = await supabase.from('configuracoes').select('*').single()
+           const { data: config } = await supabase.from('configuracoes').select('*').eq('tenant_id', tenantId).single()
            if (config?.fidelidade_ativa) {
                const { data: cliente } = await supabase
                  .from('clientes')
                  .select('*')
                  .eq('telefone', pedido.cliente_telefone)
+                 .eq('tenant_id', tenantId)
                  .single()
                
                if (cliente) {
@@ -314,7 +318,7 @@ export default function PedidosPage() {
                      ultimo_pedido: new Date().toISOString(),
                      pontos: (cliente.pontos || 0) + novosPontos,
                      cashback: novoCashback
-                  }).eq('id', cliente.id)
+                  }).eq('id', cliente.id).eq('tenant_id', tenantId)
                }
            }
         }
@@ -326,6 +330,7 @@ export default function PedidosPage() {
             .from('entregas')
             .select('motoboy_id')
             .eq('pedido_id', pedido.id)
+            .eq('tenant_id', tenantId)
             .maybeSingle()
 
           if (entrega?.motoboy_id) {
@@ -335,6 +340,7 @@ export default function PedidosPage() {
               .from(pedido.tipo_tabela)
               .select('motoboy_id')
               .eq('id', pedido.id)
+              .eq('tenant_id', tenantId)
               .maybeSingle()
 
             if (pedidoData?.motoboy_id) {
@@ -350,6 +356,7 @@ export default function PedidosPage() {
                 disponivel: true 
               })
               .eq('id', motoboyId)
+              .eq('tenant_id', tenantId)
 
             await supabase
               .from('entregas')
@@ -358,6 +365,7 @@ export default function PedidosPage() {
                 entregue_em: new Date().toISOString()
               })
               .eq('pedido_id', pedido.id)
+              .eq('tenant_id', tenantId)
 
             await supabase
               .from(pedido.tipo_tabela)
@@ -380,6 +388,7 @@ export default function PedidosPage() {
         }
 
         await supabase.from('historico_status').insert({
+          tenant_id: tenantId,
           pedido_id: pedido.id,
           origem_tabela: pedido.tipo_tabela,
           status_anterior: pedido.raw_status,
@@ -397,9 +406,10 @@ export default function PedidosPage() {
   const handleCancelPedido = async () => {
     if (!cancelModalPedido || !cancelReason.trim()) return
     try {
-      const { error } = await supabase.from(cancelModalPedido.tipo_tabela).update({ status: 'cancelado' }).eq('id', cancelModalPedido.id)
+      const { error } = await supabase.from(cancelModalPedido.tipo_tabela).update({ status: 'cancelado' }).eq('id', cancelModalPedido.id).eq('tenant_id', tenantId)
       if (!error) {
         await supabase.from('historico_status').insert({
+          tenant_id: tenantId,
           pedido_id: cancelModalPedido.id,
           origem_tabela: cancelModalPedido.tipo_tabela,
           status_anterior: cancelModalPedido.raw_status,

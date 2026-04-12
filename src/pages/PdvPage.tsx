@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import DivisaoConta from '../components/DivisaoConta'
 import { syncCliente } from '../lib/syncCliente'
@@ -13,6 +14,8 @@ interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco:
 interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 
 export default function PdvPage() {
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [mesas, setMesas] = useState<Mesa[]>([])
@@ -49,11 +52,11 @@ export default function PdvPage() {
 
   const fetchData = useCallback(async () => {
     const [{ data: prods }, { data: cats }, { data: mesasData }, { data: precos }, { data: saboresData }] = await Promise.all([
-      supabase.from('produtos').select('*').eq('disponivel', true).order('ordem'),
-      supabase.from('categorias').select('*').order('ordem'),
-      supabase.from('mesas').select('*').order('numero'),
-      supabase.from('precos_tamanho').select('*'),
-      supabase.from('sabores').select('*').eq('disponivel', true).order('nome'),
+      supabase.from('produtos').select('*').eq('tenant_id', tenantId).eq('disponivel', true).order('ordem'),
+      supabase.from('categorias').select('*').eq('tenant_id', tenantId).order('ordem'),
+      supabase.from('mesas').select('*').eq('tenant_id', tenantId).order('numero'),
+      supabase.from('precos_tamanho').select('*').eq('tenant_id', tenantId),
+      supabase.from('sabores').select('*').eq('tenant_id', tenantId).eq('disponivel', true).order('nome'),
     ])
     if (prods) setProdutos(prods)
     if (cats) setCategorias(cats)
@@ -82,7 +85,7 @@ export default function PdvPage() {
       responsavel: responsavelMesa || null,
       pessoas: pessoasMesa,
       aberta_em: new Date().toISOString(),
-    }).eq('id', mesaSelecionada.id)
+    }).eq('id', mesaSelecionada.id).eq('tenant_id', tenantId)
     setShowOcuparMesa(false)
     setMesaSelecionada(null)
     setPessoasMesa(1)
@@ -171,6 +174,7 @@ export default function PdvPage() {
     setSalvando(true)
 
     const { data: pedido, error: errPed } = await supabase.from('pedidos').insert({
+      tenant_id: tenantId,
       cliente_nome: clienteNome || null,
       cliente_telefone: clienteTelefone || null,
       tipo,
@@ -192,6 +196,7 @@ export default function PdvPage() {
 
     if (pedido) {
       const itensInsert = itens.map(i => ({
+        tenant_id: tenantId,
         pedido_id: pedido.id,
         produto_id: i.produto.id,
         produto_nome: i.produto.nome + (i.tamanho ? ` (${i.tamanho})` : '') + (i.sabor1 ? ` - ${i.sabor1}` : '') + (i.sabor2 ? ` + ${i.sabor2}` : ''),
@@ -276,10 +281,10 @@ export default function PdvPage() {
                       if (mesa.status === 'livre') {
                         setShowOcuparMesa(true)
                       } else if (mesa.status === 'ocupada' || mesa.status === 'aguardando_pagamento') {
-                        const { data: pedidos } = await supabase.from('pedidos').select('*').eq('mesa_numero', mesa.numero).in('status', ['pendente', 'preparando']).order('created_at', { ascending: false }).limit(1)
+                        const { data: pedidos } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).eq('mesa_numero', mesa.numero).in('status', ['pendente', 'preparando']).order('created_at', { ascending: false }).limit(1)
                         const ultimoPedido = pedidos?.[0]
                         if (ultimoPedido) {
-                          const { data: itensPedido } = await supabase.from('itens_pedido').select('*').eq('pedido_id', ultimoPedido.id)
+                          const { data: itensPedido } = await supabase.from('itens_pedido').select('*').eq('tenant_id', tenantId).eq('pedido_id', ultimoPedido.id)
                           setItensMesa(itensPedido || [])
                         } else {
                           setItensMesa([])
@@ -300,10 +305,10 @@ export default function PdvPage() {
                     <button
                       onClick={async (e) => {
                         e.stopPropagation()
-                        const { data: pedidos } = await supabase.from('pedidos').select('*').eq('mesa_numero', mesa.numero).in('status', ['pendente', 'preparando']).order('created_at', { ascending: false }).limit(1)
+                        const { data: pedidos } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).eq('mesa_numero', mesa.numero).in('status', ['pendente', 'preparando']).order('created_at', { ascending: false }).limit(1)
                         const ultimoPedido = pedidos?.[0]
                         if (ultimoPedido) {
-                          const { data: itensPedido } = await supabase.from('itens_pedido').select('*').eq('pedido_id', ultimoPedido.id)
+                          const { data: itensPedido } = await supabase.from('itens_pedido').select('*').eq('tenant_id', tenantId).eq('pedido_id', ultimoPedido.id)
                           setItensMesa(itensPedido || [])
                         } else {
                           setItensMesa([])

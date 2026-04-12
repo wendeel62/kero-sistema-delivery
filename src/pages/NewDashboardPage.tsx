@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useMemo, lazy, Suspense, useRef } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { useTheme } from '../contexts/ThemeContext'
 import { 
@@ -55,6 +56,8 @@ const quickActions = [
 
 export default function DashboardPage() {
   const { isDark } = useTheme()
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [kpis, setKpis] = useState<KPIs>({
     faturamento: 0, totalPedidos: 0, ticketMedio: 0, tempoEntrega: 0,
     visualizacoes: 0, avaliacao: 0, totalAvaliacoes: 0, pedidosAbertos: 0, totalEntregues: 0,
@@ -77,8 +80,8 @@ export default function DashboardPage() {
     const today = now.toISOString().split('T')[0]
     
     // ... toda lógica original mantida exatamente igual ...
-    const { data: pedidosHoje } = await supabase.from('pedidos').select('*').gte('created_at', today)
-    const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').gte('created_at', today)
+    const { data: pedidosHoje } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).gte('created_at', today)
+    const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').eq('tenant_id', tenantId).gte('created_at', today)
 
     const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     const validos = allPedidos.filter(p => p.status !== 'cancelado')

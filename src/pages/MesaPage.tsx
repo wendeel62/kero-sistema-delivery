@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useParams } from 'react-router-dom'
 
 interface Produto { id: string; nome: string; preco: number; categoria_id: string; descricao: string; disponivel: boolean }
@@ -13,6 +14,8 @@ type Step = 'menu' | 'carrinho'
 
 export default function MesaPage() {
   const { numero } = useParams<{ numero: string }>()
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [mesa, setMesa] = useState<Mesa | null>(null)
   const [mesaNaoEncontrada, setMesaNaoEncontrada] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -37,11 +40,11 @@ export default function MesaPage() {
   const fetchData = useCallback(async () => {
     const mesaNum = parseInt(numero || '0')
     const [{ data: mesaData }, { data: cats }, { data: prods }, { data: precos }, { data: saboresData }] = await Promise.all([
-      supabase.from('mesas').select('*').eq('numero', mesaNum).single(),
-      supabase.from('categorias').select('*').eq('ativo', true).order('ordem'),
-      supabase.from('produtos').select('*').eq('disponivel', true).order('ordem'),
-      supabase.from('precos_tamanho').select('*'),
-      supabase.from('sabores').select('*').eq('disponivel', true).order('nome'),
+      supabase.from('mesas').select('*').eq('tenant_id', tenantId).eq('numero', mesaNum).single(),
+      supabase.from('categorias').select('*').eq('tenant_id', tenantId).eq('ativo', true).order('ordem'),
+      supabase.from('produtos').select('*').eq('tenant_id', tenantId).eq('disponivel', true).order('ordem'),
+      supabase.from('precos_tamanho').select('*').eq('tenant_id', tenantId),
+      supabase.from('sabores').select('*').eq('tenant_id', tenantId).eq('disponivel', true).order('nome'),
     ])
     
     if (!mesaData) {
@@ -126,7 +129,7 @@ export default function MesaPage() {
       tamanho: item.tamanho,
     }))
 
-    await supabase.from('itens_pedido').insert(itens)
+    await supabase.from('itens_pedido').insert(itens.map(i => ({ ...i, tenant_id: tenantId })))
 
     setLoading(false)
     setSucesso(true)
