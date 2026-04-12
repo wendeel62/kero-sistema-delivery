@@ -15,7 +15,7 @@ export const ADMIN_PROJECTS: AdminProject[] = [
     icon: 'UtensilsCrossed',
     color: '#e8391a',
     status: 'active',
-    metricsEndpoint: 'admin-metrics',
+    metricsEndpoint: 'admin-dashboard-data',
     plans: [
       { id: 'basic', name: 'Básico', value: 69 },
       { id: 'pro', name: 'Pro', value: 127 },

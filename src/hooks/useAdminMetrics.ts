@@ -51,23 +51,14 @@ export interface AdminMetrics {
 }
 
 async function fetchAdminMetrics(endpoint: string): Promise<AdminMetrics> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Sem sessão ativa')
+  const { data, error } = await supabase.functions.invoke(endpoint)
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const res = await fetch(`${supabaseUrl}/functions/v1/${endpoint}`, {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-  })
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
-    throw new Error(err.error || `HTTP ${res.status}`)
+  if (error) {
+    console.error(`[AdminMetrics] Erro ao invocar ${endpoint}:`, error)
+    throw new Error(error.message || 'Erro ao carregar métricas da Edge Function')
   }
 
-  return res.json()
+  return data as AdminMetrics
 }
 
 export function useAdminMetrics(projectId: string, endpoint: string) {

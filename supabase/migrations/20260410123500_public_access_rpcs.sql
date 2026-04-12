@@ -22,7 +22,7 @@ BEGIN
                'taxa_entrega', taxa_entrega,
                'pedido_minimo', pedido_minimo,
                'loja_aberta', loja_aberta,
-               'nome_fantasia', COALESCE(nome_fantasia, 'Kero Delivery'),
+               'nome_fantasia', COALESCE(nome_loja, 'Kero Delivery'),
                'logo_url', logo_url
            )
     INTO v_tenant_id, v_config
@@ -144,3 +144,7 @@ BEGIN
     RETURN v_pedido_id;
 END;
 $$;
+
+-- Grant access to public roles
+GRANT EXECUTE ON FUNCTION public.get_public_menu(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_public_order(jsonb) TO anon, authenticated;

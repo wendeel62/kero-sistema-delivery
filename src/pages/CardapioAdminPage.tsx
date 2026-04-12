@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { useAuth } from '../contexts/AuthContext'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { produtoSchema } from '../schemas/produtoSchema'
 
 interface Categoria { id: string; nome: string; descricao: string; ordem: number; ativo: boolean }
 interface Produto { id: string; categoria_id: string; nome: string; descricao: string; preco: number | undefined; disponivel: boolean; destaque: boolean; tempo_preparo: number; imagem_url: string }
@@ -30,6 +33,20 @@ export default function CardapioAdminPage() {
   const [uploading, setUploading] = useState(false)
 
   const { user } = useAuth()
+
+  const produtoForm = useForm({
+    resolver: zodResolver(produtoSchema),
+    defaultValues: {
+      nome: '',
+      descricao: '',
+      preco: 0,
+      disponivel: true,
+      destaque: false,
+      tempo_preparo: 30,
+      categoria_id: '',
+      imagem_url: ''
+    }
+  })
 
   const fetchCategorias = useCallback(async () => {
     const { data } = await supabase.from('categorias').select('*').order('ordem')
@@ -585,14 +602,61 @@ export default function CardapioAdminPage() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-[4px] z-[999] flex items-center justify-center p-3 sm:p-4 md:p-6" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }}>
           <div className="w-full max-w-[600px] max-h-[95vh] overflow-y-auto rounded-2xl bg-[#16181f] p-5 sm:p-8 md:rounded-3xl md:p-10 no-scrollbar animate-fade-in" onClick={e => e.stopPropagation()}>
             <h3 className="font-headline text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
-            <div className="space-y-6">
+            <form onSubmit={produtoForm.handleSubmit(async (data) => {
+              setUploading(true)
+              const record: any = {
+                nome: data.nome,
+                descricao: data.descricao || '',
+                categoria_id: data.categoria_id || null,
+                disponivel: data.disponivel,
+                destaque: data.destaque,
+                tempo_preparo: data.tempo_preparo || 30,
+                imagem_url: data.imagem_url || ''
+              }
+              if (data.preco !== undefined && data.preco !== null && data.preco > 0) {
+                record.preco = data.preco
+              }
+
+              let produtoId = editProduto?.id
+              
+              if (!produtoId) {
+                const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length }).select().single()
+                if (insertError) {
+                  alert('Erro ao salvar: ' + insertError.message)
+                  setUploading(false)
+                  return
+                }
+                produtoId = insertData.id
+              } else {
+                const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId)
+                if (updateError) {
+                  alert('Erro ao salvar: ' + updateError.message)
+                  setUploading(false)
+                  return
+                }
+              }
+              
+              if (selectedFile && produtoId) {
+                const imageUrl = await uploadPhoto(produtoId)
+                if (imageUrl) {
+                  await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId)
+                }
+              }
+
+              setUploading(false)
+              setSelectedFile(null)
+              setImagePreview(null)
+              setShowProdutoModal(false)
+              setEditProduto(null)
+              fetchProdutos()
+            })} className="space-y-6">
               <div className="flex justify-center mb-6">
                 <div className="relative w-full max-w-[200px] aspect-[4/5]">
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" id="photo-input" disabled={uploading} />
                   {(imagePreview || editProduto?.imagem_url) ? (
                     <div className="relative w-full h-full rounded-xl overflow-hidden">
                       <img src={imagePreview || editProduto?.imagem_url} alt="Preview" className="w-full h-full object-cover" />
-                      <button onClick={removePhoto} className="absolute top-2 right-2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-all">
+                      <button type="button" onClick={removePhoto} className="absolute top-2 right-2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-all">
                         <span className="material-symbols-outlined text-sm">delete</span>
                       </button>
                     </div>
@@ -606,27 +670,28 @@ export default function CardapioAdminPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Nome do Produto</label>
-                <input value={editProduto?.nome || ''} onChange={e => setEditProduto(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Pizza Calabresa Especial" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+                <input {...produtoForm.register('nome')} placeholder="Ex: Pizza Calabresa Especial" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+                {produtoForm.formState.errors.nome && <span className="text-red-400 text-xs">{produtoForm.formState.errors.nome.message as string}</span>}
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Descricao Detalhada</label>
-                <textarea value={editProduto?.descricao || ''} onChange={e => setEditProduto(p => ({ ...p, descricao: e.target.value }))} placeholder="Descreva os ingredientes e detalhes" rows={3} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white resize-none" />
+                <textarea {...produtoForm.register('descricao')} placeholder="Descreva os ingredientes e detalhes" rows={3} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white resize-none" />
               </div>
               
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Preco Base (R$) <span className="text-[10px] normal-case text-[#666]">- Opcional (use se nao houver tamanhos)</span></label>
-                  <input type="number" step="0.01" value={editProduto?.preco ?? ''} onChange={e => setEditProduto(p => ({ ...p, preco: e.target.value ? Number(e.target.value) : undefined }))} placeholder="Ex: 25.00 (ou deixe vazio se usar tamanhos)" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+                  <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Preco Base (R$) <span className="text-[10px] normal-case text-[#666]">- Opcional</span></label>
+                  <input type="number" step="0.01" {...produtoForm.register('preco', { valueAsNumber: true })} placeholder="Ex: 25.00" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Tempo de Preparo (Min)</label>
-                  <input type="number" value={editProduto?.tempo_preparo || 30} onChange={e => setEditProduto(p => ({ ...p, tempo_preparo: Number(e.target.value) }))} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+                  <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Tempo (Min)</label>
+                  <input type="number" {...produtoForm.register('tempo_preparo', { valueAsNumber: true })} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Categoria</label>
-                <select value={editProduto?.categoria_id || ''} onChange={e => setEditProduto(p => ({ ...p, categoria_id: e.target.value }))} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white cursor-pointer">
+                <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white cursor-pointer">
                   <option value="">Sem categoria</option>
                   {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
@@ -634,16 +699,16 @@ export default function CardapioAdminPage() {
 
               <div className="flex gap-8 pt-2">
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${editProduto?.disponivel !== false ? 'bg-[#ff5722] border-[#ff5722]' : 'border-[#444]'}`}>
-                    <input type="checkbox" className="hidden" checked={editProduto?.disponivel ?? true} onChange={e => setEditProduto(p => ({ ...p, disponivel: e.target.checked }))} />
-                    {editProduto?.disponivel !== false && <span className="material-symbols-outlined text-white text-base">check</span>}
+                  <input type="checkbox" {...produtoForm.register('disponivel')} className="hidden" />
+                  <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${produtoForm.watch('disponivel') ? 'bg-[#ff5722] border-[#ff5722]' : 'border-[#444]'}`}>
+                    {produtoForm.watch('disponivel') && <span className="material-symbols-outlined text-white text-base">check</span>}
                   </div>
                   <span className="text-sm font-headline font-bold uppercase tracking-widest opacity-80 group-hover:opacity-100 text-white">Disponivel</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group">
-                   <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${editProduto?.destaque ? 'bg-[#ffc107] border-[#ffc107]' : 'border-[#444]'}`}>
-                    <input type="checkbox" className="hidden" checked={editProduto?.destaque ?? false} onChange={e => setEditProduto(p => ({ ...p, destaque: e.target.checked }))} />
-                    {editProduto?.destaque && <span className="material-symbols-outlined text-black text-base">star</span>}
+                  <input type="checkbox" {...produtoForm.register('destaque')} className="hidden" />
+                   <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${produtoForm.watch('destaque') ? 'bg-[#ffc107] border-[#ffc107]' : 'border-[#444]'}`}>
+                    {produtoForm.watch('destaque') && <span className="material-symbols-outlined text-black text-base">star</span>}
                   </div>
                   <span className="text-sm font-headline font-bold uppercase tracking-widest opacity-80 group-hover:opacity-100 text-[#ffc107]">Destaque</span>
                 </label>
@@ -651,28 +716,75 @@ export default function CardapioAdminPage() {
 
               {editProduto?.id && (
                 <div className="border-t border-[#333] pt-8 mt-4">
-                  <h4 className="text-xs font-headline font-bold uppercase tracking-[0.2em] mb-4 text-[#888]">Precos por Tamanho (Variacoes)</h4>
+                  <h4 className="text-xs font-headline font-bold uppercase tracking-[0.2em] mb-4 text-[#888]">Precos por Tamanho</h4>
                   <div className="space-y-3">
                     {precos.map(pt => (
                       <div key={pt.id} className="flex items-center justify-between bg-[#1a1a1a] p-4 rounded-xl border border-[#333]">
                         <span className="text-sm font-bold uppercase tracking-widest text-white">{pt.tamanho} -- <span className="text-[#4ade80]">R$ {Number(pt.preco).toFixed(2)}</span></span>
-                        <button onClick={() => deletePreco(pt.id, editProduto.id!)} className="w-8 h-8 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all">
+                        <button type="button" onClick={() => deletePreco(pt.id, editProduto.id!)} className="w-8 h-8 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all">
                           <span className="material-symbols-outlined text-sm">close</span>
                         </button>
                       </div>
                     ))}
                       <div className="flex gap-3 mt-4">
-                        <input value={newTamanho} onChange={e => setNewTamanho(e.target.value)} placeholder="Tamanho (Ex: G, M, 2L)" className="flex-1 bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-3 px-4 text-xs text-white" />
+                        <input value={newTamanho} onChange={e => setNewTamanho(e.target.value)} placeholder="Tamanho (Ex: G, M)" className="flex-1 bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-3 px-4 text-xs text-white" />
                         <input value={newPrecoValor} onChange={e => setNewPrecoValor(e.target.value)} type="number" step="0.01" placeholder="R$ 0,00" className="w-28 bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-3 px-4 text-xs text-white" />
-                        <button onClick={() => addPreco(editProduto.id!)} className="bg-[#ffc107] text-black px-4 rounded-xl text-xs font-bold uppercase">+</button>
+                        <button type="button" onClick={() => addPreco(editProduto.id!)} className="bg-[#ffc107] text-black px-4 rounded-xl text-xs font-bold uppercase">+</button>
                       </div>
                   </div>
                 </div>
               )}
-            </div>
+            </form>
             <div className="flex gap-4 mt-12">
-              <button onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="flex-1 py-4 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#1a1a1a] transition-all" disabled={uploading}>Cancelar</button>
-              <button onClick={saveProduto} disabled={uploading} className="flex-1 py-4 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
+              <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="flex-1 py-4 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#1a1a1a] transition-all" disabled={uploading}>Cancelar</button>
+              <button type="button" onClick={produtoForm.handleSubmit(async (data) => {
+                setUploading(true)
+                const record: any = {
+                  nome: data.nome,
+                  descricao: data.descricao || '',
+                  categoria_id: data.categoria_id || null,
+                  disponivel: data.disponivel,
+                  destaque: data.destaque,
+                  tempo_preparo: data.tempo_preparo || 30,
+                  imagem_url: data.imagem_url || ''
+                }
+                if (data.preco !== undefined && data.preco !== null && data.preco > 0) {
+                  record.preco = data.preco
+                }
+
+                let produtoId = editProduto?.id
+                
+                if (!produtoId) {
+                  const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length }).select().single()
+                  if (insertError) {
+                    alert('Erro ao salvar: ' + insertError.message)
+                    setUploading(false)
+                    return
+                  }
+                  produtoId = insertData.id
+                } else {
+                  const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId)
+                  if (updateError) {
+                    alert('Erro ao salvar: ' + updateError.message)
+                    setUploading(false)
+                    return
+                  }
+                }
+                
+                if (selectedFile && produtoId) {
+                  const imageUrl = await uploadPhoto(produtoId)
+                  if (imageUrl) {
+                    await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId)
+                  }
+                }
+
+                setUploading(false)
+                setSelectedFile(null)
+                setImagePreview(null)
+                setShowProdutoModal(false)
+                setEditProduto(null)
+                fetchProdutos()
+              })} disabled={uploading} className="flex-1 py-4 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>

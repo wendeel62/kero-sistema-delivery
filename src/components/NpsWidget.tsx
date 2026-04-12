@@ -42,7 +42,7 @@ export default function NpsWidget({ pedidoId, titulo = 'Como foi sua experiênci
     setEnviando(true)
     setErro(null)
 
-    console.log('NPS: Enviando avaliação...', { pedidoId, tabela, nota })
+    // console.log('NPS: Enviando avaliação...', { pedidoId, tabela, nota })
 
     try {
       const { data, error } = await supabase
@@ -54,7 +54,7 @@ export default function NpsWidget({ pedidoId, titulo = 'Como foi sua experiênci
         .eq('id', pedidoId)
         .select()
 
-      console.log('NPS: Resposta do Supabase', { data, error })
+      // console.log('NPS: Resposta do Supabase', { data, error })
 
       if (error) {
         console.error('NPS: Erro ao salvar:', error)
@@ -70,7 +70,7 @@ export default function NpsWidget({ pedidoId, titulo = 'Como foi sua experiênci
         return
       }
 
-      console.log('NPS: Avaliação salva com sucesso!', data)
+      // console.log('NPS: Avaliação salva com sucesso!', data)
       setEnviado(true)
       setNotaEnviada(nota)
       onComplete?.(nota)

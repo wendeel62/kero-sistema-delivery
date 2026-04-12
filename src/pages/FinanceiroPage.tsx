@@ -147,7 +147,7 @@ export default function FinanceiroPage() {
     }
 
     try {
-      console.log('Salvando meta:', { periodo, valor: value, tenantId: user?.id })
+      // console.log('Salvando meta:', { periodo, valor: value, tenantId: user?.id })
       await saveMeta(periodo, value)
       setToast('Salvo ✓')
       setTimeout(() => setToast(null), 2000)
