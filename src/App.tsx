@@ -21,6 +21,11 @@ import MotoboyApp from './pages/MotoboyApp'
 import PedidoStatusPage from './pages/PedidoStatusPage'
 import WhatsappInboxPage from './pages/WhatsappInboxPage'
 import CozinhaPage from './pages/CozinhaPage'
+import MfaPage from './pages/MfaPage'
+import MfaSetupPage from './pages/MfaSetupPage'
+import AdminLogin from './pages/admin/AdminLogin'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminGuard from './components/admin/AdminGuard'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60, retry: 1, refetchOnWindowFocus: false } },
@@ -44,11 +49,17 @@ export default function App() {
             <Routes>
               {/* Rota pública */}
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/cardapio" element={<CardapioOnlinePage />} />
+              <Route path="/cardapio/:slug" element={<CardapioOnlinePage />} />
               <Route path="/mesa/:numero" element={<MesaPage />} />
               <Route path="/motoboy" element={<MotoboyApp />} />
               <Route path="/pedido/:numero" element={<PedidoStatusPage />} />
               <Route path="/cozinha" element={<CozinhaPage />} />
+              <Route path="/mfa-verify" element={<MfaPage />} />
+
+              {/* Rotas Admin SaaS — isoladas */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+              <Route path="/admin/*" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
 
               {/* Rotas privadas */}
               <Route element={<ProtectedRoute><MetaPeriodoProvider><Layout /></MetaPeriodoProvider></ProtectedRoute>}>
@@ -62,6 +73,7 @@ export default function App() {
                 <Route path="/entregas" element={<EntregasPage />} />
                 <Route path="/whatsapp" element={<WhatsappInboxPage />} />
                 <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                <Route path="/mfa-setup" element={<MfaSetupPage />} />
               </Route>
             </Routes>
           </BrowserRouter>

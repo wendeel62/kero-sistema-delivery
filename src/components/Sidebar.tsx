@@ -24,10 +24,10 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, signOut } = useAuth()
-  const [isHovered, setIsHovered] = useState(false)
+  const [isManualExpanded, setIsManualExpanded] = useState(true)
 
-  // No mobile usamos a prop isOpen, no desktop usamos hover
-  const expanded = isHovered || (isOpen && window.innerWidth < 768)
+  // No mobile usamos a prop isOpen, no desktop usamos apenas o controle manual
+  const expanded = isManualExpanded || (isOpen && window.innerWidth < 768)
 
   return (
     <>
@@ -40,8 +40,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
       
       <aside 
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         className={`
           fixed left-0 top-0 h-screen bg-surface-container-lowest flex flex-col py-3 md:py-4 lg:py-6 z-50 
           border-r border-outline shadow-2xl backdrop-blur-xl
@@ -51,7 +49,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         `}
       >
         {/* Logo Area */}
-        <div className={`mb-6 lg:mb-10 px-4 transition-all duration-300 ${expanded ? 'items-start' : 'items-center'} flex flex-col`}>
+        <div className={`mb-6 lg:mb-10 px-4 flex items-center justify-between transition-all duration-300`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 shrink-0 rounded-xl glass bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-xl animate-float">
               <span className="material-symbols-outlined text-on-primary text-xl font-bold !text-lg drop-shadow-lg">fastfood</span>
@@ -61,8 +59,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 KERO <span className="text-primary font-black drop-shadow-sm">SISTEMA</span>
               </span>
             )}
-
           </div>
+          
+          {/* Collapse Toggle Button (Desktop Only) */}
+          <button 
+            onClick={() => setIsManualExpanded(!isManualExpanded)}
+            className={`
+              hidden md:flex absolute -right-3 top-20 w-7 h-7 bg-surface-container-highest border border-outline rounded-full 
+              items-center justify-center shadow-lg transition-all duration-500 z-[60]
+              hover:bg-primary/20 hover:border-primary/50 text-on-surface-variant hover:text-primary
+              ${isManualExpanded ? 'rotate-0' : 'rotate-180'}
+            `}
+          >
+            <span className="material-symbols-outlined text-sm font-bold">chevron_left</span>
+          </button>
         </div>
 
         {/* Navigation Items */}

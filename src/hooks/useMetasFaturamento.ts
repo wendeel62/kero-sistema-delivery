@@ -63,7 +63,7 @@ export function useMetasFaturamento(tenantId: string, enabled = true) {
       const mesEnd = padDateTime(endOfMonth(now))
 
       const [{ data: configData }, { data: diaPedidos }, { data: semanaPedidos }, { data: mesPedidos }] = await Promise.all([
-        supabase.from('configuracoes').select('id, metas_faturamento').limit(1).single(),
+        supabase.from('configuracoes').select('id, metas_faturamento').eq('tenant_id', tenantId).limit(1).single(),
         supabase.from('pedidos').select('total').eq('tenant_id', tenantId).eq('status', 'entregue').gte('created_at', diaStart).lte('created_at', diaEnd),
         supabase.from('pedidos').select('total').eq('tenant_id', tenantId).eq('status', 'entregue').gte('created_at', semanaStart).lte('created_at', semanaEnd),
         supabase.from('pedidos').select('total').eq('tenant_id', tenantId).eq('status', 'entregue').gte('created_at', mesStart).lte('created_at', mesEnd),
@@ -90,6 +90,7 @@ export function useMetasFaturamento(tenantId: string, enabled = true) {
       const { data: configData } = await supabase
         .from('configuracoes')
         .select('id, metas_faturamento')
+        .eq('tenant_id', tenantId)
         .limit(1)
         .single()
 
@@ -105,6 +106,7 @@ export function useMetasFaturamento(tenantId: string, enabled = true) {
         .from('configuracoes')
         .update({ metas_faturamento: nextMetas })
         .eq('id', configData.id)
+        .eq('tenant_id', tenantId)
 
       if (error) throw error
     },

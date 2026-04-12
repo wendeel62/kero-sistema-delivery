@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
@@ -37,6 +38,8 @@ const formatDateShort = (dateStr: string) => {
 }
 
 export default function OperacoesPage() {
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [activeTab, setActiveTab] = useState<'operador' | 'gestor'>('operador')
   
   return (
@@ -72,13 +75,13 @@ export default function OperacoesPage() {
       </header>
 
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'operador' ? <TabOperador /> : <TabGestorConsultor />}
+        {activeTab === 'operador' ? <TabOperador tenantId={tenantId} /> : <TabGestorConsultor tenantId={tenantId} />}
       </div>
     </div>
   )
 }
 
-function TabOperador() {
+function TabOperador({ tenantId }: { tenantId: string | undefined }) {
   const [pedidosAtivos, setPedidosAtivos] = useState<Pedido[]>([])
   const [loadingAtivos, setLoadingAtivos] = useState(true)
   const queryClient = useQueryClient()
@@ -248,7 +251,7 @@ type AnaliseData = {
   sugestoes: Suggestion[]
 }
 
-function TabGestorConsultor() {
+function TabGestorConsultor({ tenantId }: { tenantId: string | undefined }) {
   const queryClient = useQueryClient()
   const chatEndRef = useRef<HTMLDivElement>(null)
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'agent'; content: string }[]>([])
@@ -318,6 +321,7 @@ function TabGestorConsultor() {
   const handleExecutarSugestao = async (sugestao: Suggestion) => {
     try {
       await supabase.from('historico_agente').insert({
+        tenant_id: tenantId,
         tipo: 'executado',
         descricao: sugestao.titulo,
         executado_em: new Date().toISOString()
@@ -332,6 +336,7 @@ function TabGestorConsultor() {
   const handleIgnorarSugestao = async (sugestao: Suggestion) => {
     try {
       await supabase.from('historico_agente').insert({
+        tenant_id: tenantId,
         tipo: 'ignorado',
         descricao: sugestao.titulo
       })

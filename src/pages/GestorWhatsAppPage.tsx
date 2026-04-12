@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
@@ -102,6 +103,8 @@ function PedidoCard({ pedido, compact = false }: { pedido: Pedido; compact?: boo
 }
 
 export default function GestorWhatsAppPage() {
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [activeTab, setActiveTab] = useState<'operador' | 'gestor' | 'pedidos'>('pedidos')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
@@ -226,6 +229,7 @@ export default function GestorWhatsAppPage() {
     mutationFn: async ({ titulo, action }: { titulo: string; action: string }) => {
       try {
         await supabase.from('historico_agente').insert({
+          tenant_id: tenantId,
           tipo: 'executado',
           descricao: titulo,
           executado_em: new Date().toISOString()
@@ -244,6 +248,7 @@ export default function GestorWhatsAppPage() {
     mutationFn: async (titulo: string) => {
       try {
         await supabase.from('historico_agente').insert({
+          tenant_id: tenantId,
           tipo: 'ignorado',
           descricao: titulo
         })

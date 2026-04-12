@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 
 interface Ingrediente {
@@ -26,6 +27,8 @@ interface Fornecedor {
 }
 
 export default function EstoquePage() {
+  const { user } = useAuth()
+  const tenantId = user?.id
   const [activeTab, setActiveTab] = useState<'movimentacao' | 'ficha_tecnica' | 'fornecedores'>('movimentacao')
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([])
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
@@ -37,12 +40,12 @@ export default function EstoquePage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const { data: ing } = await supabase.from('ingredientes').select('*').order('nome')
-    const { data: forn } = await supabase.from('fornecedores').select('*').order('nome_fantasia')
+    const { data: ing } = await supabase.from('ingredientes').select('*').eq('tenant_id', tenantId).order('nome')
+    const { data: forn } = await supabase.from('fornecedores').select('*').eq('tenant_id', tenantId).order('nome_fantasia')
     setIngredientes(ing || [])
     setFornecedores(forn || [])
     setLoading(false)
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     fetchData()
@@ -64,14 +67,14 @@ export default function EstoquePage() {
   }
 
   return (
-    <div className="animate-fade-in pb-10 p-3 sm:p-4 md:p-6">
+    <div className="animate-fade-in-up pb-10 p-3 sm:p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-6 md:mb-8">
         <div>
-          <span className="text-[#f57c24] font-bold uppercase tracking-[0.3em] text-[10px] mb-2 block">Backoffice & Insumos</span>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">Estoque</h2>
+          <span className="text-[#ff9800] font-bold uppercase tracking-[0.3em] text-[10px] mb-2 block">Backoffice & Insumos</span>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-on-background tracking-tight">Estoque</h2>
         </div>
         
-        <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830] overflow-x-auto">
+        <div className="flex bg-surface-container rounded-2xl p-1 border border-outline overflow-x-auto">
           {[
             { id: 'movimentacao', label: 'Insumos', icon: 'inventory_2' },
             { id: 'ficha_tecnica', label: 'Fichas', icon: 'receipt_long' },
@@ -82,8 +85,8 @@ export default function EstoquePage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeTab === tab.id 
-                ? 'bg-[#e8391a] text-white shadow-lg' 
-                : 'text-white/60 hover:text-white hover:bg-[#252830]'
+                ? 'bg-primary text-on-primary shadow-lg' 
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-outline'
               }`}
             >
               <span className="material-symbols-outlined text-base sm:text-lg">{tab.icon}</span>
@@ -97,14 +100,14 @@ export default function EstoquePage() {
           <div className="flex gap-2">
              <button 
               onClick={() => setIsEntryModalOpen(true)}
-              className="bg-[#252830] text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-[#1c1e26] transition-all border border-[#252830]"
+              className="bg-outline text-on-background px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-80 transition-all border border-outline"
             >
               <span className="material-symbols-outlined text-[20px]">add_circle</span>
               Entrada
             </button>
             <button 
               onClick={() => { setEditingIngrediente({ nome: '', unidade: 'un', estoque_atual: 0, estoque_minimo: 0, estoque_critico: 0, custo_medio: 0, categoria: '' }); setIsModalOpen(true); }}
-              className="bg-[#e8391a] text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-[#c72f15] transition-all shadow-lg"
+              className="bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-lg"
             >
               <span className="material-symbols-outlined text-[20px]">post_add</span>
               Novo Insumo
@@ -116,20 +119,20 @@ export default function EstoquePage() {
       {activeTab === 'movimentacao' && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-[#e8391a]/20 to-[#e8391a]/5 rounded-2xl p-6 border border-[#e8391a]/30">
+            <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-6 border border-primary/30">
                <div className="flex items-center justify-between mb-4">
-                  <span className="material-symbols-outlined text-[#e8391a]">inventory</span>
-                  <span className="text-2xl font-bold text-white">{stats.total}</span>
+                  <span className="material-symbols-outlined text-primary">inventory</span>
+                  <span className="text-2xl font-bold text-on-background">{stats.total}</span>
                </div>
-               <span className="text-[10px] text-white/50 font-black uppercase tracking-widest">Total Insumos</span>
+               <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest">Total Insumos</span>
             </div>
             
-            <div className={`bg-gradient-to-br from-red-500/20 to-red-500/5 rounded-2xl p-6 border ${stats.critico > 0 ? 'border-red-500/30 animate-pulse' : 'border-[#252830]'}`}>
+            <div className={`bg-gradient-to-br from-red-500/20 to-red-500/5 rounded-2xl p-6 border ${stats.critico > 0 ? 'border-red-500/30 animate-pulse' : 'border-outline'}`}>
                <div className="flex items-center justify-between mb-4">
-                  <span className={`material-symbols-outlined ${stats.critico > 0 ? 'text-red-500' : 'text-white/20'}`}>report</span>
-                  <span className={`text-2xl font-bold ${stats.critico > 0 ? 'text-red-500' : 'text-white'}`}>{stats.critico}</span>
+                  <span className={`material-symbols-outlined ${stats.critico > 0 ? 'text-red-500' : 'text-on-surface-variant'}`}>report</span>
+                  <span className={`text-2xl font-bold ${stats.critico > 0 ? 'text-red-500' : 'text-on-background'}`}>{stats.critico}</span>
                </div>
-               <span className="text-[10px] text-white/50 font-black uppercase tracking-widest">Estoque Crítico</span>
+               <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest">Estoque Crítico</span>
             </div>
 
             <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 rounded-2xl p-6 border border-yellow-500/30">
@@ -137,7 +140,7 @@ export default function EstoquePage() {
                   <span className="material-symbols-outlined text-yellow-400">warning</span>
                   <span className="text-2xl font-bold text-yellow-400">{stats.baixo}</span>
                </div>
-               <span className="text-[10px] text-white/50 font-black uppercase tracking-widest">Estoque Baixo</span>
+               <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest">Estoque Baixo</span>
             </div>
 
             <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 rounded-2xl p-6 border border-emerald-500/30 text-right">
@@ -145,58 +148,58 @@ export default function EstoquePage() {
                   <span className="material-symbols-outlined text-emerald-400">payments</span>
                   <span className="text-xl font-bold text-emerald-400">R$ {stats.valor_total.toFixed(2)}</span>
                </div>
-               <span className="text-[10px] text-white/50 font-black uppercase tracking-widest">Valor em Estoque</span>
+               <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest">Valor em Estoque</span>
             </div>
           </div>
 
-          <div className="bg-[#16181f] rounded-2xl p-4 border border-[#252830] mb-6 flex flex-col md:flex-row gap-4">
+          <div className="bg-surface-container rounded-2xl p-4 border border-outline mb-6 flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-white/40">search</span>
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
               <input 
                 type="text" 
                 placeholder="Buscar insumo ou categoria..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-white/40 focus:border-[#e8391a] outline-none transition-all"
+                className="w-full bg-surface-container-lowest border border-outline rounded-xl py-3 pl-12 pr-4 text-sm text-on-background placeholder-on-surface-variant focus:border-primary outline-none transition-all"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {loading ? (
-                <div className="col-span-full py-20 text-center"><div className="w-10 h-10 border-4 border-[#e8391a] border-t-transparent rounded-full animate-spin mx-auto" /></div>
+                <div className="col-span-full py-20 text-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></div>
              ) : filteredIngredientes.map(ing => {
                 const perc = Math.min((ing.estoque_atual / (ing.estoque_minimo * 2)) * 100, 100)
-                let color = 'bg-[#e8391a]'
+                let color = 'bg-primary'
                 if (ing.estoque_atual <= ing.estoque_critico) color = 'bg-red-500'
                 else if (ing.estoque_atual <= ing.estoque_minimo) color = 'bg-yellow-500'
 
                 return (
-                  <div key={ing.id} className="bg-[#16181f] rounded-3xl p-6 border border-[#252830] group hover:border-[#e8391a]/30 transition-all shadow-lg hover:shadow-[#e8391a]/5">
+                  <div key={ing.id} className="bg-surface-container rounded-3xl p-6 border border-outline group hover:border-primary/30 transition-all shadow-lg hover:shadow-primary/5">
                      <div className="flex justify-between items-start mb-4">
                         <div>
-                           <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{ing.categoria}</span>
-                           <h4 className="text-lg font-bold text-white">{ing.nome}</h4>
+                           <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{ing.categoria}</span>
+                           <h4 className="text-lg font-bold text-on-background">{ing.nome}</h4>
                         </div>
-                        <button className="p-2 hover:bg-[#e8391a]/10 rounded-xl text-[#e8391a] opacity-0 group-hover:opacity-100 transition-all"><span className="material-symbols-outlined">edit</span></button>
+                        <button className="p-2 hover:bg-primary/10 rounded-xl text-primary opacity-0 group-hover:opacity-100 transition-all"><span className="material-symbols-outlined">edit</span></button>
                      </div>
                      
                      <div className="flex justify-between items-end mb-2">
                         <div className="flex flex-col">
-                           <span className="text-[10px] font-bold uppercase text-white/50">Estoque Atual</span>
-                           <span className={`text-2xl font-black ${ing.estoque_atual <= ing.estoque_critico ? 'text-red-500' : 'text-white'}`}>{ing.estoque_atual} <span className="text-xs font-normal opacity-50">{ing.unidade}</span></span>
+                           <span className="text-[10px] font-bold uppercase text-on-surface-variant">Estoque Atual</span>
+                           <span className={`text-2xl font-black ${ing.estoque_atual <= ing.estoque_critico ? 'text-red-500' : 'text-on-background'}`}>{ing.estoque_atual} <span className="text-xs font-normal opacity-50">{ing.unidade}</span></span>
                         </div>
                         <div className="text-right">
-                           <span className="text-[10px] font-bold uppercase text-white/50">Custo Médio</span>
+                           <span className="text-[10px] font-bold uppercase text-on-surface-variant">Custo Médio</span>
                            <div className="text-sm font-bold text-emerald-400">R$ {ing.custo_medio.toFixed(2)}</div>
                         </div>
                      </div>
 
-                     <div className="w-full h-2 bg-[#252830] rounded-full overflow-hidden mb-4">
+                     <div className="w-full h-2 bg-outline rounded-full overflow-hidden mb-4">
                         <div className={`h-full ${color} transition-all duration-1000`} style={{ width: `${perc}%` }} />
                      </div>
 
-                     <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter text-white/30">
+                     <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter text-on-surface-variant/50">
                         <span>Min: {ing.estoque_minimo}</span>
                         <span>Crítico: {ing.estoque_critico}</span>
                      </div>
@@ -265,13 +268,15 @@ function FichaTecnicaContent() {
 }
 
 function InsumoModal({ data, onClose, onSave }: any) {
+   const { user } = useAuth()
+   const tenantId = user?.id
    const [form, setForm] = useState(data)
    const [saving, setSaving] = useState(false)
 
    const save = async () => {
       setSaving(true)
-      if (form.id) await supabase.from('ingredientes').update(form).eq('id', form.id)
-      else await supabase.from('ingredientes').insert([form])
+      if (form.id) await supabase.from('ingredientes').update({ ...form, tenant_id: tenantId }).eq('id', form.id).eq('tenant_id', tenantId)
+      else await supabase.from('ingredientes').insert([{ ...form, tenant_id: tenantId }])
       onSave()
       onClose()
       setSaving(false)
@@ -322,12 +327,15 @@ function InsumoModal({ data, onClose, onSave }: any) {
 }
 
 function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
+   const { user } = useAuth()
+   const tenantId = user?.id
    const [form, setForm] = useState({ ingrediente_id: '', quantidade: 0, valor_total: 0 })
    const [saving, setSaving] = useState(false)
 
    const save = async () => {
       setSaving(true)
       const { error: errEnt } = await supabase.from('entradas_estoque').insert([{
+         tenant_id: tenantId,
          ingrediente_id: form.ingrediente_id,
          quantidade: form.quantidade,
          valor_unitario: form.valor_total / form.quantidade,
@@ -343,7 +351,7 @@ function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
             estoque_atual: novoEstoque,
             custo_medio: novoCusto,
             last_update: new Date().toISOString()
-         }).eq('id', form.ingrediente_id)
+         }).eq('id', form.ingrediente_id).eq('tenant_id', tenantId)
          
          onSave()
          onClose()
@@ -386,13 +394,15 @@ function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
 }
 
 function FornecedorModal({ data, onClose, onSave }: any) {
+   const { user } = useAuth()
+   const tenantId = user?.id
    const [form, setForm] = useState(data)
    const [saving, setSaving] = useState(false)
 
    const save = async () => {
       setSaving(true)
-      if (form.id) await supabase.from('fornecedores').update(form).eq('id', form.id)
-      else await supabase.from('fornecedores').insert([form])
+      if (form.id) await supabase.from('fornecedores').update({ ...form, tenant_id: tenantId }).eq('id', form.id).eq('tenant_id', tenantId)
+      else await supabase.from('fornecedores').insert([{ ...form, tenant_id: tenantId }])
       onSave()
       onClose()
       setSaving(false)

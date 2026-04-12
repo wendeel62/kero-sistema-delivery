@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
   const { user, signIn, signUp, loading } = useAuth()
+  const navigate = useNavigate()
   const [isCadastro, setIsCadastro] = useState(false)
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
@@ -28,7 +29,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setSubmitting(true)
-    const { error } = await signIn(email, password)
+    const { error, nextStep } = await signIn(email, password)
+    if (nextStep === 'mfa') {
+      navigate('/mfa-verify')
+      return
+    }
     if (error) {
       console.error('Login error:', error)
       setError('E-mail ou senha incorretos.')
