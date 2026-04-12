@@ -387,7 +387,7 @@ export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: Entre
           const { latitude, longitude } = position.coords
           setEstabelecimentoPos([latitude, longitude])
           setLocalizacaoStatus('concedida')
-          console.log('Localização obtida:', latitude, longitude)
+          // console.log('Localização obtida:', latitude, longitude)
         },
         (error) => {
           console.warn('Erro ao obter localização:', error.message)

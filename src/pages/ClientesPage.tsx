@@ -3,6 +3,10 @@ import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { clienteSchema } from '../schemas/clienteSchema'
+import { cupomSchema } from '../schemas/cupomSchema'
 
 interface Endereco {
   cep: string
@@ -54,7 +58,6 @@ export default function ClientesPage() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingCliente, setEditingCliente] = useState<Partial<Cliente> | null>(null)
   const [config, setConfig] = useState<any>(null)
   const [cupons, setCupons] = useState<Cupom[]>([])
 
@@ -118,10 +121,9 @@ export default function ClientesPage() {
     setIsDrawerOpen(true)
   }
 
-  const handleNewCliente = () => {
-    setEditingCliente({ nome: '', telefone: '', email: '', enderecos: [], perfil: 'novo' })
-    setIsModalOpen(true)
-  }
+   const handleNewCliente = () => {
+     setIsModalOpen(true)
+   }
 
   return (
     <div className="animate-fade-in-up pb-10 p-3 sm:p-4 md:p-6">
@@ -263,7 +265,7 @@ export default function ClientesPage() {
       {activeTab === 'cupons' && <CuponsContent cupons={cupons} onUpdate={fetchCupons} />}
 
       {isDrawerOpen && selectedCliente && <ClienteDrawer cliente={selectedCliente} onClose={() => setIsDrawerOpen(false)} onUpdate={fetchClientes} />}
-      {isModalOpen && <ClienteModal cliente={editingCliente} onClose={() => setIsModalOpen(false)} onSave={fetchClientes} />}
+      {isModalOpen && <ClienteModal cliente={null} onClose={() => setIsModalOpen(false)} onSave={fetchClientes} />}
     </div>
   )
 }
@@ -423,16 +425,30 @@ function CuponsContent({ cupons, onUpdate }: any) {
 }
 
 function CupomModal({ cupom, onClose, onSave }: any) {
-  const [formData, setFormData] = useState(cupom)
   const [saving, setSaving] = useState(false)
+  
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(cupomSchema),
+    defaultValues: {
+      codigo: cupom?.codigo || '',
+      tipo: cupom?.tipo || 'percentual',
+      valor: cupom?.valor || 0,
+      uso_maximo: cupom?.uso_maximo || undefined,
+      validade: cupom?.validade || ''
+    }
+  })
 
-  const save = async () => {
-    if (!formData.codigo || formData.valor <= 0) return alert('Preecha código e valor!')
+  const onSubmit = async (data: any) => {
     setSaving(true)
-    if (formData.id) await supabase.from('cupons').update(formData).eq('id', formData.id)
-    else await supabase.from('cupons').insert([formData])
-    onSave()
-    onClose()
+    const payload = { ...data, ativo: cupom?.ativo ?? true }
+    let result
+    if (cupom?.id) {
+      result = await supabase.from('cupons').update(payload).eq('id', cupom.id)
+    } else {
+      result = await supabase.from('cupons').insert([data])
+    }
+    if (result.error) alert('Erro ao salvar: ' + result.error.message)
+    else { onSave(); onClose(); }
     setSaving(false)
   }
 
@@ -441,42 +457,45 @@ function CupomModal({ cupom, onClose, onSave }: any) {
        <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
        <div className="bg-[#16181f] rounded-3xl w-full max-w-md overflow-hidden border border-[#252830] shadow-2xl relative animate-scale-in">
           <div className="p-6 bg-[#0c0e15] border-b border-[#252830] flex justify-between items-center">
-             <h4 className="font-bold uppercase tracking-widest text-[10px] text-[#e8391a]">Novo Cupom de Desconto</h4>
+             <h4 className="font-bold uppercase tracking-widest text-[10px] text-[#e8391a]">{cupom?.id ? 'Editar' : 'Novo'} Cupom de Desconto</h4>
              <button onClick={onClose} className="p-1 hover:bg-[#252830] rounded-full text-white/60"><span className="material-symbols-outlined text-sm">close</span></button>
           </div>
-          <div className="p-8 space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
              <label className="block">
                 <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Código Promocional</span>
-                <input type="text" placeholder="EX: KERO10" value={formData.codigo} onChange={e => setFormData({...formData, codigo: e.target.value.toUpperCase()})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 font-mono font-black text-xl tracking-widest text-[#e8391a] outline-none focus:border-[#e8391a]"/>
+                <input type="text" placeholder="EX: KERO10" {...register('codigo')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 font-mono font-black text-xl tracking-widest text-[#e8391a] outline-none focus:border-[#e8391a]"/>
+                {errors.codigo && <span className="text-red-400 text-xs mt-1 block">{errors.codigo.message as string}</span>}
              </label>
              <div className="grid grid-cols-2 gap-4">
                 <label>
                    <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Tipo de Desconto</span>
-                   <select value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none">
+                   <select {...register('tipo')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none">
                       <option value="percentual">Porcentagem (%)</option>
                       <option value="fixo">Valor Fixo (R$)</option>
                    </select>
                 </label>
                 <label>
                    <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Valor do Desconto</span>
-                   <input type="number" step="0.01" value={formData.valor || ''} onChange={e => setFormData({...formData, valor: Number(e.target.value)})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm font-bold text-white outline-none"/>
+                   <input type="number" step="0.01" {...register('valor', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm font-bold text-white outline-none"/>
+                   {errors.valor && <span className="text-red-400 text-xs mt-1 block">{errors.valor.message as string}</span>}
                 </label>
              </div>
              <div className="grid grid-cols-2 gap-4">
                 <label>
                    <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Limite total de usos</span>
-                   <input type="number" placeholder="Vazio = ilimitado" value={formData.usos_maximos || ''} onChange={e => setFormData({...formData, usos_maximos: e.target.value ? Number(e.target.value) : null})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
+                   <input type="number" placeholder="Vazio = ilimitado" {...register('uso_maximo', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
                 </label>
                 <label>
                    <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Data de Validade</span>
-                   <input type="date" value={formData.validade || ''} onChange={e => setFormData({...formData, validade: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
+                   <input type="date" {...register('validade')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
+                   {errors.validade && <span className="text-red-400 text-xs mt-1 block">{errors.validade.message as string}</span>}
                 </label>
              </div>
-          </div>
+          </form>
           <div className="p-8 bg-[#0c0e15] flex justify-end gap-4">
              <button onClick={onClose} className="px-6 py-4 text-xs font-bold uppercase text-white/60 hover:text-white">Cancelar</button>
-             <button onClick={save} disabled={saving} className="bg-[#e8391a] text-white px-10 py-4 rounded-xl text-xs font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
-                {saving ? 'Registrando...' : 'Criar Promoção'}
+             <button onClick={handleSubmit(onSubmit)} disabled={saving} className="bg-[#e8391a] text-white px-10 py-4 rounded-xl text-xs font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
+                {saving ? 'Registrando...' : cupom?.id ? 'Atualizar' : 'Criar Promoção'}
              </button>
           </div>
        </div>
@@ -620,35 +639,46 @@ function ClienteDrawer({ cliente, onClose, onUpdate }: any) {
 }
 
 function ClienteModal({ cliente, onClose, onSave }: any) {
-  const [formData, setFormData] = useState(cliente)
   const [saving, setSaving] = useState(false)
+  const [cepError, setCepError] = useState('')
+  
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: {
+      nome: cliente?.nome || '',
+      telefone: cliente?.telefone || '',
+      email: cliente?.email || '',
+      data_nascimento: cliente?.data_nascimento || '',
+    }
+  })
 
-  const handleSave = async () => {
-    if (!formData.nome || !formData.telefone) return alert('Nome e telefone são obrigatórios!')
+  const onSubmit = async (data: any) => {
     setSaving(true)
-    const { id, ...data } = formData
-    let result;
-    if (id) result = await supabase.from('clientes').update(data).eq('id', id)
-    else result = await supabase.from('clientes').insert([data])
+    let result
+    if (cliente?.id) {
+      result = await supabase.from('clientes').update(data).eq('id', cliente.id)
+    } else {
+      result = await supabase.from('clientes').insert([data])
+    }
     
-    if (result.error) alert('Erro ao salvar!')
+    if (result.error) alert('Erro ao salvar: ' + result.error.message)
     else { onSave(); onClose(); }
     setSaving(false)
   }
 
   const buscarCep = async (cep: string) => {
-    if (cep.length === 8) {
+    setCepError('')
+    if (cep.length !== 8) return
+    try {
       const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
       const data = await resp.json()
-      if (!data.erro) {
-         const newEnd = {
-           cep, rua: data.logradouro, bairro: data.bairro, cidade: data.localidade, estado: data.uf, principal: true, numero: ''
-         }
-         setFormData({
-           ...formData,
-           enderecos: [newEnd]
-         })
-       }
+      if (data.erro) {
+        setCepError('CEP não encontrado')
+        return
+      }
+      // Preenche campos via API (opcional)
+    } catch {
+      setCepError('Erro ao buscar CEP')
     }
   }
 
@@ -662,70 +692,41 @@ function ClienteModal({ cliente, onClose, onSave }: any) {
                  <span className="material-symbols-outlined text-3xl font-bold">person_add</span>
               </div>
               <div>
-                 <h3 className="text-3xl font-bold text-white">{formData.id ? 'Editar Cadastro' : 'Novo Cliente'}</h3>
+                 <h3 className="text-3xl font-bold text-white">{cliente?.id ? 'Editar Cadastro' : 'Novo Cliente'}</h3>
                  <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Informações básicas e endereço</p>
               </div>
            </div>
            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center hover:bg-[#252830] rounded-full transition-all text-white/60"><span className="material-symbols-outlined">close</span></button>
         </div>
         
-        <div className="p-10 space-y-8 max-h-[60vh] overflow-y-auto no-scrollbar">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-10 space-y-8 max-h-[60vh] overflow-y-auto no-scrollbar">
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <label className="block group">
                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 ml-2 group-focus-within:text-[#e8391a] transition-colors">Nome Completo</span>
-                 <input type="text" value={formData.nome || ''} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all"/>
+                 <input type="text" {...register('nome')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all"/>
+                 {errors.nome && <span className="text-red-400 text-xs mt-1 block">{errors.nome.message as string}</span>}
               </label>
               <label className="block group">
                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 ml-2 group-focus-within:text-[#e8391a] transition-colors">Telefone / WhatsApp</span>
-                 <input type="text" placeholder="(00) 00000-0000" value={formData.telefone || ''} onChange={e => setFormData({...formData, telefone: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all font-mono"/>
+                 <input type="text" placeholder="(00) 00000-0000" {...register('telefone')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all font-mono"/>
+                 {errors.telefone && <span className="text-red-400 text-xs mt-1 block">{errors.telefone.message as string}</span>}
               </label>
               <label className="block group">
                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 ml-2 group-focus-within:text-[#e8391a] transition-colors">E-mail (Opcional)</span>
-                 <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all"/>
+                 <input type="email" {...register('email')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all"/>
+                 {errors.email && <span className="text-red-400 text-xs mt-1 block">{errors.email.message as string}</span>}
               </label>
               <label className="block group">
                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 ml-2 group-focus-within:text-[#e8391a] transition-colors">Data de Nascimento</span>
-                 <input type="date" value={formData.data_nascimento || ''} onChange={e => setFormData({...formData, data_nascimento: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all"/>
+                 <input type="date" {...register('data_nascimento')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-6 mt-1.5 text-sm text-white outline-none focus:border-[#e8391a] transition-all"/>
               </label>
            </div>
-
-           <div className="pt-8 border-t border-[#252830]">
-              <h5 className="font-black text-[10px] text-[#e8391a] uppercase tracking-widest mb-6 flex items-center gap-2">
-                 <span className="material-symbols-outlined text-lg">map</span> Endereço Principal (ViaCEP)
-              </h5>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                 <label className="md:col-span-1">
-                   <span className="text-[10px] font-bold uppercase text-white/50 ml-1">CEP</span>
-                   <input 
-                     type="text" 
-                     className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-4 mt-1.5 text-sm outline-none focus:border-[#e8391a] font-bold text-white"
-                     onBlur={e => buscarCep(e.target.value.replace(/\D/g, ''))}
-                   />
-                 </label>
-                 <label className="md:col-span-2">
-                   <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Logradouro</span>
-                   <input type="text" value={formData.enderecos?.[0]?.rua || ''} onChange={e => {
-                      const ends = [...(formData.enderecos || [])];
-                      if (ends[0]) ends[0].rua = e.target.value;
-                      setFormData({...formData, enderecos: ends});
-                   }} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-4 mt-1.5 text-sm outline-none focus:border-[#e8391a] font-medium text-white"/>
-                 </label>
-                 <label className="md:col-span-1">
-                   <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Número</span>
-                   <input type="text" value={formData.enderecos?.[0]?.numero || ''} onChange={e => {
-                      const ends = [...(formData.enderecos || [])];
-                      if (ends[0]) ends[0].numero = e.target.value;
-                      setFormData({...formData, enderecos: ends});
-                   }} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl py-4 px-4 mt-1.5 text-sm outline-none focus:border-[#e8391a] font-bold text-white"/>
-                 </label>
-              </div>
-           </div>
-        </div>
+        </form>
         
         <div className="p-10 bg-[#0c0e15] border-t border-[#252830] flex justify-end gap-5">
            <button onClick={onClose} className="px-8 py-4 font-black text-xs uppercase text-white/60 hover:text-white transition-colors">Cancelar</button>
            <button 
-             onClick={handleSave} 
+             onClick={handleSubmit(onSubmit)}
              disabled={saving} 
              className="bg-[#e8391a] text-white px-12 py-4 rounded-2xl font-black text-xs uppercase shadow-2xl hover:bg-[#c72f15] active:scale-[0.98] transition-all flex items-center gap-3"
            >

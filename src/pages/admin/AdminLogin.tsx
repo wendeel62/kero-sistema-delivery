@@ -17,15 +17,15 @@ export default function AdminLogin() {
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError || !data.user) {
-      setError('Acesso negado')
+      setError('Acesso negado: E-mail ou senha incorretos.')
       setLoading(false)
       return
     }
 
-    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL
-    if (data.user.email !== adminEmail) {
+    const adminEmailEnv = import.meta.env.VITE_ADMIN_EMAIL
+    if (data.user.email !== adminEmailEnv) {
       await supabase.auth.signOut()
-      setError('Acesso negado')
+      setError('Acesso negado: Este e-mail não possui permissão de administrador.')
       setLoading(false)
       return
     }
@@ -35,29 +35,39 @@ export default function AdminLogin() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: '#0e0f14', fontFamily: 'DM Sans, sans-serif' }}
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: '#0e0f14' }}
     >
       <div
-        className="w-full max-w-sm p-8 rounded-2xl border"
-        style={{ background: '#12141a', borderColor: '#1e2028' }}
+        className="w-[380px] border"
+        style={{
+          background: '#12141a',
+          borderColor: '#1e2028',
+          borderRadius: '12px',
+          padding: '40px',
+        }}
       >
-        {/* Logo */}
-        <div className="text-center mb-10">
+        <div className="text-center" style={{ marginBottom: '32px' }}>
           <h1
-            className="text-3xl font-bold tracking-tight"
-            style={{ fontFamily: 'Syne, sans-serif', color: '#e8391a' }}
+            className="font-bold tracking-tight"
+            style={{ fontFamily: 'Syne, sans-serif', color: '#e8391a', fontSize: '22px' }}
           >
             Kero ADM
           </h1>
-          <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
-            Painel de Controle SaaS
+          <p
+            className="mt-1"
+            style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '13px', color: '#4b5563' }}
+          >
+            Acesso restrito
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: '#9ca3af' }}>
+            <label
+              className="block mb-1.5"
+              style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#6b7280' }}
+            >
               E-mail
             </label>
             <input
@@ -65,19 +75,26 @@ export default function AdminLogin() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-1"
+              className="w-full outline-none transition-colors"
               style={{
-                background: '#1e2028',
-                color: '#e5e7eb',
-                border: '1px solid #2d3040',
+                background: '#0e0f14',
+                color: '#f1f5f9',
+                border: '1px solid #1e2028',
+                borderRadius: '8px',
+                padding: '10px 14px',
                 fontFamily: 'DM Sans, sans-serif',
+                fontSize: '14px',
               }}
-              placeholder="admin@exemplo.com"
+              onFocus={(e) => (e.target.style.borderColor = '#e8391a')}
+              onBlur={(e) => (e.target.style.borderColor = '#1e2028')}
             />
           </div>
 
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: '#9ca3af' }}>
+            <label
+              className="block mb-1.5"
+              style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#6b7280' }}
+            >
               Senha
             </label>
             <input
@@ -85,40 +102,62 @@ export default function AdminLogin() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-1"
+              className="w-full outline-none transition-colors"
               style={{
-                background: '#1e2028',
-                color: '#e5e7eb',
-                border: '1px solid #2d3040',
+                background: '#0e0f14',
+                color: '#f1f5f9',
+                border: '1px solid #1e2028',
+                borderRadius: '8px',
+                padding: '10px 14px',
                 fontFamily: 'DM Sans, sans-serif',
+                fontSize: '14px',
               }}
-              placeholder="••••••••"
+              onFocus={(e) => (e.target.style.borderColor = '#e8391a')}
+              onBlur={(e) => (e.target.style.borderColor = '#1e2028')}
             />
           </div>
-
-          {error && (
-            <div
-              className="text-sm text-center py-2 rounded-lg"
-              style={{ background: '#7f1d1d', color: '#fca5a5' }}
-            >
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-60"
+            className="w-full transition-colors flex items-center justify-center disabled:opacity-80"
             style={{
               background: '#e8391a',
               color: '#fff',
-              fontFamily: 'DM Sans, sans-serif',
+              fontFamily: 'Syne, sans-serif',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              borderRadius: '8px',
+              padding: '12px',
+              marginTop: '8px',
+              cursor: loading ? 'not-allowed' : 'pointer',
             }}
+            onMouseOver={(e) => !loading && (e.currentTarget.style.background = '#c62d14')}
+            onMouseOut={(e) => !loading && (e.currentTarget.style.background = '#e8391a')}
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
+
+          {error && (
+            <div
+              className="text-center w-full"
+              style={{
+                background: '#1c0a0a',
+                border: '1px solid #7f1d1d',
+                color: '#fca5a5',
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: '13px',
+                borderRadius: '6px',
+                padding: '10px 14px',
+                marginTop: '16px',
+              }}
+            >
+              {error}
+            </div>
+          )}
         </form>
       </div>
     </div>
   )
 }
+

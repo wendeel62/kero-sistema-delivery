@@ -41,6 +41,7 @@ interface Config {
   capacidade_mesa: number
   modulo_mesas_ativado: boolean
   slug?: string
+  logo_url?: string
 }
 
 // Components moved to src/components/ConfigInputField.tsx and ConfigToggle.tsx
@@ -101,8 +102,22 @@ export default function ConfiguracoesPage() {
   const save = async () => {
     if (!config) return
     setSaving(true)
+    
+    // Garantir que o slug esteja preenchido antes de salvar
+    const finalSlug = config.slug || slugify(config.nome_loja)
     const { id, ...rest } = config
-    const { data, error } = await supabase.from('configuracoes').update({ ...rest, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+    
+    const { data, error } = await supabase
+      .from('configuracoes')
+      .update({ 
+        ...rest, 
+        slug: finalSlug, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
     if (data) setConfig(data)
     if (error) showToast('Erro ao salvar: ' + error.message)
     setSaving(false)
@@ -164,6 +179,7 @@ export default function ConfiguracoesPage() {
           <ConfigInputField label="Endereço" value={config.endereco} onChange={v => update('endereco', v)} />
           <ConfigInputField label="Cidade" value={config.cidade} onChange={v => update('cidade', v)} />
           <ConfigInputField label="Estado" value={config.estado} onChange={v => update('estado', v)} />
+          <ConfigInputField label="Logo URL (Icone)" value={config.logo_url || ''} onChange={v => update('logo_url', v)} placeholder="https://exemplo.com/logo.png" />
           
           <div className="md:col-span-2 mt-4 p-4 bg-[#16181f] rounded-xl border border-dashed border-[#e8391a]/30">
             <label className="text-xs font-bold text-[#e8391a] uppercase tracking-widest block mb-2">Link do seu Cardápio Online</label>

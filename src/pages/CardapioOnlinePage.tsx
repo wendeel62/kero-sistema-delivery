@@ -56,46 +56,109 @@ export default function CardapioOnlinePage() {
   const [observacoes, setObservacoes] = useState('')
 
   const fetchData = useCallback(async () => {
-    if (!slug) return
-
-    const { data: menuData, error } = await supabase.rpc('get_public_menu', { p_slug: slug })
-    
-    if (error || !menuData) {
-      console.error('Erro ao carregar cardápio:', error)
+    if (!slug || slug === 'undefined' || slug === 'null') {
+      console.warn('Slug inválido ou ausente:', slug)
+      setLoading(false)
       return
     }
 
-    setTenantId(menuData.tenant_id)
-    setCategorias(menuData.categorias)
-    setProdutos(menuData.produtos)
-    
-    if (menuData.config) {
-      setConfig({
-        taxa_entrega: menuData.config.taxa_entrega || 0,
-        pedido_minimo: menuData.config.pedido_minimo || 0,
-        loja_aberta: menuData.config.loja_aberta ?? true,
-        nome_fantasia: menuData.config.nome_fantasia,
-        logo_url: menuData.config.logo_url
-      })
-    }
-    
-    if (menuData.precos_tamanho) {
-      const grouped: Record<string, PrecoTamanho[]> = {}
-      menuData.precos_tamanho.forEach((p: PrecoTamanho) => {
-        if (!grouped[p.produto_id]) grouped[p.produto_id] = []
-        grouped[p.produto_id].push(p)
-      })
-      setPrecosTamanho(grouped)
-    }
+    setLoading(true)
+    // console.log('Iniciando busca do cardápio para o slug:', slug)
 
-    if (menuData.sabores) {
-      setSabores(menuData.sabores)
+    try {
+      // console.log('Tentando buscar via RPC public.get_public_menu...')
+      const { data: menuData, error: rpcError } = await supabase.rpc('get_public_menu', { p_slug: slug })
+      
+      if (!rpcError && menuData) {
+        // console.log('Dados via RPC carregados com sucesso!')
+        setTenantId(menuData.tenant_id)
+        setCategorias(menuData.categorias || [])
+        setProdutos(menuData.produtos || [])
+        
+        if (menuData.config) {
+          setConfig({
+            taxa_entrega: menuData.config.taxa_entrega || 0,
+            pedido_minimo: menuData.config.pedido_minimo || 0,
+            loja_aberta: menuData.config.loja_aberta ?? true,
+            nome_fantasia: menuData.config.nome_fantasia,
+            logo_url: menuData.config.logo_url
+          })
+        }
+        
+        if (menuData.precos_tamanho) {
+          const grouped: Record<string, PrecoTamanho[]> = {}
+          menuData.precos_tamanho.forEach((p: PrecoTamanho) => {
+            if (!grouped[p.produto_id]) grouped[p.produto_id] = []
+            grouped[p.produto_id].push(p)
+          })
+          setPrecosTamanho(grouped)
+        }
+
+        if (menuData.sabores) {
+          setSabores(menuData.sabores)
+        }
+        return
+      }
+
+      console.warn('RPC indisponível ou falhou. Iniciando busca de fallback (direta)...', rpcError)
+
+      // FALLBACK: Busca direta caso a RPC não exista ou falhe
+      const { data: configData, error: configError } = await supabase
+        .from('configuracoes')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle()
+
+      if (configError || !configData) {
+        console.error('Falha no fallback: Config não encontrada para o slug:', slug, configError)
+        return
+      }
+
+      const tId = configData.tenant_id
+      setTenantId(tId)
+      
+      setConfig({
+        taxa_entrega: configData.taxa_entrega || 0,
+        pedido_minimo: configData.pedido_minimo || 0,
+        loja_aberta: configData.loja_aberta ?? true,
+        nome_fantasia: configData.nome_loja,
+        logo_url: configData.logo_url
+      })
+
+      // Buscar categorias e produtos em paralelo
+      const [catsRes, prodsRes, precosRes, saboresRes] = await Promise.all([
+        supabase.from('categorias').select('*').eq('tenant_id', tId).eq('ativo', true).order('ordem'),
+        supabase.from('produtos').select('*').eq('tenant_id', tId).eq('disponivel', true).order('ordem'),
+        supabase.from('precos_tamanho').select('*').eq('tenant_id', tId),
+        supabase.from('sabores').select('*').eq('tenant_id', tId).eq('disponivel', true).order('nome')
+      ])
+
+      if (catsRes.data) setCategorias(catsRes.data)
+      if (prodsRes.data) setProdutos(prodsRes.data)
+      
+      if (precosRes.data) {
+        const grouped: Record<string, PrecoTamanho[]> = {}
+        precosRes.data.forEach((p: PrecoTamanho) => {
+          if (!grouped[p.produto_id]) grouped[p.produto_id] = []
+          grouped[p.produto_id].push(p)
+        })
+        setPrecosTamanho(grouped)
+      }
+
+      if (saboresRes.data) setSabores(saboresRes.data)
+      
+      // console.log('Dados via Fallback carregados com sucesso!')
+
+    } catch (e) {
+      console.error('Falha catastrófica ao carregar cardápio:', e)
+    } finally {
+      setLoading(false)
     }
   }, [slug])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
   
   useRealtime('produtos', () => fetchData())
 
@@ -207,12 +270,12 @@ export default function CardapioOnlinePage() {
       }
     })
 
-    console.log('Pedido criado:', pedidoIdResult, 'Erro:', insertError)
+    // console.log('Pedido criado:', pedidoIdResult, 'Erro:', insertError)
 
     await syncCliente(nome, telefone, total)
 
     if (pedidoIdResult) {
-      console.log('Setting pedidoId:', pedidoIdResult)
+      // console.log('Setting pedidoId:', pedidoIdResult)
       trackEvent('compra', 1)
       setPedidoId(pedidoIdResult)
       
@@ -242,6 +305,35 @@ export default function CardapioOnlinePage() {
     if (busca && !p.nome.toLowerCase().includes(busca.toLowerCase())) return false
     return true
   })
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#e8391a] border-t-transparent rounded-full animate-spin" />
+          <p className="text-on-surface-variant font-bold text-xs uppercase tracking-widest animate-pulse">Carregando Cardápio...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!tenantId && !loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-md w-full animate-fade-in">
+          <span className="material-symbols-outlined text-[#e8391a] text-6xl mb-4">error</span>
+          <h2 className="text-3xl font-[Outfit] font-bold text-on-surface mb-2">Ops! Link Inválido</h2>
+          <p className="text-on-surface-variant mb-8">Não conseguimos encontrar o cardápio que você está procurando. Verifique se o link está correto.</p>
+          <button 
+            onClick={() => window.location.href = '/'} 
+            className="bg-surface-container border border-outline-variant/20 text-on-surface px-8 py-3 rounded-xl font-bold"
+          >
+            Voltar para o Início
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (sucesso) {
     return (

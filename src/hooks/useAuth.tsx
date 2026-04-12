@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   aal: 'aal1' | 'aal2' | null
-  role: 'super_admin' | 'admin' | 'editor' | 'user' | null
+  role: 'super_admin' | 'admin' | 'editor' | 'user' | 'consultor' | 'motoboy' | 'cozinha' | null
   signIn: (email: string, password: string) => Promise<{ error: Error | null; nextStep?: 'mfa' }>
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [aal, setAal] = useState<'aal1' | 'aal2' | null>(null)
-  const [role, setRole] = useState<'super_admin' | 'admin' | 'editor' | 'user' | null>(null)
+  const [role, setRole] = useState<'super_admin' | 'admin' | 'editor' | 'user' | 'consultor' | 'motoboy' | 'cozinha' | null>(null)
 
   const fetchRole = async (userId: string) => {
     const { data, error } = await supabase
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', userId)
     
     if (data && data.length > 0 && !error) {
-      // Priority: super_admin > admin > others
+      // Priority: super_admin > admin > editor > consultor > cozinha > motoboy > user
       const roles = data.map(r => r.role);
       if (roles.includes('super_admin')) {
         setRole('super_admin');
@@ -40,6 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole('admin');
       } else if (roles.includes('editor')) {
         setRole('editor');
+      } else if (roles.includes('consultor')) {
+        setRole('consultor');
+      } else if (roles.includes('cozinha')) {
+        setRole('cozinha');
+      } else if (roles.includes('motoboy')) {
+        setRole('motoboy');
       } else {
         setRole('user');
       }
@@ -49,8 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const checkAal = async () => {
-    const { data: { assuranceLevel } } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-    setAal(assuranceLevel as 'aal1' | 'aal2')
+    try {
+      const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      const assuranceLevel = (data as any)?.assuranceLevel
+      if (assuranceLevel) {
+        setAal(assuranceLevel as 'aal1' | 'aal2')
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   useEffect(() => {
@@ -78,9 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (data?.session) {
-      const { data: { assuranceLevel } } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-      if (assuranceLevel === 'aal1' && data.session.user.factors?.some(f => f.status === 'verified')) {
-        return { error: null, nextStep: 'mfa' }
+      try {
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        const assuranceLevel = (aalData as any)?.assuranceLevel
+        if (assuranceLevel === 'aal1' && data.session.user.factors?.some(f => f.status === 'verified')) {
+          return { error: null, nextStep: 'mfa' as const }
+        }
+      } catch (e) {
+        // continue sem MFA
       }
     }
 

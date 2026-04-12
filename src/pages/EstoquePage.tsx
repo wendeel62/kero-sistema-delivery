@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ingredienteSchema } from '../schemas/ingredienteSchema'
 
 interface Ingrediente {
   id: string
@@ -258,11 +261,285 @@ function FornecedoresContent({ fornecedores, onUpdate }: any) {
 }
 
 function FichaTecnicaContent() {
+  const { user } = useAuth()
+  const tenantId = user?.id
+  const [produtos, setProdutos] = useState<any[]>([])
+  const [ingredientesList, setIngredientesList] = useState<any[]>([])
+  const [selectedProduto, setSelectedProduto] = useState('')
+  const [selectedTamanho, setSelectedTamanho] = useState('')
+  const [tamanhos, setTamanhos] = useState<string[]>([])
+  const [fichaItens, setFichaItens] = useState<any[]>([])
+  const [novoIngrediente, setNovoIngrediente] = useState('')
+  const [novaQuantidade, setNovaQuantidade] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!tenantId) return
+      setLoading(true)
+      const [produtosData, ingData] = await Promise.all([
+        supabase.from('produtos').select('id, nome').eq('tenant_id', tenantId).order('nome'),
+        supabase.from('ingredientes').select('id, nome, unidade').eq('tenant_id', tenantId).order('nome')
+      ])
+      setProdutos(produtosData.data || [])
+      setIngredientesList(ingData.data || [])
+      setLoading(false)
+    }
+    fetchData()
+  }, [tenantId])
+
+  useEffect(() => {
+    async function fetchTamanhos() {
+      if (!selectedProduto) {
+        setTamanhos([])
+        return
+      }
+      const { data } = await supabase.from('precos_tamanho').select('tamanho').eq('produto_id', selectedProduto)
+      const uniqueTamanhos = data?.map(t => t.tamanho).filter((v, i, a) => a.indexOf(v) === i) || []
+      setTamanhos(uniqueTamanhos)
+      setSelectedTamanho('')
+    }
+    fetchTamanhos()
+  }, [selectedProduto])
+
+  useEffect(() => {
+    async function fetchFicha() {
+      if (!selectedProduto) {
+        setFichaItens([])
+        return
+      }
+      let query = supabase.from('ficha_tecnica').select('id, ingrediente_id, quantidade, tamanho').eq('produto_id', selectedProduto).eq('tenant_id', tenantId)
+      if (selectedTamanho) {
+        query = query.eq('tamanho', selectedTamanho)
+      }
+      const { data } = await query
+      const itens = (data || []).map(item => {
+        const ing = ingredientesList.find(i => i.id === item.ingrediente_id)
+        return {
+          ...item,
+          ingrediente_nome: ing?.nome || '',
+          ingrediente_unidade: ing?.unidade || 'un'
+        }
+      })
+      setFichaItens(itens)
+    }
+    fetchFicha()
+  }, [selectedProduto, selectedTamanho, tenantId, ingredientesList])
+
+  const handleAddIngrediente = async () => {
+    if (!novoIngrediente || !novaQuantidade) return
+    const ing = ingredientesList.find(i => i.id === novoIngrediente)
+    if (!ing) return
+    setFichaItens([...fichaItens, {
+      ingrediente_id: novoIngrediente,
+      ingrediente_nome: ing.nome,
+      ingrediente_unidade: ing.unidade,
+      quantidade: Number(novaQuantidade),
+      isNew: true
+    }])
+    setNovoIngrediente('')
+    setNovaQuantidade('')
+  }
+
+  const handleRemoveIngrediente = (index: number) => {
+    setFichaItens(fichaItens.filter((_, i) => i !== index))
+  }
+
+  const handleUpdateQuantidade = (index: number, quantidade: number) => {
+    const newItens = [...fichaItens]
+    newItens[index].quantidade = quantidade
+    setFichaItens(newItens)
+  }
+
+  const handleSave = async () => {
+    if (!selectedProduto || saving) return
+    setSaving(true)
+    try {
+      const currentItems = fichaItens.filter(i => !i.isNew)
+      const currentIds = currentItems.map(i => i.id)
+      const existingItems = await supabase.from('ficha_tecnica')
+        .select('id')
+        .eq('produto_id', selectedProduto)
+        .eq('tenant_id', tenantId)
+        .eq('tamanho', selectedTamanho || null)
+      const existingIds = existingItems.data?.map(i => i.id) || []
+      const toDelete = existingIds.filter(id => !currentIds.includes(id))
+      if (toDelete.length > 0) {
+        await supabase.from('ficha_tecnica').delete().in('id', toDelete)
+      }
+      for (const item of fichaItens) {
+        if (item.isNew) {
+          await supabase.from('ficha_tecnica').insert([{
+            produto_id: selectedProduto,
+            ingrediente_id: item.ingrediente_id,
+            quantidade: item.quantidade,
+            tamanho: selectedTamanho || null,
+            tenant_id: tenantId
+          }])
+        } else {
+          await supabase.from('ficha_tecnica').update({
+            quantidade: item.quantidade
+          }).eq('id', item.id)
+        }
+      }
+      const { data } = await supabase.from('ficha_tecnica').select('id, ingrediente_id, quantidade, tamanho')
+        .eq('produto_id', selectedProduto)
+        .eq('tenant_id', tenantId)
+        .eq('tamanho', selectedTamanho || null)
+      const itens = (data || []).map(item => {
+        const ing = ingredientesList.find(i => i.id === item.ingrediente_id)
+        return {
+          ...item,
+          ingrediente_nome: ing?.nome || '',
+          ingrediente_unidade: ing?.unidade || 'un'
+        }
+      })
+      setFichaItens(itens)
+    } catch (error) {
+      console.error('Error saving ficha tecnica:', error)
+    }
+    setSaving(false)
+  }
+
+  const availableIngredientes = ingredientesList.filter(ing => 
+    !fichaItens.some(fi => fi.ingrediente_id === ing.id)
+  )
+
+  if (loading) {
+    return (
+      <div className="bg-[#16181f] rounded-3xl p-20 text-center border border-[#252830]">
+        <div className="w-10 h-10 border-4 border-[#e8391a] border-t-transparent rounded-full animate-spin mx-auto" />
+      </div>
+    )
+  }
+
   return (
-    <div className="bg-[#16181f] rounded-3xl p-20 text-center border border-dashed border-[#252830] italic text-white/40 animate-fade-in">
-       <span className="material-symbols-outlined text-6xl mb-4 opacity-20 text-[#e8391a]">architecture</span>
-       <h3 className="text-xl font-bold not-italic text-white">Fichas Técnicas & Engenharia de Cardápio</h3>
-       <p className="mt-2 text-sm max-w-md mx-auto text-white/40">Vincule seus produtos aos insumos do estoque para abatimento automático e cálculo de CMV em tempo real.</p>
+    <div className="bg-[#16181f] rounded-3xl p-6 md:p-8 border border-[#252830] animate-fade-in-up">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#e8391a]">Engenharia de Cardápio</span>
+          <h3 className="text-2xl font-bold text-white">Fichas Técnicas</h3>
+          <p className="text-sm text-white/40 mt-1">Vincule ingredientes aos produtos para cálculo automático de CMV</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1 block mb-2">Produto</label>
+          <select 
+            value={selectedProduto} 
+            onChange={(e) => { setSelectedProduto(e.target.value); setSelectedTamanho(''); }}
+            className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 outline-none text-white focus:border-[#e8391a]"
+          >
+            <option value="">Selecione um produto...</option>
+            {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+        </div>
+        
+        {tamanhos.length > 0 && (
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1 block mb-2">Tamanho</label>
+            <select 
+              value={selectedTamanho} 
+              onChange={(e) => setSelectedTamanho(e.target.value)}
+              className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 outline-none text-white focus:border-[#e8391a]"
+            >
+              <option value="">Selecione o tamanho...</option>
+              {tamanhos.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {selectedProduto && (
+        <>
+          <div className="border-t border-[#252830] pt-6 mb-6">
+            <h4 className="text-lg font-bold text-white mb-4">Ingredientes da Ficha</h4>
+            
+            {fichaItens.length === 0 ? (
+              <div className="text-center py-8 text-white/40 italic">
+                <span className="material-symbols-outlined text-4xl mb-2 opacity-20">recipe</span>
+                <p>Nenhum ingrediente cadastrado nesta ficha técnica</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {fichaItens.map((item, index) => (
+                  <div key={item.id || index} className="flex flex-col md:flex-row md:items-center gap-3 bg-[#0c0e15] rounded-2xl p-4 border border-[#252830]">
+                    <div className="flex-1">
+                      <span className="text-sm font-bold text-white">{item.ingrediente_nome}</span>
+                      <span className="text-xs text-white/40 ml-2">({item.ingrediente_unidade})</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        value={item.quantidade || ''}
+                        onChange={(e) => handleUpdateQuantidade(index, Number(e.target.value))}
+                        className="w-24 bg-[#16181f] border border-[#252830] rounded-xl p-2 text-center text-white font-bold"
+                      />
+                      <button 
+                        onClick={() => handleRemoveIngrediente(index)}
+                        className="p-2 hover:bg-red-500/20 rounded-xl text-red-500 transition-all"
+                      >
+                        <span className="material-symbols-outlined">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-[#252830] pt-6 mb-6">
+            <h4 className="text-lg font-bold text-white mb-4">Adicionar Ingrediente</h4>
+            <div className="flex flex-col md:flex-row gap-3">
+              <select 
+                value={novoIngrediente} 
+                onChange={(e) => setNovoIngrediente(e.target.value)}
+                className="flex-1 bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 outline-none text-white focus:border-[#e8391a]"
+              >
+                <option value="">Selecione um ingrediente...</option>
+                {availableIngredientes.map(ing => <option key={ing.id} value={ing.id}>{ing.nome} ({ing.unidade})</option>)}
+              </select>
+              <input 
+                type="number" 
+                step="0.01"
+                min="0"
+                placeholder="Quantidade"
+                value={novaQuantidade}
+                onChange={(e) => setNovaQuantidade(e.target.value)}
+                className="w-32 bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 outline-none text-white font-bold"
+              />
+              <button 
+                onClick={handleAddIngrediente}
+                disabled={!novoIngrediente || !novaQuantidade}
+                className="bg-[#252830] hover:bg-[#e8391a] px-6 py-3 rounded-2xl font-bold text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined">add</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-[#252830] pt-6">
+            <button 
+              onClick={handleSave}
+              disabled={saving || fichaItens.length === 0}
+              className="w-full bg-[#e8391a] hover:bg-[#c72f15] text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-lg shadow-[#e8391a]/20 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Salvando...' : 'Salvar Ficha Técnica'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {!selectedProduto && (
+        <div className="text-center py-12 text-white/40 italic">
+          <span className="material-symbols-outlined text-6xl mb-4 opacity-20 text-[#e8391a]">architecture</span>
+          <p className="text-sm">Selecione um produto acima para gerenciar sua ficha técnica</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -270,56 +547,84 @@ function FichaTecnicaContent() {
 function InsumoModal({ data, onClose, onSave }: any) {
    const { user } = useAuth()
    const tenantId = user?.id
-   const [form, setForm] = useState(data)
    const [saving, setSaving] = useState(false)
 
-   const save = async () => {
-      setSaving(true)
-      if (form.id) await supabase.from('ingredientes').update({ ...form, tenant_id: tenantId }).eq('id', form.id).eq('tenant_id', tenantId)
-      else await supabase.from('ingredientes').insert([{ ...form, tenant_id: tenantId }])
-      onSave()
-      onClose()
-      setSaving(false)
+   const { register, handleSubmit, formState: { errors } } = useForm({
+     resolver: zodResolver(ingredienteSchema),
+     defaultValues: {
+       nome: data?.nome || '',
+       unidade: data?.unidade || 'un',
+       quantidade_atual: data?.estoque_atual || 0,
+       quantidade_minima: data?.estoque_minimo || 0,
+       custo_unitario: data?.custo_medio || 0,
+       categoria: data?.categoria || ''
+     }
+   })
+
+   const onSubmit = async (formData: any) => {
+     setSaving(true)
+     const payload = {
+       nome: formData.nome,
+       unidade: formData.unidade,
+       estoque_atual: formData.quantidade_atual,
+       estoque_minimo: formData.quantidade_minima,
+       estoque_critico: Math.floor(formData.quantidade_minima * 0.5),
+       custo_medio: formData.custo_unitario,
+       categoria: formData.categoria,
+       tenant_id: tenantId
+     }
+     if (data?.id) {
+       await supabase.from('ingredientes').update(payload).eq('id', data.id).eq('tenant_id', tenantId)
+     } else {
+       await supabase.from('ingredientes').insert([payload])
+     }
+     onSave()
+     onClose()
+     setSaving(false)
    }
 
    return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
          <div className="bg-[#16181f] rounded-[2.5rem] w-full max-w-lg border border-[#252830] shadow-2xl animate-scale-in">
             <div className="p-8 border-b border-[#252830] flex justify-between items-center">
-               <h3 className="text-2xl font-bold text-white">Novo Insumo</h3>
+               <h3 className="text-2xl font-bold text-white">{data?.id ? 'Editar' : 'Novo'} Insumo</h3>
                <button onClick={onClose} className="text-white/60 hover:text-white"><span className="material-symbols-outlined">close</span></button>
             </div>
-            <div className="p-8 grid grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-8 grid grid-cols-2 gap-6">
                <label className="col-span-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Nome do Item</span>
-                  <input type="text" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none focus:border-[#e8391a] text-white"/>
+                  <input type="text" {...register('nome')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none focus:border-[#e8391a] text-white"/>
+                  {errors.nome && <span className="text-red-400 text-xs mt-1 block">{errors.nome.message as string}</span>}
                </label>
                <label>
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Unidade</span>
-                  <select value={form.unidade} onChange={e => setForm({...form, unidade: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white">
+                  <select {...register('unidade')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white">
                      <option value="kg">Quilo (kg)</option>
                      <option value="g">Grama (g)</option>
                      <option value="lt">Litro (lt)</option>
                      <option value="ml">Mililitro (ml)</option>
                      <option value="un">Unidade (un)</option>
                   </select>
+                  {errors.unidade && <span className="text-red-400 text-xs mt-1 block">{errors.unidade.message as string}</span>}
                </label>
                <label>
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Categoria</span>
-                  <input type="text" value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none focus:border-[#e8391a] text-white"/>
+                  <input type="text" {...register('categoria')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none focus:border-[#e8391a] text-white"/>
                </label>
                <label>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Estoque Mínimo</span>
-                  <input type="number" value={form.estoque_minimo} onChange={e => setForm({...form, estoque_minimo: Number(e.target.value)})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Qtd Mínima</span>
+                  <input type="number" step="0.01" {...register('quantidade_minima', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
+                  {errors.quantidade_minima && <span className="text-red-400 text-xs mt-1 block">{errors.quantidade_minima.message as string}</span>}
                </label>
                <label>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Estoque Crítico</span>
-                  <input type="number" value={form.estoque_critico} onChange={e => setForm({...form, estoque_critico: Number(e.target.value)})} className="w-full bg-[#0c0e15] border border-red-500/50 rounded-2xl p-4 mt-2 outline-none text-white"/>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Custo Unit.</span>
+                  <input type="number" step="0.01" {...register('custo_unitario', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
+                  {errors.custo_unitario && <span className="text-red-400 text-xs mt-1 block">{errors.custo_unitario.message as string}</span>}
                </label>
-            </div>
+            </form>
             <div className="p-8 bg-[#0c0e15] flex justify-end gap-4 rounded-b-[2.5rem]">
                <button onClick={onClose} className="px-6 py-2 text-xs font-black uppercase tracking-widest text-white/60">Cancelar</button>
-               <button onClick={save} disabled={saving} className="bg-[#e8391a] text-white px-10 py-4 rounded-2xl text-xs font-black uppercase shadow-lg">{saving ? '...' : 'Salvar Insumo'}</button>
+               <button onClick={handleSubmit(onSubmit)} disabled={saving} className="bg-[#e8391a] text-white px-10 py-4 rounded-2xl text-xs font-black uppercase shadow-lg">{saving ? '...' : 'Salvar Insumo'}</button>
             </div>
          </div>
       </div>

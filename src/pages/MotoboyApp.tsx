@@ -70,7 +70,7 @@ export default function MotoboyApp() {
               })
               .eq('id', data.id)
           },
-          () => console.log('Permissão de geolocalização negada')
+          // () => console.log('Permissão de geolocalização negada')
         )
       }
     }

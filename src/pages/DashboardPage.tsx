@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 
 interface TemposMedios {
@@ -41,195 +43,321 @@ interface KpiData {
   isCurrency?: boolean
 }
 
+interface Pedido {
+  id: string
+  cliente: string
+  total: number
+  status: string
+  created_at: string
+}
+
+interface Produto {
+  id: string
+  nome: string
+  totalVendido: number
+  quantidade: number
+}
+
+const defaultKpis: KPIs = {
+  faturamento: 0,
+  totalPedidos: 0,
+  ticketMedio: 0,
+  tempoEntrega: 0,
+  visualizacoes: 0,
+  avaliacao: 0,
+  totalAvaliacoes: 0,
+  pedidosAbertos: 0,
+  totalEntregues: 0,
+  receita7Dias: [0, 0, 0, 0, 0, 0, 0],
+  temposMedios: { novo: 0, preparo: 0, entrega: 0, total: 0 },
+  funnelData: { visualizacoes: 0, addCarrinho: 0, checkoutIniciado: 0, compras: 0 },
+  pedidosPorHora: Array(24).fill(0)
+}
+
 export default function DashboardPage() {
-  const [kpis, setKpis] = useState<KPIs>({
-    faturamento: 0, totalPedidos: 0, ticketMedio: 0, tempoEntrega: 0,
-    visualizacoes: 0, avaliacao: 0, totalAvaliacoes: 0, pedidosAbertos: 0, totalEntregues: 0,
-    receita7Dias: [0, 0, 0, 0, 0, 0, 0],
-    temposMedios: { novo: 0, preparo: 0, entrega: 0, total: 0 },
-    funnelData: { visualizacoes: 0, addCarrinho: 0, checkoutIniciado: 0, compras: 0 },
-    pedidosPorHora: Array(24).fill(0)
-  })
-  
+  const { user } = useAuth()
+  const tenantId = user?.id
+
   const [linkCardapio, setLinkCardapio] = useState('')
   const [lojaAberta, setLojaAberta] = useState(true)
   const [loadingLoja, setLoadingLoja] = useState(false)
 
-  const fetchKpis = useCallback(async () => {
-    const now = new Date()
-    const today = now.toISOString().split('T')[0]
-    
-    const { data: pedidosHoje } = await supabase.from('pedidos').select('*').gte('created_at', today)
-    const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').gte('created_at', today)
+  const { data: kpis = defaultKpis, isLoading: loadingKpis, refetch: refetchKpis } = useQuery({
+    queryKey: ['dashboard-kpis', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+      
+      const { data: pedidosHoje } = await supabase.from('pedidos').select('*').gte('created_at', today)
+      const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').gte('created_at', today)
 
-    const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])]
-    const validos = allPedidos.filter(p => p.status !== 'cancelado')
-    const entregues = allPedidos.filter(p => p.status === 'entregue')
-    const abertos = allPedidos.filter(p => !['entregue', 'cancelado'].includes(p.status))
-    
-    const faturamento = validos.reduce((sum, p) => sum + Number(p.total || 0), 0)
+      const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])]
+      const validos = allPedidos.filter(p => p.status !== 'cancelado')
+      const entregues = allPedidos.filter(p => p.status === 'entregue')
+      const abertos = allPedidos.filter(p => !['entregue', 'cancelado'].includes(p.status))
+      
+      const faturamento = validos.reduce((sum, p) => sum + Number(p.total || 0), 0)
 
-    const seteDiasAtras = new Date()
-    seteDiasAtras.setDate(now.getDate() - 7)
-    const isoSeteDias = seteDiasAtras.toISOString().split('T')[0]
+      const seteDiasAtras = new Date()
+      seteDiasAtras.setDate(now.getDate() - 7)
+      const isoSeteDias = seteDiasAtras.toISOString().split('T')[0]
 
-    const { data: p7 } = await supabase.from('pedidos').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
-    const { data: po7 } = await supabase.from('pedidos_online').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
+      const { data: p7 } = await supabase.from('pedidos').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
+      const { data: po7 } = await supabase.from('pedidos_online').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
 
-    const all7 = [...(p7 || []), ...(po7 || [])]
-    const receitaPorDia = [0, 0, 0, 0, 0, 0, 0]
-    
-    all7.forEach(p => {
-       const diff = Math.floor((now.getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24))
-       if (diff >= 0 && diff < 7) {
-          receitaPorDia[6 - diff] += Number(p.total || 0)
-       }
-    })
-
-    const { data: historico } = await supabase
-      .from('historico_status')
-      .select('pedido_id, status_anterior, status_novo, created_at')
-      .gte('created_at', today)
-      .order('created_at', { ascending: true })
-
-    const temposMedios: TemposMedios = { novo: 0, preparo: 0, entrega: 0, total: 0 }
-    
-    if (historico && historico.length > 0) {
-      const porPedido: Record<string, Array<{status_anterior: string, status_novo: string, created_at: string}>> = {}
-      historico.forEach((h: any) => {
-        if (!porPedido[h.pedido_id]) porPedido[h.pedido_id] = []
-        porPedido[h.pedido_id].push({
-          status_anterior: h.status_anterior,
-          status_novo: h.status_novo,
-          created_at: h.created_at
-        })
+      const all7 = [...(p7 || []), ...(po7 || [])]
+      const receitaPorDia = [0, 0, 0, 0, 0, 0, 0]
+      
+      all7.forEach(p => {
+         const diff = Math.floor((now.getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24))
+         if (diff >= 0 && diff < 7) {
+            receitaPorDia[6 - diff] += Number(p.total || 0)
+         }
       })
 
-      let somaNovo = 0, somaPreparo = 0, somaEntrega = 0
-      let countNovo = 0, countPreparo = 0, countEntrega = 0
+      const { data: historico } = await supabase
+        .from('historico_status')
+        .select('pedido_id, status_anterior, status_novo, created_at')
+        .gte('created_at', today)
+        .order('created_at', { ascending: true })
 
-      Object.entries(porPedido).forEach(([pedidoId, mudancas]) => {
-        let inicioNovo: number | null = null
-        let inicioPreparo: number | null = null
-        let inicioEntrega: number | null = null
-
-        const pedido = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])].find((p: any) => p.id === pedidoId)
-        if (pedido) {
-          inicioNovo = new Date(pedido.created_at).getTime()
-        }
-
-        mudancas.forEach(m => {
-          const tempo = new Date(m.created_at).getTime()
-          
-          if (['pendente', 'aberto', 'confirmado'].includes(m.status_anterior) && m.status_novo === 'preparando') {
-            if (inicioNovo) {
-              somaNovo += Math.floor((tempo - inicioNovo) / 60000)
-              countNovo++
-            }
-            inicioPreparo = tempo
-          }
-          
-          if (m.status_anterior === 'preparando' && ['pronto', 'saiu_entrega'].includes(m.status_novo)) {
-            if (inicioPreparo) {
-              somaPreparo += Math.floor((tempo - inicioPreparo) / 60000)
-              countPreparo++
-            }
-            inicioEntrega = tempo
-          }
-          
-          if (m.status_novo === 'entregue' && m.status_anterior !== 'cancelado') {
-            if (inicioEntrega) {
-              somaEntrega += Math.floor((tempo - inicioEntrega) / 60000)
-              countEntrega++
-            }
-          }
+      const temposMedios: TemposMedios = { novo: 0, preparo: 0, entrega: 0, total: 0 }
+      
+      if (historico && historico.length > 0) {
+        const porPedido: Record<string, Array<{status_anterior: string, status_novo: string, created_at: string}>> = {}
+        historico.forEach((h: any) => {
+          if (!porPedido[h.pedido_id]) porPedido[h.pedido_id] = []
+          porPedido[h.pedido_id].push({
+            status_anterior: h.status_anterior,
+            status_novo: h.status_novo,
+            created_at: h.created_at
+          })
         })
-      })
 
-      temposMedios.novo = countNovo > 0 ? Math.round(somaNovo / countNovo) : 8
-      temposMedios.preparo = countPreparo > 0 ? Math.round(somaPreparo / countPreparo) : 15
-      temposMedios.entrega = countEntrega > 0 ? Math.round(somaEntrega / countEntrega) : 12
-      temposMedios.total = temposMedios.novo + temposMedios.preparo + temposMedios.entrega
-    }
+        let somaNovo = 0, somaPreparo = 0, somaEntrega = 0
+        let countNovo = 0, countPreparo = 0, countEntrega = 0
 
-    const { data: npsDataPedidos } = await supabase
-      .from('pedidos')
-      .select('nps_nota')
-      .eq('nps_respondido', true)
-      .gte('created_at', today)
-      .not('nps_nota', 'is', null)
+        Object.entries(porPedido).forEach(([pedidoId, mudancas]) => {
+          let inicioNovo: number | null = null
+          let inicioPreparo: number | null = null
+          let inicioEntrega: number | null = null
 
-    const { data: npsDataOnline } = await supabase
-      .from('pedidos_online')
-      .select('nps_nota')
-      .eq('nps_respondido', true)
-      .gte('created_at', today)
-      .not('nps_nota', 'is', null)
+          const pedido = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])].find((p: any) => p.id === pedidoId)
+          if (pedido) {
+            inicioNovo = new Date(pedido.created_at).getTime()
+          }
 
-    const allNpsData = [...(npsDataPedidos || []), ...(npsDataOnline || [])]
+          mudancas.forEach(m => {
+            const tempo = new Date(m.created_at).getTime()
+            
+            if (['pendente', 'aberto', 'confirmado'].includes(m.status_anterior) && m.status_novo === 'preparando') {
+              if (inicioNovo) {
+                somaNovo += Math.floor((tempo - inicioNovo) / 60000)
+                countNovo++
+              }
+              inicioPreparo = tempo
+            }
+            
+            if (m.status_anterior === 'preparando' && ['pronto', 'saiu_entrega'].includes(m.status_novo)) {
+              if (inicioPreparo) {
+                somaPreparo += Math.floor((tempo - inicioPreparo) / 60000)
+                countPreparo++
+              }
+              inicioEntrega = tempo
+            }
+            
+            if (m.status_novo === 'entregue' && m.status_anterior !== 'cancelado') {
+              if (inicioEntrega) {
+                somaEntrega += Math.floor((tempo - inicioEntrega) / 60000)
+                countEntrega++
+              }
+            }
+          })
+        })
 
-    const avaliacaoMedia = allNpsData.length > 0
-      ? Math.round((allNpsData.reduce((sum, p) => sum + (p.nps_nota || 0), 0) / allNpsData.length) * 10) / 10
-      : 0
-
-    // Fetch dados do funil de vendas
-    const { data: eventosData } = await supabase
-      .from('eventos_jornada')
-      .select('tipo_evento, quantidade')
-      .gte('data', today)
-
-    const eventos = eventosData || []
-    const visualizacoes = eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0)
-    const addCarrinho = eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0)
-    const checkoutIniciado = eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0)
-    const compras = eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0)
-
-    // Calcular pedidos por hora (considerando hoje)
-    const pedidosPorHora = Array(24).fill(0)
-    
-    // Processar pedidos internos
-    allPedidos.forEach(p => {
-      const hour = new Date(p.created_at).getHours()
-      if (hour >= 0 && hour < 24) {
-        pedidosPorHora[hour]++
+        temposMedios.novo = countNovo > 0 ? Math.round(somaNovo / countNovo) : 8
+        temposMedios.preparo = countPreparo > 0 ? Math.round(somaPreparo / countPreparo) : 15
+        temposMedios.entrega = countEntrega > 0 ? Math.round(somaEntrega / countEntrega) : 12
+        temposMedios.total = temposMedios.novo + temposMedios.preparo + temposMedios.entrega
       }
-    })
 
-    // Processar pedidos online
-    const { data: pedidosOnlineHojeAll } = await supabase
-      .from('pedidos_online')
-      .select('created_at')
-      .gte('created_at', today)
-    
-    if (pedidosOnlineHojeAll) {
-      pedidosOnlineHojeAll.forEach(p => {
+      const { data: npsDataPedidos } = await supabase
+        .from('pedidos')
+        .select('nps_nota')
+        .eq('nps_respondido', true)
+        .gte('created_at', today)
+        .not('nps_nota', 'is', null)
+
+      const { data: npsDataOnline } = await supabase
+        .from('pedidos_online')
+        .select('nps_nota')
+        .eq('nps_respondido', true)
+        .gte('created_at', today)
+        .not('nps_nota', 'is', null)
+
+      const allNpsData = [...(npsDataPedidos || []), ...(npsDataOnline || [])]
+
+      const avaliacaoMedia = allNpsData.length > 0
+        ? Math.round((allNpsData.reduce((sum, p) => sum + (p.nps_nota || 0), 0) / allNpsData.length) * 10) / 10
+        : 0
+
+      const { data: eventosData } = await supabase
+        .from('eventos_jornada')
+        .select('tipo_evento, quantidade')
+        .gte('data', today)
+
+      const eventos = eventosData || []
+      const visualizacoes = eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0)
+      const addCarrinho = eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0)
+      const checkoutIniciado = eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0)
+      const compras = eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0)
+
+      const pedidosPorHora = Array(24).fill(0)
+      
+      allPedidos.forEach(p => {
         const hour = new Date(p.created_at).getHours()
         if (hour >= 0 && hour < 24) {
           pedidosPorHora[hour]++
         }
       })
-    }
 
-    setKpis({
-      faturamento,
-      totalPedidos: allPedidos.length,
-      ticketMedio: validos.length > 0 ? faturamento / validos.length : 0,
-      tempoEntrega: temposMedios.total,
-      visualizacoes,
-      avaliacao: avaliacaoMedia,
-      totalAvaliacoes: allNpsData.length,
-      pedidosAbertos: abertos.length,
-      totalEntregues: entregues.length,
-      receita7Dias: receitaPorDia,
-      temposMedios,
-      funnelData: { visualizacoes, addCarrinho, checkoutIniciado, compras },
-      pedidosPorHora
-    })
-  }, [])
+      const { data: pedidosOnlineHojeAll } = await supabase
+        .from('pedidos_online')
+        .select('created_at')
+        .gte('created_at', today)
+      
+      if (pedidosOnlineHojeAll) {
+        pedidosOnlineHojeAll.forEach(p => {
+          const hour = new Date(p.created_at).getHours()
+          if (hour >= 0 && hour < 24) {
+            pedidosPorHora[hour]++
+          }
+        })
+      }
 
-  useEffect(() => {
-    fetchKpis()
-  }, [])
+      return {
+        faturamento,
+        totalPedidos: allPedidos.length,
+        ticketMedio: validos.length > 0 ? faturamento / validos.length : 0,
+        tempoEntrega: temposMedios.total,
+        visualizacoes,
+        avaliacao: avaliacaoMedia,
+        totalAvaliacoes: allNpsData.length,
+        pedidosAbertos: abertos.length,
+        totalEntregues: entregues.length,
+        receita7Dias: receitaPorDia,
+        temposMedios,
+        funnelData: { visualizacoes, addCarrinho, checkoutIniciado, compras },
+        pedidosPorHora
+      }
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: pedidosRecentes = [] as Pedido[], isLoading: loadingPedidos } = useQuery({
+    queryKey: ['pedidos-recentes', tenantId],
+    queryFn: async () => {
+      const { data: pedidos } = await supabase
+        .from('pedidos')
+        .select('id, cliente, total, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      const { data: pedidosOnline } = await supabase
+        .from('pedidos_online')
+        .select('id, cliente, total, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      const combined = [...(pedidos || []), ...(pedidosOnline || [])]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10)
+
+      return combined as Pedido[]
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: topProdutos = [] as Produto[], isLoading: loadingProdutos } = useQuery({
+    queryKey: ['top-produtos', tenantId],
+    queryFn: async () => {
+      const { data: itensPedido } = await supabase
+        .from('itens_pedido')
+        .select('produto_id, quantidade, preco')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+
+      const produtoMap: Record<string, { nome: string; totalVendido: number; quantidade: number }> = {}
+
+      if (itensPedido) {
+        for (const item of itensPedido) {
+          if (!produtoMap[item.produto_id]) {
+            const { data: produto } = await supabase
+              .from('produtos')
+              .select('nome')
+              .eq('id', item.produto_id)
+              .maybeSingle()
+            
+            produtoMap[item.produto_id] = {
+              nome: produto?.nome || 'Produto',
+              totalVendido: 0,
+              quantidade: 0
+            }
+          }
+          produtoMap[item.produto_id].totalVendido += Number(item.preco) * item.quantidade
+          produtoMap[item.produto_id].quantidade += item.quantidade
+        }
+      }
+
+      return Object.entries(produtoMap)
+        .map(([id, data]) => ({ id, ...data }))
+        .sort((a, b) => b.totalVendido - a.totalVendido)
+        .slice(0, 5) as Produto[]
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: faturamento7Dias = [0, 0, 0, 0, 0, 0, 0] as number[], isLoading: loadingFaturamento } = useQuery({
+    queryKey: ['faturamento-7dias', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const resultado: number[] = [0, 0, 0, 0, 0, 0, 0]
+
+      for (let i = 6; i >= 0; i--) {
+        const data = new Date(now)
+        data.setDate(now.getDate() - i)
+        const dataStr = data.toISOString().split('T')[0]
+        const dataStrProx = new Date(data)
+        dataStrProx.setDate(data.getDate() + 1)
+        
+        const { data: pedidosDia } = await supabase
+          .from('pedidos')
+          .select('total')
+          .gte('created_at', dataStr)
+          .lt('created_at', dataStrProx.toISOString().split('T')[0])
+          .neq('status', 'cancelado')
+
+        const { data: pedidosOnlineDia } = await supabase
+          .from('pedidos_online')
+          .select('total')
+          .gte('created_at', dataStr)
+          .lt('created_at', dataStrProx.toISOString().split('T')[0])
+          .neq('status', 'cancelado')
+
+        const totalDia = [...(pedidosDia || []), ...(pedidosOnlineDia || [])]
+          .reduce((sum, p) => sum + Number(p.total || 0), 0)
+        
+        resultado[6 - i] = totalDia
+      }
+
+      return resultado
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
   useEffect(() => {
     setLinkCardapio(window.location.origin + '/cardapio')
   }, [])
@@ -258,8 +386,34 @@ export default function DashboardPage() {
     setLojaAberta(novoEstado)
     setLoadingLoja(false)
   }
-  useRealtime('pedidos', fetchKpis)
-  useRealtime('pedidos_online', fetchKpis)
+
+  useRealtime('pedidos', () => { refetchKpis() })
+  useRealtime('pedidos_online', () => { refetchKpis() })
+
+  if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento) {
+    return (
+      <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="h-16 w-48 bg-surface-variant rounded-lg animate-pulse"></div>
+          <div className="flex gap-3">
+            <div className="h-12 w-32 bg-surface-variant rounded-lg animate-pulse"></div>
+            <div className="h-12 w-40 bg-surface-variant rounded-lg animate-pulse"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="p-6 rounded-2xl border border-outline bg-surface-container animate-pulse h-36"></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container animate-pulse h-64"></div>
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container animate-pulse h-64"></div>
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container col-span-1 lg:col-span-2 animate-pulse h-48"></div>
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container animate-pulse h-64"></div>
+        </div>
+      </div>
+    )
+  }
 
   const kpiData = [
     { id: 'faturamento', icon: 'payments', label: 'Faturamento Hoje', value: kpis.faturamento, color: '#d32f2f', isCurrency: true },
@@ -475,4 +629,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-

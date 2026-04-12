@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
+import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { format, differenceInMinutes, parseISO } from 'date-fns'
@@ -72,6 +73,8 @@ const COLUMNS = [
 export default function PedidosPage() {
   const { user } = useAuth()
   const tenantId = user?.id
+  const queryClient = useQueryClient()
+  const toast = useToast()
   const [pedidos, setPedidos] = useState<UnifiedPedido[]>([])
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -210,11 +213,11 @@ export default function PedidosPage() {
 
   useRealtime('pedidos', () => {
     playAlertSound()
-    fetchPedidos()
+    queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
   })
   useRealtime('pedidos_online', () => {
     playAlertSound()
-    fetchPedidos()
+    queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
   })
 
   const fetchMotoboysDisponiveis = async () => {
@@ -294,6 +297,18 @@ export default function PedidosPage() {
     try {
       const { error } = await supabase.from(pedido.tipo_tabela).update({ status: nextRaw }).eq('id', pedido.id).eq('tenant_id', tenantId)
       if (!error) {
+        if (nextRaw === 'preparando') {
+          try {
+            const { data: debitResult } = await supabase.functions.invoke('debitar-estoque', {
+              body: { pedido_id: pedido.id, tenant_id: tenantId }
+            })
+            if (debitResult?.alertas?.length > 0) {
+              console.warn('Alertas de estoque:', debitResult.alertas)
+            }
+          } catch (debitErr) {
+            console.error('Erro ao debitar estoque:', debitErr)
+          }
+        }
         if (nextRaw === 'entregue' && pedido.cliente_telefone) {
            const { data: config } = await supabase.from('configuracoes').select('*').eq('tenant_id', tenantId).single()
            if (config?.fidelidade_ativa) {
@@ -403,24 +418,47 @@ export default function PedidosPage() {
     } catch(err) { console.error(err) }
   }
 
-  const handleCancelPedido = async () => {
+  const { mutate: cancelarPedido, isPending: cancelando } = useMutation({
+    mutationFn: async ({ pedido, motivo }: { pedido: UnifiedPedido, motivo: string }) => {
+      const { error } = await supabase.from(pedido.tipo_tabela).update({ status: 'cancelado' }).eq('id', pedido.id).eq('tenant_id', tenantId)
+      if (error) throw error
+      await supabase.from('historico_status').insert({
+        tenant_id: tenantId,
+        pedido_id: pedido.id,
+        origem_tabela: pedido.tipo_tabela,
+        status_anterior: pedido.raw_status,
+        status_novo: 'cancelado',
+        motivo_cancelamento: motivo
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+      toast.success('Pedido cancelado com sucesso')
+    },
+    onError: () => {
+      toast.error('Erro ao cancelar pedido')
+    }
+  })
+
+  const { mutate: mudarStatus, isPending: mudandoStatus } = useMutation({
+    mutationFn: async ({ pedidoId, novaTabela, novoStatus }: { pedidoId: string, novaTabela: string, novoStatus: string }) => {
+      const { error } = await supabase.from(novaTabela).update({ status: novoStatus }).eq('id', pedidoId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+      toast.success('Status atualizado')
+    },
+    onError: () => {
+      toast.error('Erro ao atualizar status')
+    }
+  })
+
+  const handleCancelPedido = () => {
     if (!cancelModalPedido || !cancelReason.trim()) return
-    try {
-      const { error } = await supabase.from(cancelModalPedido.tipo_tabela).update({ status: 'cancelado' }).eq('id', cancelModalPedido.id).eq('tenant_id', tenantId)
-      if (!error) {
-        await supabase.from('historico_status').insert({
-          tenant_id: tenantId,
-          pedido_id: cancelModalPedido.id,
-          origem_tabela: cancelModalPedido.tipo_tabela,
-          status_anterior: cancelModalPedido.raw_status,
-          status_novo: 'cancelado',
-          motivo_cancelamento: cancelReason.trim()
-        })
-        fetchPedidos()
-        setCancelModalPedido(null)
-        setCancelReason('')
-      }
-    } catch(err) { console.error(err) }
+    cancelarPedido({ pedido: cancelModalPedido, motivo: cancelReason.trim() })
+    setCancelModalPedido(null)
+    setCancelReason('')
   }
 
   const columnsData = useMemo(() => {

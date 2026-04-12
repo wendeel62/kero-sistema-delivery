@@ -39,13 +39,13 @@ export function useGlobalMetrics() {
       const d = result.data
       return {
         mrr: acc.mrr + d.revenue.mrr,
-        total_orders_today: acc.total_orders_today + d.platform.total_orders_today,
+        tenants_new_this_month: acc.tenants_new_this_month + d.tenants.new_this_month,
         tenants_total: acc.tenants_total + d.tenants.total,
         tenants_active: acc.tenants_active + d.tenants.active,
         ai_error_rate: acc.ai_error_rate + (d.ai_usage.groq_error_rate_percent + d.ai_usage.gemini_error_rate_percent) / 2,
       }
     },
-    { mrr: 0, total_orders_today: 0, tenants_total: 0, tenants_active: 0, ai_error_rate: 0 }
+    { mrr: 0, tenants_new_this_month: 0, tenants_total: 0, tenants_active: 0, ai_error_rate: 0 }
   )
 
   // Average AI error rate across projects
