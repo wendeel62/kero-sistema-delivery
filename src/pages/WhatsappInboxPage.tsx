@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { 
@@ -58,7 +59,22 @@ const limparTelefone = (telefone: string): string => {
   return telefone.replace('@s.whatsapp.net', '').replace('@g.us', '')
 }
 
+function getTenantId(): string {
+  const configStr = localStorage.getItem('supabase.auth.token')
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr)
+      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
+
 export default function WhatsappInboxPage() {
+  const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
   const queryClient = useQueryClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
@@ -66,21 +82,24 @@ export default function WhatsappInboxPage() {
   const [contatoAtivo, setContatoAtivo] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   
-  // ============================================
   // CONSULTA 1: Lista de conversas (últimas 200 mensagens)
   // ============================================
   const { data: mensagensRecentes, isLoading: carregandoConversas } = useQuery<WhatsAppMessage[]>({
-    queryKey: ['whatsapp-conversas'],
+    queryKey: ['whatsapp-conversas', tenantId],
     queryFn: async () => {
+      if (!tenantId) return []
       const { data, error } = await supabase
         .from('mensagens_whatsapp')
         .select('*')
+        .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(200)
       
       if (error) throw error
       return data || []
-    }
+    },
+    staleTime: 0,
+    enabled: !!tenantId
   })
 
   // ============================================
@@ -135,35 +154,37 @@ export default function WhatsappInboxPage() {
     )
   }, [conversas, searchTerm])
 
-  // ============================================
   // CONSULTA 2: Mensagens do contato ativo
   // ============================================
   const { data: mensagensContato, isLoading: carregandoMensagens } = useQuery<WhatsAppMessage[]>({
-    queryKey: ['whatsapp-mensagens', contatoAtivo],
+    queryKey: ['whatsapp-mensagens', contatoAtivo, tenantId],
     queryFn: async () => {
-      if (!contatoAtivo) return []
+      if (!contatoAtivo || !tenantId) return []
       
       const { data, error } = await supabase
         .from('mensagens_whatsapp')
         .select('*')
+        .eq('tenant_id', tenantId)
         .or(`contato_telefone.eq.${contatoAtivo},contato_telefone.like.${contatoAtivo}@%`)
         .order('created_at', { ascending: true })
       
       if (error) throw error
       return data || []
     },
-    enabled: !!contatoAtivo
+    staleTime: 0,
+    enabled: !!contatoAtivo && !!tenantId
   })
 
-  // ============================================
   // MUTAÇÃO: Marcar mensagens como lidas
   // ============================================
   const mutationMarcarLida = useMutation({
     mutationFn: async (telefone: string) => {
+      if (!tenantId) return
       // Buscar mensagens não lidas deste contato
       const { data: msgs } = await supabase
         .from('mensagens_whatsapp')
         .select('id')
+        .eq('tenant_id', tenantId)
         .or(`contato_telefone.eq.${telefone},contato_telefone.like.${telefone}@%`)
         .eq('lida', false)
         .eq('direcao', 'entrada')
@@ -180,7 +201,7 @@ export default function WhatsappInboxPage() {
     },
     onSuccess: () => {
       // Invalidar query de conversas para atualizar badges
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversas'] })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversas', tenantId] })
     }
   })
 
@@ -207,22 +228,23 @@ export default function WhatsappInboxPage() {
   // ============================================
   useEffect(() => {
     const channel = supabase
-      .channel('whatsapp-realtime')
+      .channel(`whatsapp-inbox-${tenantId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'mensagens_whatsapp'
+          table: 'mensagens_whatsapp',
+          filter: `tenant_id=eq.${tenantId}`
         },
         (payload) => {
           // Invalidar query de conversas
-          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversas'] })
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversas', tenantId] })
           
           // Se a mensagem for do contato ativo, invalidar também
           const novaMsg = payload.new as WhatsAppMessage
           if (contatoAtivo && limparTelefone(novaMsg.contato_telefone) === contatoAtivo) {
-            queryClient.invalidateQueries({ queryKey: ['whatsapp-mensagens', contatoAtivo] })
+            queryClient.invalidateQueries({ queryKey: ['whatsapp-mensagens', contatoAtivo, tenantId] })
           }
         }
       )
@@ -231,7 +253,7 @@ export default function WhatsappInboxPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [queryClient, contatoAtivo])
+  }, [queryClient, contatoAtivo, tenantId])
 
   // ============================================
   // SELEÇÃO DE CONTATO

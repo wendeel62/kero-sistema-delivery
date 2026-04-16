@@ -6,6 +6,19 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { produtoSchema } from '../schemas/produtoSchema'
 
+function getTenantId(): string {
+  const configStr = localStorage.getItem('supabase.auth.token')
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr)
+      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
+
 interface Categoria { id: string; nome: string; descricao: string; ordem: number; ativo: boolean }
 interface Produto { id: string; categoria_id: string; nome: string; descricao: string; preco: number | undefined; disponivel: boolean; destaque: boolean; tempo_preparo: number; imagem_url: string }
 interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
@@ -33,6 +46,7 @@ export default function CardapioAdminPage() {
   const [uploading, setUploading] = useState(false)
 
   const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
 
   const produtoForm = useForm({
     resolver: zodResolver(produtoSchema),
@@ -46,37 +60,32 @@ export default function CardapioAdminPage() {
       categoria_id: '',
       imagem_url: ''
     }
-  })
+})
 
   const fetchCategorias = useCallback(async () => {
-    const { data } = await supabase.from('categorias').select('*').order('ordem')
+    const { data } = await supabase.from('categorias').select('*').eq('tenant_id', tenantId).order('ordem')
     if (data) setCategorias(data)
-  }, [])
+  }, [tenantId])
 
   const fetchProdutos = useCallback(async () => {
-    const { data } = await supabase.from('produtos').select('*').order('ordem')
+    const { data } = await supabase.from('produtos').select('*').eq('tenant_id', tenantId).order('ordem')
     if (data) setProdutos(data)
-    
-    const { data: precosData } = await supabase.from('precos_tamanho').select('*')
-    if (precosData) {
-      const grouped: Record<string, PrecoTamanho[]> = {}
-      precosData.forEach(p => {
-        if (!grouped[p.produto_id]) grouped[p.produto_id] = []
-        grouped[p.produto_id].push(p)
-      })
-      setProdutoPrecos(grouped)
-    }
-  }, [])
+  }, [tenantId])
+
+  const fetchPrecos = useCallback(async () => {
+    const { data: precosData } = await supabase.from('precos_tamanho').select('*').eq('tenant_id', tenantId)
+    if (precosData) setPrecos(precosData)
+  }, [tenantId])
+
+  const fetchPrecosDoProduto = useCallback(async (produtoId: string) => {
+    const { data } = await supabase.from('precos_tamanho').select('*').eq('tenant_id', tenantId).eq('produto_id', produtoId)
+    if (data) setPrecos(data)
+  }, [tenantId])
 
   const fetchSabores = useCallback(async () => {
-    const { data } = await supabase.from('sabores').select('*').order('nome')
+    const { data } = await supabase.from('sabores').select('*').eq('tenant_id', tenantId).order('nome')
     if (data) setSabores(data)
-  }, [])
-
-  const fetchPrecos = useCallback(async (produtoId: string) => {
-    const { data } = await supabase.from('precos_tamanho').select('*').eq('produto_id', produtoId)
-    if (data) setPrecos(data)
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     const loadData = async () => {
@@ -91,8 +100,8 @@ export default function CardapioAdminPage() {
     if (!editCategoria?.nome) return
     const payload = { nome: editCategoria.nome, descricao: editCategoria.descricao || '' }
     const { error } = editCategoria.id 
-      ? await supabase.from('categorias').update(payload).eq('id', editCategoria.id)
-      : await supabase.from('categorias').insert({ ...payload, ordem: categorias.length })
+      ? await supabase.from('categorias').update(payload).eq('id', editCategoria.id).eq('tenant_id', tenantId)
+      : await supabase.from('categorias').insert({ ...payload, ordem: categorias.length, tenant_id: tenantId })
     
     if (error) {
       console.error('Erro ao salvar categoria:', error)
@@ -106,7 +115,7 @@ export default function CardapioAdminPage() {
   }
 
   const deleteCategoria = async (id: string) => {
-    const { error } = await supabase.from('categorias').delete().eq('id', id)
+    const { error } = await supabase.from('categorias').delete().eq('id', id).eq('tenant_id', tenantId)
     if (error) alert('Erro ao excluir: ' + error.message)
     fetchCategorias()
   }
@@ -126,7 +135,7 @@ export default function CardapioAdminPage() {
     setDraggedCategoria(null)
 
     const updates = novasCategorias.map((c, idx) => 
-      supabase.from('categorias').update({ ordem: idx }).eq('id', c.id)
+      supabase.from('categorias').update({ ordem: idx }).eq('id', c.id).eq('tenant_id', tenantId)
     )
     await Promise.all(updates)
   }
@@ -195,30 +204,28 @@ export default function CardapioAdminPage() {
     let produtoId = editProduto.id
     
     if (!produtoId) {
-      const { data, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length }).select().single()
+      const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length, tenant_id: tenantId }).select().single()
       if (insertError) {
-        console.error('Erro ao salvar produto:', insertError)
-        alert('Erro ao salvar: verifique se você está logado corretamente. (RLS)')
+        alert('Erro ao salvar: ' + insertError.message)
         setUploading(false)
         return
       }
-      produtoId = data.id
+      produtoId = insertData.id
     } else {
-      const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId)
+      const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId).eq('tenant_id', tenantId)
       if (updateError) {
-        console.error('Erro ao salvar produto:', updateError)
-        alert('Erro ao salvar: verifique se você está logado corretamente. (RLS)')
+        alert('Erro ao salvar: ' + updateError.message)
         setUploading(false)
         return
       }
     }
     
-    if (selectedFile && produtoId) {
-      const imageUrl = await uploadPhoto(produtoId)
-      if (imageUrl) {
-        await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId)
-      }
-    }
+                if (selectedFile && produtoId) {
+                  const imageUrl = await uploadPhoto(produtoId)
+                  if (imageUrl) {
+                    await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId).eq('tenant_id', tenantId)
+                  }
+                }
 
     setUploading(false)
     setSelectedFile(null)
@@ -229,33 +236,33 @@ export default function CardapioAdminPage() {
   }
 
   const deleteProduto = async (id: string) => {
-    const { error } = await supabase.from('produtos').delete().eq('id', id)
+    const { error } = await supabase.from('produtos').delete().eq('id', id).eq('tenant_id', tenantId)
     if (error) alert('Erro ao excluir: ' + error.message)
     fetchProdutos()
   }
 
   const toggleDisponivel = async (p: Produto) => {
-    await supabase.from('produtos').update({ disponivel: !p.disponivel }).eq('id', p.id)
+    await supabase.from('produtos').update({ disponivel: !p.disponivel }).eq('id', p.id).eq('tenant_id', tenantId)
     fetchProdutos()
   }
 
   const addPreco = async (produtoId: string) => {
     if (!newTamanho || !newPrecoValor) return
-    const { error } = await supabase.from('precos_tamanho').insert({ produto_id: produtoId, tamanho: newTamanho, preco: Number(newPrecoValor) })
+    const { error } = await supabase.from('precos_tamanho').insert({ produto_id: produtoId, tamanho: newTamanho, preco: Number(newPrecoValor), tenant_id: tenantId })
     if (error) {
       alert('Erro ao adicionar preço: ' + error.message)
     } else {
       setNewTamanho('')
       setNewPrecoValor('')
-      fetchPrecos(produtoId)
+      fetchPrecosDoProduto(produtoId)
       fetchProdutos()
     }
   }
 
   const deletePreco = async (precoId: string, produtoId: string) => {
-    const { error } = await supabase.from('precos_tamanho').delete().eq('id', precoId)
+    const { error } = await supabase.from('precos_tamanho').delete().eq('id', precoId).eq('tenant_id', tenantId)
     if (error) alert('Erro ao excluir preço: ' + error.message)
-    fetchPrecos(produtoId)
+    fetchPrecosDoProduto(produtoId)
     fetchProdutos()
   }
 
@@ -263,8 +270,8 @@ export default function CardapioAdminPage() {
     if (!editSabor?.nome) return
     const payload = { nome: editSabor.nome, descricao: editSabor.descricao || '', disponivel: editSabor.disponivel ?? true }
     const { error } = editSabor.id 
-      ? await supabase.from('sabores').update(payload).eq('id', editSabor.id)
-      : await supabase.from('sabores').insert(payload)
+      ? await supabase.from('sabores').update(payload).eq('id', editSabor.id).eq('tenant_id', tenantId)
+      : await supabase.from('sabores').insert({ ...payload, tenant_id: tenantId })
     
     if (error) {
       console.error('Erro ao salvar sabor:', error)
@@ -279,13 +286,13 @@ export default function CardapioAdminPage() {
 
   const deleteSabor = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este sabor?')) return
-    const { error } = await supabase.from('sabores').delete().eq('id', id)
+    const { error } = await supabase.from('sabores').delete().eq('id', id).eq('tenant_id', tenantId)
     if (error) alert('Erro ao excluir: ' + error.message)
     fetchSabores()
   }
 
   const toggleSaborDisponivel = async (sabor: Sabor) => {
-    await supabase.from('sabores').update({ disponivel: !sabor.disponivel }).eq('id', sabor.id)
+    await supabase.from('sabores').update({ disponivel: !sabor.disponivel }).eq('id', sabor.id).eq('tenant_id', tenantId)
     fetchSabores()
   }
 
@@ -366,7 +373,7 @@ export default function CardapioAdminPage() {
                 
                 <div className="flex items-center justify-between pt-4 border-t border-[#252830]/50">
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditProduto(p); setShowProdutoModal(true); fetchPrecos(p.id) }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#252830] text-[#e8391a] hover:bg-[#e8391a] hover:text-white transition-all">
+                    <button onClick={() => { setEditProduto(p); setShowProdutoModal(true); fetchPrecosDoProduto(p.id) }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#252830] text-[#e8391a] hover:bg-[#e8391a] hover:text-white transition-all">
                       <span className="material-symbols-outlined text-lg">edit</span>
                     </button>
                     <button onClick={() => deleteProduto(p.id)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#252830] text-red-500 hover:bg-red-500 hover:text-white transition-all">
@@ -490,7 +497,7 @@ export default function CardapioAdminPage() {
                     <div key={pt.id} className="flex items-center justify-between bg-[#252830] p-4 rounded-xl border border-[#333]">
                       <span className="text-sm font-bold uppercase tracking-widest text-white">{pt.tamanho} -- <span className="text-emerald-400">R$ {Number(pt.preco).toFixed(2)}</span></span>
                       <button onClick={async () => {
-                        await supabase.from('precos_tamanho').delete().eq('id', pt.id)
+                        await supabase.from('precos_tamanho').delete().eq('id', pt.id).eq('tenant_id', tenantId)
                         fetchProdutos()
                       }} className="w-8 h-8 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all">
                         <span className="material-symbols-outlined text-sm">close</span>
@@ -620,7 +627,7 @@ export default function CardapioAdminPage() {
               let produtoId = editProduto?.id
               
               if (!produtoId) {
-                const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length }).select().single()
+                const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length, tenant_id: tenantId }).select().single()
                 if (insertError) {
                   alert('Erro ao salvar: ' + insertError.message)
                   setUploading(false)
@@ -628,7 +635,7 @@ export default function CardapioAdminPage() {
                 }
                 produtoId = insertData.id
               } else {
-                const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId)
+                const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId).eq('tenant_id', tenantId)
                 if (updateError) {
                   alert('Erro ao salvar: ' + updateError.message)
                   setUploading(false)
@@ -755,7 +762,7 @@ export default function CardapioAdminPage() {
                 let produtoId = editProduto?.id
                 
                 if (!produtoId) {
-                  const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length }).select().single()
+                  const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length, tenant_id: tenantId }).select().single()
                   if (insertError) {
                     alert('Erro ao salvar: ' + insertError.message)
                     setUploading(false)
@@ -763,7 +770,7 @@ export default function CardapioAdminPage() {
                   }
                   produtoId = insertData.id
                 } else {
-                  const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId)
+                  const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId).eq('tenant_id', tenantId)
                   if (updateError) {
                     alert('Erro ao salvar: ' + updateError.message)
                     setUploading(false)
@@ -774,7 +781,7 @@ export default function CardapioAdminPage() {
                 if (selectedFile && produtoId) {
                   const imageUrl = await uploadPhoto(produtoId)
                   if (imageUrl) {
-                    await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId)
+await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId).eq('tenant_id', tenantId)
                   }
                 }
 

@@ -1,8 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
+import { useAuth } from '../contexts/AuthContext'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+
+function getTenantId(): string {
+  const configStr = localStorage.getItem('supabase.auth.token')
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr)
+      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { clienteSchema } from '../schemas/clienteSchema'
@@ -50,6 +64,8 @@ interface Cupom {
 }
 
 export default function ClientesPage() {
+  const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
   const [activeTab, setActiveTab] = useState<'gestao' | 'fidelidade' | 'cupons'>('gestao')
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,10 +78,12 @@ export default function ClientesPage() {
   const [cupons, setCupons] = useState<Cupom[]>([])
 
   const fetchClientes = useCallback(async () => {
+    if (!tenantId) return
     setLoading(true)
     const { data, error } = await supabase
       .from('clientes')
       .select('*')
+      .eq('tenant_id', tenantId)
       .order('nome', { ascending: true })
     
     if (error) console.error('Erro ao buscar clientes:', error)
@@ -83,14 +101,16 @@ export default function ClientesPage() {
   }, [])
 
   const fetchConfig = useCallback(async () => {
-    const { data } = await supabase.from('configuracoes').select('*').limit(1).single()
+    if (!tenantId) return
+    const { data } = await supabase.from('configuracoes').select('*').eq('tenant_id', tenantId).limit(1).single()
     setConfig(data)
-  }, [])
+  }, [tenantId])
 
   const fetchCupons = useCallback(async () => {
-    const { data } = await supabase.from('cupons').select('*').order('created_at', { ascending: false })
+    if (!tenantId) return
+    const { data } = await supabase.from('cupons').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
     setCupons(data || [])
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     fetchClientes()
@@ -261,11 +281,11 @@ export default function ClientesPage() {
         </>
       )}
 
-      {activeTab === 'fidelidade' && <FidelidadeContent config={config} onUpdate={fetchConfig} />}
-      {activeTab === 'cupons' && <CuponsContent cupons={cupons} onUpdate={fetchCupons} />}
+      {activeTab === 'fidelidade' && <FidelidadeContent config={config} onUpdate={fetchConfig} tenantId={tenantId} />}
+      {activeTab === 'cupons' && <CuponsContent cupons={cupons} onUpdate={fetchCupons} tenantId={tenantId} />}
 
-      {isDrawerOpen && selectedCliente && <ClienteDrawer cliente={selectedCliente} onClose={() => setIsDrawerOpen(false)} onUpdate={fetchClientes} />}
-      {isModalOpen && <ClienteModal cliente={null} onClose={() => setIsModalOpen(false)} onSave={fetchClientes} />}
+      {isDrawerOpen && selectedCliente && <ClienteDrawer cliente={selectedCliente} onClose={() => setIsDrawerOpen(false)} onUpdate={fetchClientes} tenantId={tenantId} />}
+      {isModalOpen && <ClienteModal cliente={null} onClose={() => setIsModalOpen(false)} onSave={fetchClientes} tenantId={tenantId} />}
     </div>
   )
 }
@@ -278,14 +298,14 @@ function getPerfilBadge(perfil: string) {
   }
 }
 
-function FidelidadeContent({ config, onUpdate }: any) {
+function FidelidadeContent({ config, onUpdate, tenantId }: any) {
   const [localConfig, setLocalConfig] = useState(config)
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
     setSaving(true)
     const { id, ...rest } = localConfig
-    await supabase.from('configuracoes').update(rest).eq('id', id)
+    await supabase.from('configuracoes').update(rest).eq('id', id).eq('tenant_id', tenantId)
     onUpdate()
     setSaving(false)
   }
@@ -358,7 +378,7 @@ function FidelidadeContent({ config, onUpdate }: any) {
   )
 }
 
-function CuponsContent({ cupons, onUpdate }: any) {
+function CuponsContent({ cupons, onUpdate, tenantId }: any) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCupom, setEditingCupom] = useState<any>(null)
 
@@ -368,7 +388,7 @@ function CuponsContent({ cupons, onUpdate }: any) {
   }
 
   const toggleAtivo = async (cupom: Cupom) => {
-    await supabase.from('cupons').update({ ativo: !cupom.ativo }).eq('id', cupom.id)
+    await supabase.from('cupons').update({ ativo: !cupom.ativo }).eq('id', cupom.id).eq('tenant_id', tenantId)
     onUpdate()
   }
 
@@ -419,12 +439,12 @@ function CuponsContent({ cupons, onUpdate }: any) {
           </table>
        </div>
 
-       {isModalOpen && <CupomModal cupom={editingCupom} onClose={() => setIsModalOpen(false)} onSave={onUpdate} />}
+       {isModalOpen && <CupomModal cupom={editingCupom} onClose={() => setIsModalOpen(false)} onSave={onUpdate} tenantId={tenantId} />}
     </div>
   )
 }
 
-function CupomModal({ cupom, onClose, onSave }: any) {
+function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
   const [saving, setSaving] = useState(false)
   
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -443,9 +463,9 @@ function CupomModal({ cupom, onClose, onSave }: any) {
     const payload = { ...data, ativo: cupom?.ativo ?? true }
     let result
     if (cupom?.id) {
-      result = await supabase.from('cupons').update(payload).eq('id', cupom.id)
+      result = await supabase.from('cupons').update(payload).eq('id', cupom.id).eq('tenant_id', tenantId)
     } else {
-      result = await supabase.from('cupons').insert([data])
+      result = await supabase.from('cupons').insert([{ ...data, tenant_id: tenantId }])
     }
     if (result.error) alert('Erro ao salvar: ' + result.error.message)
     else { onSave(); onClose(); }
@@ -503,13 +523,13 @@ function CupomModal({ cupom, onClose, onSave }: any) {
   )
 }
 
-function ClienteDrawer({ cliente, onClose, onUpdate }: any) {
+function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
   const [obs, setObs] = useState(cliente.observacoes || '')
   const [isUpdating, setIsUpdating] = useState(false)
   
   const saveObs = async () => {
      setIsUpdating(true)
-     await supabase.from('clientes').update({ observacoes: obs }).eq('id', cliente.id)
+     await supabase.from('clientes').update({ observacoes: obs }).eq('id', cliente.id).eq('tenant_id', tenantId)
      onUpdate()
      setIsUpdating(false)
   }
@@ -638,7 +658,7 @@ function ClienteDrawer({ cliente, onClose, onUpdate }: any) {
   )
 }
 
-function ClienteModal({ cliente, onClose, onSave }: any) {
+function ClienteModal({ cliente, onClose, onSave, tenantId }: any) {
   const [saving, setSaving] = useState(false)
   const [cepError, setCepError] = useState('')
   
@@ -656,9 +676,9 @@ function ClienteModal({ cliente, onClose, onSave }: any) {
     setSaving(true)
     let result
     if (cliente?.id) {
-      result = await supabase.from('clientes').update(data).eq('id', cliente.id)
+      result = await supabase.from('clientes').update(data).eq('id', cliente.id).eq('tenant_id', tenantId)
     } else {
-      result = await supabase.from('clientes').insert([data])
+      result = await supabase.from('clientes').insert([{ ...data, tenant_id: tenantId }])
     }
     
     if (result.error) alert('Erro ao salvar: ' + result.error.message)

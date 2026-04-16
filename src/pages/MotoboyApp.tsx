@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-
-interface Motoboy {
-  id: string
-  nome: string
-  telefone: string
-  status: string
-  token_acesso: string
-}
+import type { Motoboy } from '../types'
 
 interface EntregaMotoboy {
   id: string
