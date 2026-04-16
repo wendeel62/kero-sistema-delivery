@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
@@ -74,13 +74,24 @@ const defaultKpis: KPIs = {
   pedidosPorHora: Array(24).fill(0)
 }
 
+function getTenantId(): string {
+  const configStr = localStorage.getItem('supabase.auth.token')
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr)
+      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
-  const tenantId = user?.id
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
 
   const [linkCardapio, setLinkCardapio] = useState('')
-  const [lojaAberta, setLojaAberta] = useState(true)
-  const [loadingLoja, setLoadingLoja] = useState(false)
 
   const { data: kpis = defaultKpis, isLoading: loadingKpis, refetch: refetchKpis } = useQuery({
     queryKey: ['dashboard-kpis', tenantId],
@@ -88,8 +99,8 @@ export default function DashboardPage() {
       const now = new Date()
       const today = now.toISOString().split('T')[0]
       
-      const { data: pedidosHoje } = await supabase.from('pedidos').select('*').gte('created_at', today)
-      const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').gte('created_at', today)
+      const { data: pedidosHoje } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).gte('created_at', today)
+      const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').eq('tenant_id', tenantId).gte('created_at', today)
 
       const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])]
       const validos = allPedidos.filter(p => p.status !== 'cancelado')
@@ -102,8 +113,8 @@ export default function DashboardPage() {
       seteDiasAtras.setDate(now.getDate() - 7)
       const isoSeteDias = seteDiasAtras.toISOString().split('T')[0]
 
-      const { data: p7 } = await supabase.from('pedidos').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
-      const { data: po7 } = await supabase.from('pedidos_online').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
+      const { data: p7 } = await supabase.from('pedidos').select('total, created_at').eq('tenant_id', tenantId).gte('created_at', isoSeteDias).neq('status', 'cancelado')
+      const { data: po7 } = await supabase.from('pedidos_online').select('total, created_at').eq('tenant_id', tenantId).gte('created_at', isoSeteDias).neq('status', 'cancelado')
 
       const all7 = [...(p7 || []), ...(po7 || [])]
       const receitaPorDia = [0, 0, 0, 0, 0, 0, 0]
@@ -118,6 +129,7 @@ export default function DashboardPage() {
       const { data: historico } = await supabase
         .from('historico_status')
         .select('pedido_id, status_anterior, status_novo, created_at')
+        .eq('tenant_id', tenantId)
         .gte('created_at', today)
         .order('created_at', { ascending: true })
 
@@ -184,6 +196,7 @@ export default function DashboardPage() {
       const { data: npsDataPedidos } = await supabase
         .from('pedidos')
         .select('nps_nota')
+        .eq('tenant_id', tenantId)
         .eq('nps_respondido', true)
         .gte('created_at', today)
         .not('nps_nota', 'is', null)
@@ -191,6 +204,7 @@ export default function DashboardPage() {
       const { data: npsDataOnline } = await supabase
         .from('pedidos_online')
         .select('nps_nota')
+        .eq('tenant_id', tenantId)
         .eq('nps_respondido', true)
         .gte('created_at', today)
         .not('nps_nota', 'is', null)
@@ -204,6 +218,7 @@ export default function DashboardPage() {
       const { data: eventosData } = await supabase
         .from('eventos_jornada')
         .select('tipo_evento, quantidade')
+        .eq('tenant_id', tenantId)
         .gte('data', today)
 
       const eventos = eventosData || []
@@ -224,6 +239,7 @@ export default function DashboardPage() {
       const { data: pedidosOnlineHojeAll } = await supabase
         .from('pedidos_online')
         .select('created_at')
+        .eq('tenant_id', tenantId)
         .gte('created_at', today)
       
       if (pedidosOnlineHojeAll) {
@@ -358,39 +374,49 @@ export default function DashboardPage() {
     enabled: !!tenantId
   })
 
+  const { data: configData, isLoading: loadingConfig } = useQuery({
+    queryKey: ['configuracoes-loja', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('configuracoes')
+        .select('id, loja_aberta')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return data
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const queryClient = useQueryClient()
+
+  const { mutate: toggleLoja, isPending: loadingLoja } = useMutation({
+    mutationFn: async () => {
+      const novoEstado = !configData?.loja_aberta
+      if (configData?.id) {
+        await supabase.from('configuracoes').update({ loja_aberta: novoEstado }).eq('id', configData.id)
+      } else {
+        await supabase.from('configuracoes').insert({ tenant_id: tenantId, loja_aberta: novoEstado })
+      }
+      return novoEstado
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['configuracoes-loja', tenantId] })
+    }
+  })
+
   useEffect(() => {
     setLinkCardapio(window.location.origin + '/cardapio')
   }, [])
 
-  useEffect(() => {
-    const fetchLojaStatus = async () => {
-      const { data } = await supabase.from('configuracoes').select('id, loja_aberta').order('created_at', { ascending: false }).limit(1).maybeSingle()
-      if (data?.loja_aberta !== undefined) {
-        setLojaAberta(data.loja_aberta)
-      }
-    }
-    fetchLojaStatus()
-  }, [])
-
-  const toggleLoja = async () => {
-    setLoadingLoja(true)
-    const novoEstado = !lojaAberta
-    const { data: existing } = await supabase.from('configuracoes').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
-    
-    if (existing) {
-      await supabase.from('configuracoes').update({ loja_aberta: novoEstado }).eq('id', existing.id)
-    } else {
-      await supabase.from('configuracoes').insert({ loja_aberta: novoEstado })
-    }
-    
-    setLojaAberta(novoEstado)
-    setLoadingLoja(false)
-  }
+  const lojaAberta = configData?.loja_aberta ?? true
 
   useRealtime('pedidos', () => { refetchKpis() })
   useRealtime('pedidos_online', () => { refetchKpis() })
 
-  if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento) {
+  if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento || loadingConfig) {
     return (
       <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -444,7 +470,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={toggleLoja}
+            onClick={() => toggleLoja()}
             disabled={loadingLoja}
             className={`px-6 py-3 rounded-lg font-bold border-2 transition-all flex items-center gap-2 text-sm ${
               lojaAberta

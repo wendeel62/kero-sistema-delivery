@@ -1,9 +1,0 @@
-{
-  "version": "1.0.0",
-  "name": "Projeto Kero",
-  "description": "Sistema de gestão para restaurantes/pizzarias com AIOX agents",
-  "agentsDir": ".kilo/agent",
-  "commandsDir": ".kilo/command",
-  "defaultAgent": "dev",
-  "aioxCorePath": ".aiox-core/development/agents"
-}

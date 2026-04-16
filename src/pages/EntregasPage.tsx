@@ -41,7 +41,7 @@ interface Entrega {
 
 export default function EntregasPage() {
   const { user } = useAuth()
-  const tenantId = user?.id
+  const tenantId = user?.user_metadata?.tenant_id || user?.id
   const [activeTab, setActiveTab] = useState<'ativas' | 'motoboys' | 'historico'>('ativas')
   const [motoboys, setMotoboys] = useState<Motoboy[]>([])
   const [entregas, setEntregas] = useState<Entrega[]>([])
@@ -216,10 +216,10 @@ export default function EntregasPage() {
   useEffect(() => { if (activeTab === 'historico') fetchHistorico() }, [activeTab, fetchHistorico])
 
   useEffect(() => {
-    const channelMotoboys = supabase.channel('rt-motoboys-entregas').on('postgres_changes', { event: '*', schema: 'public', table: 'motoboys' }, () => { fetchMotoboys() }).subscribe()
-    const channelEntregas = supabase.channel('rt-entregas-ativas').on('postgres_changes', { event: '*', schema: 'public', table: 'entregas' }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas(); if (activeTab === 'historico') fetchHistorico() }).subscribe()
-    const channelPedidos = supabase.channel('rt-pedidos-entregas').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
-    const channelPedidosOnline = supabase.channel('rt-pedidos-online-entregas').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_online' }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
+    const channelMotoboys = supabase.channel(`rt-motoboys-${tenantId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'motoboys', filter: `tenant_id=eq.${tenantId}` }, () => { fetchMotoboys() }).subscribe()
+    const channelEntregas = supabase.channel(`rt-entregas-${tenantId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'entregas', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas(); if (activeTab === 'historico') fetchHistorico() }).subscribe()
+    const channelPedidos = supabase.channel(`rt-pedidos-${tenantId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
+    const channelPedidosOnline = supabase.channel(`rt-pedidos-online-${tenantId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
     return () => { supabase.removeChannel(channelMotoboys); supabase.removeChannel(channelEntregas); supabase.removeChannel(channelPedidos); supabase.removeChannel(channelPedidosOnline) }
   }, [fetchMotoboys, fetchEntregasAtivas, fetchEntregasConcluidas, fetchHistorico, activeTab])
 

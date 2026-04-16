@@ -2,20 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useParams } from 'react-router-dom'
+import type { Produto, Categoria, PrecoTamanho, Sabor, Mesa } from '../types'
 
-interface Produto { id: string; nome: string; preco: number; categoria_id: string; descricao: string; disponivel: boolean }
-interface Categoria { id: string; nome: string }
-interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
-interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 interface CartItem { produto: Produto; quantidade: number; tamanho?: string; precoUnitario: number; tipoPizza?: 'inteiro' | 'meio-a-meio'; sabor1?: string; sabor2?: string }
-interface Mesa { id: string; numero: number; capacidade: number; status: string; responsavel: string }
 
 type Step = 'menu' | 'carrinho'
 
 export default function MesaPage() {
   const { numero } = useParams<{ numero: string }>()
   const { user } = useAuth()
-  const tenantId = user?.id
+  const tenantId = user?.user_metadata?.tenant_id || user?.id
   const [mesa, setMesa] = useState<Mesa | null>(null)
   const [mesaNaoEncontrada, setMesaNaoEncontrada] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -70,8 +66,8 @@ export default function MesaPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   useEffect(() => {
-    const channel = supabase.channel('mesa-updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'itens_pedido' }, () => {
+    const channel = supabase.channel(`mesa-updates-${tenantId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'itens_pedido', filter: `tenant_id=eq.${tenantId}` }, () => {
         setNotificacao('Nova atualização na comanda!')
         setTimeout(() => setNotificacao(''), 5000)
       })
