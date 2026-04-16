@@ -1,65 +1,109 @@
-# AGENTS.md - Synkra AIOX (Codex CLI)
+﻿# Kero Project - Agent Configuration
 
-Este arquivo define as instrucoes do projeto para o Codex CLI.
+This file defines the agents available in the Kero project for the Kilo CLI.
 
-<!-- AIOX-MANAGED-START: core -->
-## Core Rules
+## COMPORTAMENTOS DO AGENTE
 
-1. Siga a Constitution em `.aiox-core/constitution.md`
-2. Priorize `CLI First -> Observability Second -> UI Third`
-3. Trabalhe por stories em `docs/stories/`
-4. Nao invente requisitos fora dos artefatos existentes
-<!-- AIOX-MANAGED-END: core -->
+The following agents are available and **ACTIVATED** for this project:
 
-<!-- AIOX-MANAGED-START: quality -->
+### 1. Architect Agent
+- **Path**: .kilo/agents/architect/AGENT.md
+- **Purpose**: Software architecture and system design
+- **Shortcut**: /architect, @architect
+- **Expertise**: Hexagonal architecture, DDD, Clean Architecture, system design
+
+### 2. Dev Agent  
+- **Path**: .kilo/agents/dev/AGENT.md
+- **Purpose**: Full-stack development implementation
+- **Shortcut**: /dev, @dev
+- **Expertise**: React, TypeScript, Node.js, Supabase, testing
+
+### 3. QA Agent
+- **Path**: .kilo/agents/qa/AGENT.md
+- **Purpose**: Testing, quality assurance, and test coverage
+- **Shortcut**: /qa, @qa
+- **Expertise**: Vitest, React Testing Library, e2e testing, accessibility
+
+### 4. PM Agent
+- **Path**: .kilo/agents/pm/AGENT.md
+- **Purpose**: Project management and coordination
+- **Shortcut**: /pm, @pm
+- **Expertise**: Agile/Scrum, sprint planning, risk management
+
+### 5. PO Agent
+- **Path**: .kilo/agents/po/AGENT.md
+- **Purpose**: Product ownership and backlog management
+- **Shortcut**: /po, @po
+- **Expertise**: Product management, user stories, prioritization
+
+### 6. SM Agent
+- **Path**: .kilo/agents/sm/AGENT.md
+- **Purpose**: Scrum mastery and team facilitation
+- **Shortcut**: /sm, @sm
+- **Expertise**: Scrum ceremonies, impediment removal, coaching
+
+### 7. Analyst Agent
+- **Path**: .kilo/agents/analyst/AGENT.md
+- **Purpose**: Business and technical analysis
+- **Shortcut**: /analyst, @analyst
+- **Expertise**: Requirements gathering, process modeling, specifications
+
+### 8. DevOps Agent
+- **Path**: .kilo/agents/devops/AGENT.md
+- **Purpose**: Infrastructure, CI/CD, and deployment
+- **Shortcut**: /devops, @devops
+- **Expertise**: CI/CD pipelines, cloud infrastructure, monitoring
+
+### 9. UX Design Expert Agent
+- **Path**: .kilo/agents/ux-design-expert/AGENT.md
+- **Purpose**: User experience design and accessibility
+- **Shortcut**: /ux-design-expert, @ux-design-expert
+- **Expertise**: UX research, wireframing, WCAG accessibility
+
+### 10. Squad Creator Agent
+- **Path**: .kilo/agents/squad-creator/AGENT.md
+- **Purpose**: Multi-agent squad design and orchestration
+- **Shortcut**: /squad-creator, @squad-creator
+- **Expertise**: Multi-agent systems, team composition, workflows
+
+---
+
 ## Quality Gates
 
-- Rode `npm run lint`
-- Rode `npm run typecheck`
-- Rode `npm test`
-- Atualize checklist e file list da story antes de concluir
-<!-- AIOX-MANAGED-END: quality -->
+Run these commands before concluding any task:
+- 
+pm run lint - ESLint validation
+- 
+pm run typecheck - TypeScript check
+- 
+pm run build - Production build
 
-<!-- AIOX-MANAGED-START: codebase -->
-## Project Map
+---
 
-- Core framework: `.aiox-core/`
-- CLI entrypoints: `bin/`
-- Shared packages: `packages/`
-- Tests: `tests/`
-- Docs: `docs/`
-<!-- AIOX-MANAGED-END: codebase -->
+## Skills Available
 
-<!-- AIOX-MANAGED-START: commands -->
-## Common Commands
+The following skills are also available:
+- .kilo/skills/frontend-design/ - Production-grade frontend interfaces
+- .kilo/skills/web-design-guidelines/ - Web UI best practices
+- .kilo/skills/angular-component/ - Angular component patterns
+- .kilo/skills/angular-di/ - Angular dependency injection
+- .kilo/skills/create-pull-request/ - GitHub PR creation
+- .kilo/skills/file-organizer/ - File organization
+- .kilo/skills/skill-creator/ - Skill development guide
 
-- `npm run sync:ide`
-- `npm run sync:ide:check`
-- `npm run sync:skills:codex`
-- `npm run sync:skills:codex:global` (opcional; neste repo o padrao e local-first)
-- `npm run validate:structure`
-- `npm run validate:agents`
-<!-- AIOX-MANAGED-END: commands -->
+---
 
-<!-- AIOX-MANAGED-START: shortcuts -->
-## Agent Shortcuts
+## Activation
 
-Preferencia de ativacao no Codex CLI:
-1. Use `/skills` e selecione `aiox-<agent-id>` vindo de `.codex/skills` (ex.: `aiox-architect`)
-2. Se preferir, use os atalhos abaixo (`@architect`, `/architect`, etc.)
+To activate an agent, use the shortcut or type the agent name in the CLI.
+All agents above are **ACTIVATED** and ready to use.
 
-Interprete os atalhos abaixo carregando o arquivo correspondente em `.aiox-core/development/agents/` (fallback: `.codex/agents/`), renderize o greeting via `generate-greeting.js` e assuma a persona ate `*exit`:
+## Workflow Example
 
-- `@architect`, `/architect`, `/architect.md` -> `.aiox-core/development/agents/architect.md`
-- `@dev`, `/dev`, `/dev.md` -> `.aiox-core/development/agents/dev.md`
-- `@qa`, `/qa`, `/qa.md` -> `.aiox-core/development/agents/qa.md`
-- `@pm`, `/pm`, `/pm.md` -> `.aiox-core/development/agents/pm.md`
-- `@po`, `/po`, `/po.md` -> `.aiox-core/development/agents/po.md`
-- `@sm`, `/sm`, `/sm.md` -> `.aiox-core/development/agents/sm.md`
-- `@analyst`, `/analyst`, `/analyst.md` -> `.aiox-core/development/agents/analyst.md`
-- `@devops`, `/devops`, `/devops.md` -> `.aiox-core/development/agents/devops.md`
-- `@data-engineer`, `/data-engineer`, `/data-engineer.md` -> `.aiox-core/development/agents/data-engineer.md`
-- `@ux-design-expert`, `/ux-design-expert`, `/ux-design-expert.md` -> `.aiox-core/development/agents/ux-design-expert.md`
-- `@squad-creator`, `/squad-creator`, `/squad-creator.md` -> `.aiox-core/development/agents/squad-creator.md`
-- `@aiox-master`, `/aiox-master`, `/aiox-master.md` -> `.aiox-core/development/agents/aiox-master.md`
-<!-- AIOX-MANAGED-END: shortcuts -->
+1. **Analyst** - Gather and analyze requirements
+2. **Architect** - Design the solution
+3. **UX Design Expert** - Design the interface
+4. **Dev** - Implement the features
+5. **QA** - Test and ensure quality
+6. **DevOps** - Deploy to production
+
