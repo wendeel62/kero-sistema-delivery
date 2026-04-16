@@ -98,6 +98,34 @@ The following skills are also available:
 To activate an agent, use the shortcut or type the agent name in the CLI.
 All agents above are **ACTIVATED** and ready to use.
 
+## Orchestration Mode
+
+When a task requires multiple agents, use the orchestrator pattern:
+
+### Orchestration Commands
+
+- `*build {story-id}` - Execute full autonomous build cycle
+- `*build-autonomous` - Start autonomous build loop
+- `*build-resume` - Resume from last checkpoint
+- `*develop-yolo` - Autonomous development (no confirmation)
+- `*develop-interactive` - Interactive development (default)
+- `*execute-subtask` - Execute single subtask
+
+### Orchestration Workflow
+
+1. **Orchestrate**: Use `/squad-creator` to design agent team
+2. **Dispatch**: Agents execute in parallel when possible
+3. **Coordinate**: Use `/pm` to track progress
+4. **Verify**: Use `/qa` for quality checks
+5. **Merge**: Combine results automatically
+
+### Autonomous Execution
+
+Enable autonomous mode by adding `--auto` or using `*yolo`:
+- **ask** (default) - Confirm each step
+- **auto** - Execute without confirmation  
+- **explore** -探索 mode without execution
+
 ## Workflow Example
 
 1. **Analyst** - Gather and analyze requirements
