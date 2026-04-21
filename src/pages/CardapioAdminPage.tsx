@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useForm } from 'react-hook-form'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 interface Categoria { id: string; nome: string; descricao?: string; ordem: number }
 interface Produto { id: string; nome: string; descricao: string; preco: number; categoria_id: string; disponivel: boolean; imagem_url: string; destaque: boolean; tempo_preparo: number }
@@ -12,7 +10,6 @@ interface Sabor { id: string; nome: string; descricao: string; disponivel: boole
 export default function CardapioAdminPage() {
   const { user } = useAuth()
   const tenantId = user?.id
-  const queryClient = useQueryClient()
 
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -28,7 +25,6 @@ export default function CardapioAdminPage() {
   const [showProdutoModal, setShowProdutoModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
   const [showSaborModal, setShowSaborModal] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadPhoto = async (produtoId: string) => {
     if (!selectedFile) return null
@@ -83,16 +79,6 @@ export default function CardapioAdminPage() {
       setImagePreview(URL.createObjectURL(file))
     }
   }
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0]
-    if (file) {
-      setSelectedFile(file)
-      setImagePreview(URL.createObjectURL(file))
-    }
-  }, [])
-
-  const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxFiles: 1 })
 
   const filteredProdutos = produtos.filter(p => {
     const matchBusca = !busca || p.nome.toLowerCase().includes(busca.toLowerCase())
@@ -342,7 +328,7 @@ export default function CardapioAdminPage() {
                       {(imagePreview || editProduto?.imagem_url) ? (
                         <div className="relative w-full h-full rounded-xl overflow-hidden">
                           <img src={imagePreview || editProduto?.imagem_url} alt="Preview" className="w-full h-full object-cover" />
-                          <button type="button" onClick={() => { setSelectedFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = '' }} className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white">
+                          <button type="button" onClick={() => { setSelectedFile(null); setImagePreview(null) }} className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white">
                             <span className="material-symbols-outlined text-sm">delete</span>
                           </button>
                         </div>
