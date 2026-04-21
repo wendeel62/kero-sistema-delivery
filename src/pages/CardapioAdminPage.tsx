@@ -25,8 +25,12 @@ export default function CardapioAdminPage() {
   const [showProdutoModal, setShowProdutoModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
   const [showSaborModal, setShowSaborModal] = useState(false)
-  const [showTamanhoModal, setShowTamanhoModal] = useState(false)
+  const [showTamanhoModal, setShowTamanhoModal] = useState(false) // ainda não usado
   const [novoTamanho, setNovoTamanho] = useState({ tamanho: '', preco: '' })
+  const [precosTamanho, setPrecosTamanho] = useState<{id?: string, tamanho: string, preco: number}[]>([])
+  const [novaCategoriaInline, setNovaCategoriaInline] = useState('')
+  const [novoSaborInline, setNovoSaborInline] = useState('')
+  const [loadingTamanhos, setLoadingTamanhos] = useState(false)
 
   const uploadPhoto = async (produtoId: string) => {
     if (!selectedFile) return null
@@ -56,6 +60,21 @@ export default function CardapioAdminPage() {
   }, [tenantId])
 
   useEffect(() => { fetchProdutos() }, [fetchProdutos])
+
+  // Carregar tamanhos do produto quando abrir o modal
+  useEffect(() => {
+    const fetchTamanhos = async () => {
+      if (editProduto?.id) {
+        setLoadingTamanhos(true)
+        const { data } = await supabase.from('precos_tamanho').select('*').eq('produto_id', editProduto.id)
+        if (data) setPrecosTamanho(data)
+        setLoadingTamanhos(false)
+      } else {
+        setPrecosTamanho([])
+      }
+    }
+    fetchTamanhos()
+  }, [editProduto?.id, showProdutoModal])
 
   const produtoForm = useForm<Produto>({ defaultValues: editProduto || { nome: '', descricao: '', preco: 0, categoria_id: '', disponivel: true, imagem_url: '', destaque: false, tempo_preparo: 30 } })
 
@@ -136,6 +155,30 @@ export default function CardapioAdminPage() {
     })
     setNovoTamanho({ tamanho: '', preco: '' })
     setShowTamanhoModal(false)
+    // Recarregar tamanhos
+    const { data } = await supabase.from('precos_tamanho').select('*').eq('produto_id', produtoId)
+    if (data) setPrecosTamanho(data)
+  }
+
+  const deleteTamanho = async (tamanhoId: string) => {
+    await supabase.from('precos_tamanho').delete().eq('id', tamanhoId)
+    setPrecosTamanho(precosTamanho.filter(t => t.id !== tamanhoId))
+  }
+
+  // Salvar categoria inline
+  const saveCategoriaInline = async () => {
+    if (!novaCategoriaInline.trim()) return
+    await supabase.from('categorias').insert({ nome: novaCategoriaInline.trim(), tenant_id: tenantId })
+    setNovaCategoriaInline('')
+    fetchProdutos()
+  }
+
+  // Salvar sabor inline
+  const saveSaborInline = async () => {
+    if (!novoSaborInline.trim()) return
+    await supabase.from('sabores').insert({ nome: novoSaborInline.trim(), disponivel: true, tenant_id: tenantId })
+    setNovoSaborInline('')
+    fetchProdutos()
   }
 
   return (
@@ -383,12 +426,25 @@ export default function CardapioAdminPage() {
                   <div className="mb-4 p-4 rounded-xl bg-[#e8391a]/10 border border-[#e8391a]/30">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[#e8391a] text-xs uppercase font-bold">Categoria</label>
-                      <button type="button" onClick={() => { setEditCategoria(null); setShowCategoriaModal(true) }} className="text-[#e8391a] text-xs font-bold hover:underline">+ Nova</button>
                     </div>
-                    <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
-                      <option value="">Selecione uma categoria</option>
-                      {categorias.map(c => (
-                        <option key={c.id} value={c.id}>{c.nome}</option>
+                    <div className="flex gap-2">
+                      <select {...produtoForm.register('categoria_id')} className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
+                        <option value="">Selecione</option>
+                        {categorias.map(c => (
+                          <option key={c.id} value={c.id}>{c.nome}</option>
+                        ))}
+                      </select>
+                      <div className="relative flex-1 flex gap-1">
+                        <input 
+                          value={novaCategoriaInline} 
+                          onChange={e => setNovaCategoriaInline(e.target.value)}
+                          placeholder="Nova categoria" 
+                          className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white"
+                        />
+                        <button type="button" onClick={saveCategoriaInline} className="px-3 bg-[#e8391a] rounded-xl text-white font-bold">+</button>
+                      </div>
+                    </div>
+                  </div>
                       ))}
                     </select>
                   </div>
@@ -397,11 +453,45 @@ export default function CardapioAdminPage() {
                   <div className="mb-4 p-4 rounded-xl bg-[#ff9800]/10 border border-[#ff9800]/30">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[#ff9800] text-xs uppercase font-bold">Tamanhos e Preços</label>
-                      <button type="button" onClick={() => setShowTamanhoModal(true)} className="text-[#ff9800] text-xs font-bold hover:underline">+ Novo Tamanho</button>
                     </div>
-                    <p className="text-gray-500 text-xs mb-2">Adicione tamanhos diferentes para este produto (P, M, G, etc)</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {categorias.length === 0 && <span className="text-gray-500 text-xs">Nenhum tamanho cadastrado</span>}
+                    {/* Adicionar novo tamanho inline */}
+                    <div className="flex gap-2 mb-3">
+                      <input 
+                        value={novoTamanho.tamanho} 
+                        onChange={e => setNovoTamanho({...novoTamanho, tamanho: e.target.value})}
+                        placeholder="Tamanho (ex: Grande)" 
+                        className="flex-1 bg-[#1a1a1a] border border-[#ff9800]/50 rounded-xl py-2 px-3 text-sm text-white"
+                      />
+                      <input 
+                        type="number"
+                        value={novoTamanho.preco} 
+                        onChange={e => setNovoTamanho({...novoTamanho, preco: e.target.value})}
+                        placeholder="R$" 
+                        className="w-20 bg-[#1a1a1a] border border-[#ff9800]/50 rounded-xl py-2 px-3 text-sm text-white"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => saveTamanho(editProduto?.id || '')} 
+                        className="px-3 bg-[#ff9800] rounded-xl text-black font-bold"
+                      >+</button>
+                    </div>
+                    {/* Lista de tamanhos */}
+                    <div className="space-y-2">
+                      {loadingTamanhos ? (
+                        <span className="text-gray-500 text-xs">Carregando...</span>
+                      ) : precosTamanho.length === 0 ? (
+                        <span className="text-gray-500 text-xs">Nenhum tamanho cadastrado</span>
+                      ) : (
+                        precosTamanho.map(t => (
+                          <div key={t.id} className="flex items-center justify-between bg-[#252830] rounded-lg px-3 py-2">
+                            <span className="text-white text-sm font-medium">{t.tamanho}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#ff9800] font-bold">{Number(t.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                              <button type="button" onClick={() => deleteTamanho(t.id!)} className="text-red-500 hover:text-red-400">×</button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -409,17 +499,33 @@ export default function CardapioAdminPage() {
                   <div className="mb-4 p-4 rounded-xl bg-[#4caf50]/10 border border-[#4caf50]/30">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[#4caf50] text-xs uppercase font-bold">Sabores</label>
-                      <button type="button" onClick={() => { setEditSabor(null); setShowSaborModal(true) }} className="text-[#4caf50] text-xs font-bold hover:underline">+ Novo Sabor</button>
                     </div>
+                    {/* Adicionar novo sabor inline */}
+                    <div className="flex gap-2 mb-3">
+                      <input 
+                        value={novoSaborInline} 
+                        onChange={e => setNovoSaborInline(e.target.value)}
+                        placeholder="Novo sabor" 
+                        className="flex-1 bg-[#1a1a1a] border border-[#4caf50]/50 rounded-xl py-2 px-3 text-sm text-white"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={saveSaborInline} 
+                        className="px-3 bg-[#4caf50] rounded-xl text-black font-bold"
+                      >+</button>
+                    </div>
+                    {/* Lista de sabores */}
                     <div className="flex gap-2 flex-wrap">
                       {sabores.length === 0 ? (
                         <span className="text-gray-500 text-xs">Nenhum sabor cadastrado</span>
                       ) : (
-                        sabores.slice(0, 6).map(s => (
-                          <span key={s.id} className="px-2 py-1 bg-[#252830] rounded-lg text-xs text-white">{s.nome}</span>
+                        sabores.map(s => (
+                          <span key={s.id} className="px-2 py-1 bg-[#252830] rounded-lg text-xs text-white flex items-center gap-1">
+                            {s.nome}
+                            <button type="button" onClick={() => deleteSabor(s.id)} className="text-red-500 hover:text-red-400 ml-1">×</button>
+                          </span>
                         ))
                       )}
-                      {sabores.length > 6 && <span className="text-gray-500 text-xs">+{sabores.length - 6} mais</span>}
                     </div>
                   </div>
 
