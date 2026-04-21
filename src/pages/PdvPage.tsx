@@ -314,19 +314,19 @@ export default function PdvPage() {
             </button>
           </div>
           <div className="flex gap-1.5 mb-2">
-            {(['balcao', 'entrega'] as const).map(t => (
+            {(['balcao', 'entrega', 'mesa'] as const).map(t => (
               <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-1.5 lg:py-2 rounded-md text-[10px] lg:text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {tipo === 'mesa' && (
-              <input value={mesaNumero} onChange={e => setMesaNumero(e.target.value)} placeholder="Nº Mesa" className="col-span-2 bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+              <input value={mesaNumero} onChange={e => setMesaNumero(e.target.value)} placeholder="Nº Mesa" className="col-span-2 bg-[#16181f] border border-[#252830] rounded-lg py-1 px-2 text-xs text-white" />
             )}
             {tipo === 'entrega' && (
-              <input value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)} placeholder="Endereço" className="col-span-2 bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+              <input value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)} placeholder="Endereço" className="col-span-2 bg-[#16181f] border border-[#252830] rounded-lg py-1 px-2 text-xs text-white" />
             )}
-            <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder="Cliente" className="bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
-            <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder="WhatsApp" className="bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+            <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder="Cliente" className="bg-[#16181f] border border-[#252830] rounded-lg py-1 px-2 text-xs text-white" />
+            <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder="WhatsApp" className="bg-[#16181f] border border-[#252830] rounded-lg py-1 px-2 text-xs text-white" />
           </div>
         </div>
 
