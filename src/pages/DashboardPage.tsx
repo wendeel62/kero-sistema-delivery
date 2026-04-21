@@ -576,7 +576,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Funil Vendas */}
-        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth col-span-1 lg:col-span-2 animate-fade-in-up">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-bold text-on-background">Funil Vendas</h3>
@@ -616,7 +616,7 @@ export default function DashboardPage() {
         <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-on-background">Tempo por Etapa</h3>
+              <h3 className="text-xl font-bold text-on-background">Tempo por Pedido</h3>
               <p className="text-on-surface-variant text-sm mt-1">Média hoje</p>
             </div>
             <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
