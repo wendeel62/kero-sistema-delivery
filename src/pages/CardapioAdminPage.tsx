@@ -322,7 +322,7 @@ export default function CardapioAdminPage() {
                   setEditProduto(null)
                   fetchProdutos()
                 })} className="space-y-4">
-                  <div className="flex justify-center mb-4">
+                  <div className="flex justify-center mb-6">
                     <div className="relative w-full max-w-[200px] aspect-[4/5]">
                       <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" id="photo-input" disabled={uploading} />
                       {(imagePreview || editProduto?.imagem_url) ? (
@@ -341,28 +341,55 @@ export default function CardapioAdminPage() {
                     </div>
                   </div>
 
-                  <input {...produtoForm.register('nome', { required: true })} placeholder="Nome do produto" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
-                  <textarea {...produtoForm.register('descricao')} placeholder="Descrição (opcional)" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white h-24 resize-none" />
-                  <input type="number" step="0.01" {...produtoForm.register('preco', { valueAsNumber: true })} placeholder="Preço" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
-                  
-                  <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white">
-                    <option value="">Sem categoria</option>
-                    {categorias.map(c => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
+                  {/* Nome */}
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Nome do Produto *</label>
+                    <input {...produtoForm.register('nome', { required: true })} placeholder="Ex: Pizza Margherita" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
+                  </div>
 
-                  <input type="number" {...produtoForm.register('tempo_preparo', { valueAsNumber: true })} placeholder="Tempo de preparo (minutos)" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
+                  {/* Descrição */}
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Descrição</label>
+                    <textarea {...produtoForm.register('descricao')} placeholder="Descrição do produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white h-24 resize-none" />
+                  </div>
 
-                  <label className="flex items-center gap-2 text-white text-sm">
-                    <input type="checkbox" {...produtoForm.register('disponivel')} className="w-4 h-4" />
-                    Disponível
-                  </label>
+                  {/* Preço e Tempo na mesma linha */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Preço (R$) *</label>
+                      <input type="number" step="0.01" {...produtoForm.register('preco', { valueAsNumber: true })} placeholder="0,00" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
+                    </div>
+                    <div>
+                      <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Tempo (min)</label>
+                      <input type="number" {...produtoForm.register('tempo_preparo', { valueAsNumber: true })} placeholder="30" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
+                    </div>
+                  </div>
 
-                  <label className="flex items-center gap-2 text-white text-sm">
-                    <input type="checkbox" {...produtoForm.register('destaque')} className="w-4 h-4" />
-                    Destaque
-                  </label>
+                  {/* Categoria */}
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Categoria</label>
+                    <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white">
+                      <option value="">Selecione uma categoria</option>
+                      {categorias.map(c => (
+                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Opções */}
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-xs uppercase font-bold mb-3 block">Opções</label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                        <input type="checkbox" {...produtoForm.register('disponivel')} className="w-5 h-5 rounded" />
+                        Disponível
+                      </label>
+                      <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
+                        <input type="checkbox" {...produtoForm.register('destaque')} className="w-5 h-5 rounded" />
+                        Destaque
+                      </label>
+                    </div>
+                  </div>
 
                   <div className="flex gap-4 mt-6">
                     <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="flex-1 py-3 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#252830] transition-all" disabled={uploading}>Cancelar</button>
