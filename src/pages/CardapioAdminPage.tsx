@@ -427,34 +427,50 @@ export default function CardapioAdminPage() {
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[#e8391a] text-xs uppercase font-bold">Categoria</label>
                     </div>
-                    <div className="flex gap-2 items-center">
-                      <select {...produtoForm.register('categoria_id')} className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
-                        <option value="">Selecione</option>
-                        {categorias.map(c => (
-                          <option key={c.id} value={c.id}>{c.nome}</option>
-                        ))}
-                      </select>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          if (novaCategoriaInline.trim()) {
-                            saveCategoriaInline()
-                          }
-                        }} 
-                        className="px-4 bg-[#e8391a] rounded-xl text-white font-bold h-[46px] flex items-center gap-2"
-                      >
-                        + <span className="text-xs hidden sm:inline">Nova</span>
-                      </button>
-                    </div>
-                    {novaCategoriaInline && (
-                      <div className="mt-2">
+                    {!novaCategoriaInline ? (
+                      <div className="flex gap-2 items-center">
+                        <select {...produtoForm.register('categoria_id')} className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
+                          <option value="">Selecione</option>
+                          {categorias.map(c => (
+                            <option key={c.id} value={c.id}>{c.nome}</option>
+                          ))}
+                        </select>
+                        <button 
+                          type="button" 
+                          onClick={() => setNovaCategoriaInline(' ')} 
+                          className="px-4 bg-[#e8391a] rounded-xl text-white font-bold h-[46px] flex items-center gap-2"
+                        >
+                          + <span className="text-xs hidden sm:inline">Nova</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 items-center">
                         <input 
                           value={novaCategoriaInline} 
                           onChange={e => setNovaCategoriaInline(e.target.value)}
-                          placeholder="Digite o nome da nova categoria" 
-                          className="w-full bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-2 px-3 text-sm text-white"
-                          onKeyDown={(e) => e.key === 'Enter' && saveCategoriaInline()}
+                          placeholder="Digite o nome da categoria" 
+                          className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              saveCategoriaInline()
+                            }
+                          }}
+                          autoFocus
                         />
+                        <button 
+                          type="button" 
+                          onClick={saveCategoriaInline}
+                          className="px-4 bg-[#e8391a] rounded-xl text-white font-bold h-[46px] flex items-center"
+                        >
+                          ✓
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setNovaCategoriaInline('')}
+                          className="px-3 bg-[#252830] rounded-xl text-gray-400 font-bold h-[46px]"
+                        >
+                          ×
+                        </button>
                       </div>
                     )}
                   </div>
