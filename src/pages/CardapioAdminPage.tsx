@@ -25,6 +25,8 @@ export default function CardapioAdminPage() {
   const [showProdutoModal, setShowProdutoModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
   const [showSaborModal, setShowSaborModal] = useState(false)
+  const [showTamanhoModal, setShowTamanhoModal] = useState(false)
+  const [novoTamanho, setNovoTamanho] = useState({ tamanho: '', preco: '' })
 
   const uploadPhoto = async (produtoId: string) => {
     if (!selectedFile) return null
@@ -122,6 +124,18 @@ export default function CardapioAdminPage() {
     }
     setShowSaborModal(false)
     fetchProdutos()
+  }
+
+  const saveTamanho = async (produtoId: string) => {
+    if (!novoTamanho.tamanho || !novoTamanho.preco) return
+    await supabase.from('precos_tamanho').insert({
+      produto_id: produtoId,
+      tamanho: novoTamanho.tamanho,
+      preco: Number(novoTamanho.preco),
+      tenant_id: tenantId
+    })
+    setNovoTamanho({ tamanho: '', preco: '' })
+    setShowTamanhoModal(false)
   }
 
   return (
@@ -365,15 +379,48 @@ export default function CardapioAdminPage() {
                     </div>
                   </div>
 
-                  {/* Categoria */}
-                  <div className="mb-4">
-                    <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Categoria</label>
-                    <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white">
+                  {/* Categoria - COR VERMELHA */}
+                  <div className="mb-4 p-4 rounded-xl bg-[#e8391a]/10 border border-[#e8391a]/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[#e8391a] text-xs uppercase font-bold">Categoria</label>
+                      <button type="button" onClick={() => { setEditCategoria(null); setShowCategoriaModal(true) }} className="text-[#e8391a] text-xs font-bold hover:underline">+ Nova</button>
+                    </div>
+                    <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
                       <option value="">Selecione uma categoria</option>
                       {categorias.map(c => (
                         <option key={c.id} value={c.id}>{c.nome}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Tamanhos - COR LARANJA */}
+                  <div className="mb-4 p-4 rounded-xl bg-[#ff9800]/10 border border-[#ff9800]/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[#ff9800] text-xs uppercase font-bold">Tamanhos e Preços</label>
+                      <button type="button" onClick={() => setShowTamanhoModal(true)} className="text-[#ff9800] text-xs font-bold hover:underline">+ Novo Tamanho</button>
+                    </div>
+                    <p className="text-gray-500 text-xs mb-2">Adicione tamanhos diferentes para este produto (P, M, G, etc)</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {categorias.length === 0 && <span className="text-gray-500 text-xs">Nenhum tamanho cadastrado</span>}
+                    </div>
+                  </div>
+
+                  {/* Sabores - COR VERDE */}
+                  <div className="mb-4 p-4 rounded-xl bg-[#4caf50]/10 border border-[#4caf50]/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[#4caf50] text-xs uppercase font-bold">Sabores</label>
+                      <button type="button" onClick={() => { setEditSabor(null); setShowSaborModal(true) }} className="text-[#4caf50] text-xs font-bold hover:underline">+ Novo Sabor</button>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {sabores.length === 0 ? (
+                        <span className="text-gray-500 text-xs">Nenhum sabor cadastrado</span>
+                      ) : (
+                        sabores.slice(0, 6).map(s => (
+                          <span key={s.id} className="px-2 py-1 bg-[#252830] rounded-lg text-xs text-white">{s.nome}</span>
+                        ))
+                      )}
+                      {sabores.length > 6 && <span className="text-gray-500 text-xs">+{sabores.length - 6} mais</span>}
+                    </div>
                   </div>
 
                   {/* Opções */}
@@ -396,6 +443,34 @@ export default function CardapioAdminPage() {
                     <button type="submit" disabled={uploading} className="flex-1 py-3 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Novo Tamanho Modal */}
+        {showTamanhoModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[1000] flex items-center justify-center p-4" onClick={() => setShowTamanhoModal(false)}>
+            <div className="w-full max-w-sm rounded-2xl bg-[#16181f] p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="font-headline text-xl font-bold mb-4 text-white">Novo Tamanho</h3>
+              <div className="space-y-3">
+                <input 
+                  value={novoTamanho.tamanho} 
+                  onChange={e => setNovoTamanho({...novoTamanho, tamanho: e.target.value})}
+                  placeholder="Tamanho (ex: Grande)" 
+                  className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white"
+                />
+                <input 
+                  type="number"
+                  value={novoTamanho.preco} 
+                  onChange={e => setNovoTamanho({...novoTamanho, preco: e.target.value})}
+                  placeholder="Preço" 
+                  className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white"
+                />
+                <div className="flex gap-3 mt-4">
+                  <button onClick={() => setShowTamanhoModal(false)} className="flex-1 py-3 rounded-xl border border-[#252830] text-gray-400 font-bold text-xs uppercase hover:bg-[#252830] transition-all">Cancelar</button>
+                  <button onClick={() => saveTamanho(editProduto?.id || '')} className="flex-1 py-3 rounded-xl bg-[#ff9800] text-black font-bold text-xs uppercase hover:shadow-[0_0_20px_rgba(255,152,0,0.3)] transition-all">Salvar</button>
+                </div>
               </div>
             </div>
           </div>
