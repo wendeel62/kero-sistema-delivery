@@ -427,23 +427,36 @@ export default function CardapioAdminPage() {
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[#e8391a] text-xs uppercase font-bold">Categoria</label>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <select {...produtoForm.register('categoria_id')} className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
                         <option value="">Selecione</option>
                         {categorias.map(c => (
                           <option key={c.id} value={c.id}>{c.nome}</option>
                         ))}
                       </select>
-                      <div className="relative flex-1 flex gap-1">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (novaCategoriaInline.trim()) {
+                            saveCategoriaInline()
+                          }
+                        }} 
+                        className="px-4 bg-[#e8391a] rounded-xl text-white font-bold h-[46px] flex items-center gap-2"
+                      >
+                        + <span className="text-xs hidden sm:inline">Nova</span>
+                      </button>
+                    </div>
+                    {novaCategoriaInline && (
+                      <div className="mt-2">
                         <input 
                           value={novaCategoriaInline} 
                           onChange={e => setNovaCategoriaInline(e.target.value)}
-                          placeholder="Nova categoria" 
-                          className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white"
+                          placeholder="Digite o nome da nova categoria" 
+                          className="w-full bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-2 px-3 text-sm text-white"
+                          onKeyDown={(e) => e.key === 'Enter' && saveCategoriaInline()}
                         />
-                        <button type="button" onClick={saveCategoriaInline} className="px-3 bg-[#e8391a] rounded-xl text-white font-bold">+</button>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Tamanhos - COR LARANJA */}
