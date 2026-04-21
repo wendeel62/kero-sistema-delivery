@@ -45,7 +45,6 @@ export default function PdvPage() {
   const [mesaNumero, setMesaNumero] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('dinheiro')
-  const [desconto, setDesconto] = useState(0)
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
@@ -154,7 +153,7 @@ export default function PdvPage() {
   }
 
   const subtotal = itens.reduce((sum, i) => sum + Number(i.produto.preco) * i.quantidade, 0)
-  const total = Math.max(0, subtotal - desconto)
+  const total = subtotal
 
   const salvarPedido = async () => {
     if (itens.length === 0) return
@@ -180,7 +179,6 @@ export default function PdvPage() {
       tipo,
       mesa_numero: tipo === 'mesa' ? Number(mesaNumero) || null : null,
       subtotal,
-      desconto,
       total,
       forma_pagamento: formaPagamento,
       status: 'pendente',
@@ -360,17 +358,9 @@ export default function PdvPage() {
             <option value="cartao_credito">Cartão Crédito</option>
             <option value="cartao_debito">Cartão Débito</option>
           </select>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Subtotal</span>
-            <span className="text-white">{subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-gray-400">Desconto</span>
-            <input type="number" value={desconto || ''} onChange={e => setDesconto(Number(e.target.value))} className="w-16 text-right bg-transparent border-b border-[#252830] text-xs py-0 text-white" />
-          </div>
           <div className="flex justify-between items-center pt-2 border-t border-[#252830]">
             <span className="font-bold text-sm text-white">Total</span>
-            <span className="text-lg font-bold text-[#e8391a]">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+            <span className="text-lg font-bold text-[#e8391a]">{subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
           </div>
           <button onClick={salvarPedido} disabled={itens.length === 0 || salvando} className={`w-full py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${sucesso ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
             {salvando ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : sucesso ? '✓ Salvo!' : 'Finalizar Pedido'}
