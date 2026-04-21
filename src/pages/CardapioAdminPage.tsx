@@ -230,7 +230,6 @@ export default function CardapioAdminPage() {
       }
 
       setShowProdutoModal(false)
-      alert(editingProduto ? 'Produto atualizado!' : 'Produto criado!')
       fetchData()
     } catch (error: any) {
       alert(error.message || 'Erro ao salvar produto')
@@ -258,7 +257,6 @@ export default function CardapioAdminPage() {
       }
 
       setShowCategoriaModal(false)
-      alert(editingCategoria ? 'Categoria atualizada!' : 'Categoria criada!')
       fetchData()
     } catch (error: any) {
       alert(error.message || 'Erro ao salvar categoria')
