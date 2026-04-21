@@ -257,7 +257,6 @@ export default function PdvPage() {
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-[Outfit] font-bold text-white tracking-tighter">PDV</h2>
           </div>
           <div className="flex bg-[#1a1a1a] rounded-lg sm:rounded-xl p-0.5 sm:p-1 border border-[#252830]">
-            <button onClick={() => setTabPdv('mesas')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'mesas' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Mesas</button>
             <button onClick={() => setTabPdv('produtos')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Menu</button>
             <button onClick={() => setTabPdv('carrinho')} className={`lg:hidden flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'carrinho' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'} ${cartPulse ? 'scale-110' : ''}`}>
               Carrinho
@@ -269,64 +268,6 @@ export default function PdvPage() {
             </button>
           </div>
         </div>
-
-        {tabPdv === 'mesas' && (
-          <div className="mb-3">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-              {mesas.filter(m => m.status !== 'inativa').map(mesa => (
-                <div key={mesa.id} className="relative">
-                  <button
-                    onClick={async () => {
-                      setMesaSelecionada(mesa)
-                      if (mesa.status === 'livre') {
-                        setShowOcuparMesa(true)
-                      } else if (mesa.status === 'ocupada' || mesa.status === 'aguardando_pagamento') {
-                        const { data: pedidos } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).eq('mesa_numero', mesa.numero).in('status', ['pendente', 'preparando']).order('created_at', { ascending: false }).limit(1)
-                        const ultimoPedido = pedidos?.[0]
-                        if (ultimoPedido) {
-                          const { data: itensPedido } = await supabase.from('itens_pedido').select('*').eq('tenant_id', tenantId).eq('pedido_id', ultimoPedido.id)
-                          setItensMesa(itensPedido || [])
-                        } else {
-                          setItensMesa([])
-                        }
-                        setMesaFechar(mesa)
-                        setShowDivisaoConta(true)
-                      }
-                    }}
-                    className={`w-full p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-0.5 ${getStatusColor(mesa.status)}`}
-                  >
-                    <span className="text-lg sm:text-xl font-bold">{mesa.numero}</span>
-                    <span className="text-[8px] sm:text-[10px] uppercase">{mesa.status === 'livre' ? 'Livre' : mesa.status === 'ocupada' ? 'Ocupada' : 'Aguardando'}</span>
-                    {mesa.status === 'ocupada' && mesa.aberta_em && (
-                      <span className="text-[8px] sm:text-[10px] opacity-70">{getTempoOcupada(mesa.aberta_em)}</span>
-                    )}
-                  </button>
-                  {(mesa.status === 'ocupada' || mesa.status === 'aguardando_pagamento') && (
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation()
-                        const { data: pedidos } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).eq('mesa_numero', mesa.numero).in('status', ['pendente', 'preparando']).order('created_at', { ascending: false }).limit(1)
-                        const ultimoPedido = pedidos?.[0]
-                        if (ultimoPedido) {
-                          const { data: itensPedido } = await supabase.from('itens_pedido').select('*').eq('tenant_id', tenantId).eq('pedido_id', ultimoPedido.id)
-                          setItensMesa(itensPedido || [])
-                        } else {
-                          setItensMesa([])
-                        }
-                        setMesaFechar(mesa)
-                        setShowDivisaoConta(true)
-                      }}
-                      className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black text-[10px] sm:text-xs font-bold"
-                      title="Fechar Conta"
-                    >
-                      $
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {tabPdv === 'produtos' && (
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-2 sm:py-3 px-4 sm:px-5 text-xs sm:text-sm text-white mb-3 lg:mb-4 placeholder:text-gray-500" />
