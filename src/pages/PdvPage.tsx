@@ -359,8 +359,8 @@ export default function PdvPage() {
       </div>
 
       {/* Right - Cart / Order */}
-      <div className={`w-full lg:w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
-        <div className="p-4 lg:p-6 border-b border-[#252830]">
+      <div className={`w-full lg:w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 h-[calc(100vh-8rem)] lg:h-auto ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
+        <div className="p-4 lg:p-6 border-b border-[#252830] shrink-0">
           <div className="flex justify-between items-center mb-3 lg:mb-4">
             <h3 className="font-[Outfit] font-bold text-base lg:text-lg text-white">Pedido Atual</h3>
             <button 
@@ -386,10 +386,10 @@ export default function PdvPage() {
           <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder={tipo === 'entrega' ? "Telefone (WhatsApp) *" : "Telefone (WhatsApp - Opcional)"} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
         </div>
 
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {/* Items - sem scroll, flex expandido */}
+        <div className="flex-1 p-4 space-y-2 overflow-y-auto min-h-0">
           {itens.length === 0 ? (
-            <div className="text-center text-gray-500 py-12">
+            <div className="text-center text-gray-500 py-8">
               <span className="material-symbols-outlined text-4xl mb-2 block">shopping_cart</span>
               <p className="text-sm">Adicione produtos ao pedido</p>
             </div>
@@ -409,8 +409,8 @@ export default function PdvPage() {
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 lg:p-6 border-t border-[#252830] space-y-3">
+        {/* Footer - sempre visível */}
+        <div className="p-4 lg:p-6 border-t border-[#252830] space-y-3 shrink-0">
           <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white">
             <option value="dinheiro">Dinheiro</option>
             <option value="pix">PIX</option>
