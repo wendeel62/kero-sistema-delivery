@@ -1,613 +1,826 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { useForm } from 'react-hook-form'
+import { useRealtime } from '../hooks/useRealtime'
+import { toast } from 'sonner'
 
-interface Categoria { id: string; nome: string; descricao?: string; ordem: number }
-interface Produto { id: string; nome: string; descricao: string; preco: number; categoria_id: string; disponivel: boolean; imagem_url: string; destaque: boolean; tempo_preparo: number }
-interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
+interface Categoria {
+  id: string
+  nome: string
+  descricao?: string
+  ordem?: number
+}
+
+interface Produto {
+  id: string
+  nome: string
+  descricao?: string
+  preco: number
+  foto_url?: string
+  categoria_id?: string
+  disponivel: boolean
+  destaque?: boolean
+  tempo_preparo?: number
+}
+
+interface PrecoTamanho {
+  id: string
+  produto_id: string
+  tamanho: string
+  preco: number
+}
+
+interface Sabor {
+  id: string
+  nome: string
+  descricao?: string
+  disponivel: boolean
+}
 
 export default function CardapioAdminPage() {
   const { user } = useAuth()
   const tenantId = user?.id
 
+  // Estados
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editingProduto, setEditingProduto] = useState<Produto | null>(null)
+  const [filtroCategoria, setFiltroCategoria] = useState('todos')
+  const [busca, setBusca] = useState('')
+  const [abaAtiva, setAbaAtiva] = useState<'categorias' | 'sabores'>('categorias')
+
+  // Dados
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [sabores, setSabores] = useState<Sabor[]>([])
-  const [busca, setBusca] = useState('')
-  const [filtro, setFiltro] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [editProduto, setEditProduto] = useState<Produto | null>(null)
-  const [editCategoria, setEditCategoria] = useState<Categoria | null>(null)
-  const [editSabor, setEditSabor] = useState<Sabor | null>(null)
-  const [showProdutoModal, setShowProdutoModal] = useState(false)
-  const [showCategoriaModal, setShowCategoriaModal] = useState(false)
-  const [showSaborModal, setShowSaborModal] = useState(false)
-  const [showTamanhoModal, setShowTamanhoModal] = useState(false) // ainda não usado
-  const [novoTamanho, setNovoTamanho] = useState({ tamanho: '', preco: '' })
-  const [precosTamanho, setPrecosTamanho] = useState<{id?: string, tamanho: string, preco: number}[]>([])
-  const [novaCategoriaInline, setNovaCategoriaInline] = useState('')
-  const [novoSaborInline, setNovoSaborInline] = useState('')
-  const [loadingTamanhos, setLoadingTamanhos] = useState(false)
+  const [precosTamanho, setPrecosTamanho] = useState<PrecoTamanho[]>([])
 
-  const uploadPhoto = async (produtoId: string) => {
-    if (!selectedFile) return null
-    setUploading(true)
-    const fileExt = selectedFile.name.split('.').pop()
+  // Loading states
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [uploadingFoto, setUploadingFoto] = useState(false)
+
+  // Form states
+  const [nome, setNome] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [preco, setPreco] = useState('')
+  const [tempoPreparo, setTempoPreparo] = useState('30')
+  const [categoriaId, setCategoriaId] = useState('')
+  const [disponivel, setDisponivel] = useState(true)
+  const [destaque, setDestaque] = useState(false)
+  const [fotoUrl, setFotoUrl] = useState('')
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [previewFoto, setPreviewFoto] = useState<string | null>(null)
+
+  // Inline states
+  const [novaCategoria, setNovaCategoria] = useState('')
+  const [novoTamanho, setNovoTamanho] = useState({ tamanho: '', preco: '' })
+  const [novoSabor, setNovoSabor] = useState('')
+
+  // Fetch data
+  const fetchData = useCallback(async () => {
+    if (!tenantId) return
+    
+    setLoading(true)
+    const [produtosRes, categoriasRes, saboresRes] = await Promise.all([
+      supabase.from('produtos').select('*').eq('tenant_id', tenantId).order('nome'),
+      supabase.from('categorias').select('*').eq('tenant_id', tenantId).order('nome'),
+      supabase.from('sabores').select('*').eq('tenant_id', tenantId).order('nome')
+    ])
+
+    if (produtosRes.data) setProdutos(produtosRes.data)
+    if (categoriasRes.data) setCategorias(categoriasRes.data)
+    if (saboresRes.data) setSabores(saboresRes.data)
+    setLoading(false)
+  }, [tenantId])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Realtime
+  useRealtime('prodidos', () => fetchData())
+  useRealtime('categorias', () => fetchData())
+  useRealtime('sabores', () => fetchData())
+
+  // Filtragem client-side
+  const produtosFiltrados = produtos
+    .filter(p => filtroCategoria === 'todos' || p.categoria_id === filtroCategoria)
+    .filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()))
+
+  // Upload foto
+  const uploadFoto = async (produtoId: string): Promise<string | null> => {
+    if (!fotoFile) return fotoUrl || null
+    
+    setUploadingFoto(true)
+    const fileExt = fotoFile.name.split('.').pop()
     const fileName = `${produtoId}-${Date.now()}.${fileExt}`
-    const { data, error } = await supabase.storage.from('produtos').upload(fileName, selectedFile)
+    
+    const { data, error } = await supabase.storage
+      .from('produtos')
+      .upload(fileName, fotoFile)
+
     if (error) {
-      alert('Erro ao fazer upload: ' + error.message)
-      setUploading(false)
+      toast.error('Erro ao fazer upload da foto')
+      setUploadingFoto(false)
       return null
     }
+
     const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(fileName)
-    setUploading(false)
+    setUploadingFoto(false)
     return urlData.publicUrl
   }
 
-  const fetchProdutos = useCallback(async () => {
-    const [{ data: prods }, { data: cats }, { data: saborData }] = await Promise.all([
-      supabase.from('produtos').select('*').eq('tenant_id', tenantId).order('ordem'),
-      supabase.from('categorias').select('*').eq('tenant_id', tenantId).order('ordem'),
-      supabase.from('sabores').select('*').eq('tenant_id', tenantId).order('nome'),
-    ])
-    if (prods) setProdutos(prods)
-    if (cats) setCategorias(cats)
-    if (saborData) setSabores(saborData)
-  }, [tenantId])
+  // Abrir drawer para novo produto
+  const abrirNovoProduto = () => {
+    setEditingProduto(null)
+    setNome('')
+    setDescricao('')
+    setPreco('')
+    setTempoPreparo('30')
+    setCategoriaId('')
+    setDisponivel(true)
+    setDestaque(false)
+    setFotoUrl('')
+    setFotoFile(null)
+    setPreviewFoto(null)
+    setPrecosTamanho([])
+    setNovaCategoria('')
+    setNovoTamanho({ tamanho: '', preco: '' })
+    setNovoSabor('')
+    setDrawerOpen(true)
+  }
 
-  useEffect(() => { fetchProdutos() }, [fetchProdutos])
+  // Abrir drawer para editar produto
+  const abrirEditarProduto = async (produto: Produto) => {
+    setEditingProduto(produto)
+    setNome(produto.nome)
+    setDescricao(produto.descricao || '')
+    setPreco(produto.preco?.toString() || '')
+    setTempoPreparo(produto.tempo_preparo?.toString() || '30')
+    setCategoriaId(produto.categoria_id || '')
+    setDisponivel(produto.disponivel ?? true)
+    setDestaque(produto.destaque ?? false)
+    setFotoUrl(produto.foto_url || '')
+    setFotoFile(null)
+    setPreviewFoto(produto.foto_url || null)
+    setNovaCategoria('')
+    setNovoTamanho({ tamanho: '', preco: '' })
+    setNovoSabor('')
 
-  // Carregar tamanhos do produto quando abrir o modal
-  useEffect(() => {
-    const fetchTamanhos = async () => {
-      if (editProduto?.id) {
-        setLoadingTamanhos(true)
-        const { data } = await supabase.from('precos_tamanho').select('*').eq('produto_id', editProduto.id)
-        if (data) setPrecosTamanho(data)
-        setLoadingTamanhos(false)
-      } else {
-        setPrecosTamanho([])
-      }
+    // Buscar tamanhos
+    const { data: tamanhosData } = await supabase
+      .from('precos_tamanho')
+      .select('*')
+      .eq('produto_id', produto.id)
+    
+    if (tamanhosData) setPrecosTamanho(tamanhosData)
+    
+    setDrawerOpen(true)
+  }
+
+  // Salvar produto
+  const salvarProduto = async () => {
+    if (!nome.trim()) {
+      toast.error('Nome do produto é obrigatório')
+      return
     }
-    fetchTamanhos()
-  }, [editProduto?.id, showProdutoModal])
+    if (!preco || parseFloat(preco) <= 0) {
+      toast.error('Preço é obrigatório')
+      return
+    }
 
-  const produtoForm = useForm<Produto>({ defaultValues: editProduto || { nome: '', descricao: '', preco: 0, categoria_id: '', disponivel: true, imagem_url: '', destaque: false, tempo_preparo: 30 } })
+    setSaving(true)
+    try {
+      let produtoId = editingProduto?.id
 
-  const categoriaForm = useForm<Categoria>({ defaultValues: editCategoria || { nome: '', descricao: '', ordem: 0 } })
-  const saborForm = useForm<Sabor>({ defaultValues: editSabor || { nome: '', descricao: '', disponivel: true } })
+      if (editingProduto) {
+        // Update
+        await supabase.from('produtos').update({
+          nome: nome.trim(),
+          descricao: descricao.trim() || null,
+          preco: parseFloat(preco),
+          tempo_preparo: parseInt(tempoPreparo) || 30,
+          categoria_id: categoriaId || null,
+          disponivel: disponivel,
+          destaque: destaque,
+          foto_url: fotoUrl || null
+        }).eq('id', editingProduto.id).eq('tenant_id', tenantId)
+      } else {
+        // Insert
+        const { data, error } = await supabase.from('produtos').insert({
+          nome: nome.trim(),
+          descricao: descricao.trim() || null,
+          preco: parseFloat(preco),
+          tempo_preparo: parseInt(tempoPreparo) || 30,
+          categoria_id: categoriaId || null,
+          disponivel: disponivel,
+          destaque: destaque,
+          tenant_id: tenantId
+        }).select().single()
 
-  useEffect(() => {
-    if (editProduto) produtoForm.reset(editProduto)
-  }, [editProduto, produtoForm])
+        if (error) throw error
+        produtoId = data.id
+      }
 
-  useEffect(() => {
-    if (editCategoria) categoriaForm.reset(editCategoria)
-  }, [editCategoria, categoriaForm])
+      // Upload foto se houver
+      if (fotoFile && produtoId) {
+        const url = await uploadFoto(produtoId)
+        if (url) {
+          await supabase.from('produtos').update({ foto_url: url }).eq('id', produtoId)
+        }
+      }
 
-  useEffect(() => {
-    if (editSabor) saborForm.reset(editSabor)
-  }, [editSabor, saborForm])
+      // Salvar tamanhos
+      if (produtoId) {
+        // Deletar tamanhos antigos
+        await supabase.from('precos_tamanho').delete().eq('produto_id', produtoId)
+        
+        // Inserir novos tamanhos
+        if (precosTamanho.length > 0) {
+          await supabase.from('precos_tamanho').insert(
+            precosTamanho.map(t => ({
+              produto_id: produtoId,
+              tamanho: t.tamanho,
+              preco: t.preco,
+              tenant_id: tenantId
+            }))
+          )
+        }
+      }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      toast.success(editingProduto ? 'Produto atualizado!' : 'Produto criado!')
+      setDrawerOpen(false)
+      fetchData()
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao salvar produto')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Deletar produto
+  const deletarProduto = async (produto: Produto) => {
+    if (!confirm(`Tem certeza que deseja excluir "${produto.nome}"?`)) return
+
+    try {
+      // Deletar tamanhos primeiro
+      await supabase.from('precos_tamanho').delete().eq('produto_id', produto.id)
+      
+      // Deletar produto
+      await supabase.from('produtos').delete().eq('id', produto.id).eq('tenant_id', tenantId)
+      
+      toast.success('Produto excluído!')
+      fetchData()
+    } catch (error) {
+      toast.error('Erro ao deletar produto')
+    }
+  }
+
+  // Inline: Nova categoria
+  const criarCategoria = async () => {
+    if (!novaCategoria.trim()) return
+    
+    const { data, error } = await supabase
+      .from('categorias')
+      .insert({ nome: novaCategoria.trim(), tenant_id: tenantId })
+      .select()
+      .single()
+
+    if (error) {
+      toast.error('Erro ao criar categoria')
+      return
+    }
+
+    setCategorias([...categorias, data])
+    setCategoriaId(data.id)
+    setNovaCategoria('')
+    toast.success('Categoria criada!')
+  }
+
+  // Inline: Novo tamanho
+  const adicionarTamanho = () => {
+    if (!novoTamanho.tamanho.trim() || !novoTamanho.preco) return
+    
+    setPrecosTamanho([
+      ...precosTamanho,
+      { id: Date.now().toString(), produto_id: editingProduto?.id || '', tamanho: novoTamanho.tamanho, preco: parseFloat(novoTamanho.preco) }
+    ])
+    setNovoTamanho({ tamanho: '', preco: '' })
+  }
+
+  // Inline: Remover tamanho
+  const removerTamanho = (id: string) => {
+    setPrecosTamanho(precosTamanho.filter(t => t.id !== id))
+  }
+
+  // Inline: Novo sabor
+  const criarSabor = async () => {
+    if (!novoSabor.trim()) return
+    
+    const { data, error } = await supabase
+      .from('sabores')
+      .insert({ nome: novoSabor.trim(), disponivel: true, tenant_id: tenantId })
+      .select()
+      .single()
+
+    if (error) {
+      toast.error('Erro ao criar sabor')
+      return
+    }
+
+    setSabores([...sabores, data])
+    setNovoSabor('')
+    toast.success('Sabor criado!')
+  }
+
+  // Inline: Remover sabor
+  const removerSabor = async (saborId: string) => {
+    await supabase.from('sabores').delete().eq('id', saborId).eq('tenant_id', tenantId)
+    setSabores(sabores.filter(s => s.id !== saborId))
+  }
+
+  // Handler foto
+  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
-      setImagePreview(URL.createObjectURL(file))
+      setFotoFile(file)
+      setPreviewFoto(URL.createObjectURL(file))
     }
-  }
-
-  const filteredProdutos = produtos.filter(p => {
-    const matchBusca = !busca || p.nome.toLowerCase().includes(busca.toLowerCase())
-    const matchFiltro = !filtro || p.categoria_id === filtro
-    return matchBusca && matchFiltro
-  })
-
-  const deleteProduto = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return
-    await supabase.from('produtos').delete().eq('id', id).eq('tenant_id', tenantId)
-    fetchProdutos()
-  }
-
-  const deleteCategoria = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta categoria?')) return
-    await supabase.from('categorias').delete().eq('id', id).eq('tenant_id', tenantId)
-    fetchProdutos()
-  }
-
-  const deleteSabor = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este sabor?')) return
-    await supabase.from('sabores').delete().eq('id', id).eq('tenant_id', tenantId)
-    fetchProdutos()
-  }
-
-  const saveCategoria = async (data: Categoria) => {
-    if (editCategoria?.id) {
-      await supabase.from('categorias').update(data).eq('id', editCategoria.id).eq('tenant_id', tenantId)
-    } else {
-      await supabase.from('categorias').insert({ ...data, tenant_id: tenantId })
-    }
-    setShowCategoriaModal(false)
-    fetchProdutos()
-  }
-
-  const saveSabor = async (data: Sabor) => {
-    if (editSabor?.id) {
-      await supabase.from('sabores').update(data).eq('id', editSabor.id).eq('tenant_id', tenantId)
-    } else {
-      await supabase.from('sabores').insert({ ...data, tenant_id: tenantId })
-    }
-    setShowSaborModal(false)
-    fetchProdutos()
-  }
-
-  const saveTamanho = async (produtoId: string) => {
-    if (!novoTamanho.tamanho || !novoTamanho.preco) return
-    await supabase.from('precos_tamanho').insert({
-      produto_id: produtoId,
-      tamanho: novoTamanho.tamanho,
-      preco: Number(novoTamanho.preco),
-      tenant_id: tenantId
-    })
-    setNovoTamanho({ tamanho: '', preco: '' })
-    setShowTamanhoModal(false)
-    // Recarregar tamanhos
-    const { data } = await supabase.from('precos_tamanho').select('*').eq('produto_id', produtoId)
-    if (data) setPrecosTamanho(data)
-  }
-
-  const deleteTamanho = async (tamanhoId: string) => {
-    await supabase.from('precos_tamanho').delete().eq('id', tamanhoId)
-    setPrecosTamanho(precosTamanho.filter(t => t.id !== tamanhoId))
-  }
-
-  // Salvar categoria inline
-  const saveCategoriaInline = async () => {
-    if (!novaCategoriaInline.trim()) return
-    await supabase.from('categorias').insert({ nome: novaCategoriaInline.trim(), tenant_id: tenantId })
-    setNovaCategoriaInline('')
-    fetchProdutos()
-  }
-
-  // Salvar sabor inline
-  const saveSaborInline = async () => {
-    if (!novoSaborInline.trim()) return
-    await supabase.from('sabores').insert({ nome: novoSaborInline.trim(), disponivel: true, tenant_id: tenantId })
-    setNovoSaborInline('')
-    fetchProdutos()
   }
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] p-4 sm:p-6 lg:p-8">
-      <div className="max-w-[1600px] mx-auto">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="min-h-screen" style={{ backgroundColor: '#0d0f14' }}>
+      {/* Header */}
+      <header className="sticky top-0 z-40 px-6 py-4 border-b" style={{ borderColor: '#252830', backgroundColor: '#0d0f14' }}>
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div>
-            <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px]">Administração</span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-[Outfit] font-bold text-white tracking-tight">Cardápio</h1>
+            <span className="text-xs font-bold tracking-[0.2em]" style={{ color: '#e8391a' }}>ADMINISTRAÇÃO</span>
+            <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Syne, sans-serif' }}>Cardápio</h1>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Abas */}
+            <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: '#16181f' }}>
+              <button
+                onClick={() => setAbaAtiva('categorias')}
+                className="px-4 py-2 text-sm font-medium rounded-md transition-all"
+                style={{ 
+                  color: abaAtiva === 'categorias' ? '#dde0ee' : '#666',
+                  backgroundColor: abaAtiva === 'categorias' ? '#252830' : 'transparent',
+                  borderBottom: abaAtiva === 'categorias' ? '2px solid #e8391a' : 'none'
+                }}
+              >
+                Categorias
+              </button>
+              <button
+                onClick={() => setAbaAtiva('sabores')}
+                className="px-4 py-2 text-sm font-medium rounded-md transition-all"
+                style={{ 
+                  color: abaAtiva === 'sabores' ? '#dde0ee' : '#666',
+                  backgroundColor: abaAtiva === 'sabores' ? '#252830' : 'transparent',
+                  borderBottom: abaAtiva === 'sabores' ? '2px solid #e8391a' : 'none'
+                }}
+              >
+                Sabores
+              </button>
+            </div>
+
+            {/* Botão Novo Produto */}
+            <button
+              onClick={abrirNovoProduto}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white transition-all hover:opacity-90"
+              style={{ backgroundColor: '#e8391a' }}
+            >
+              <span className="text-lg">+</span>
+              <span>Novo Produto</span>
+            </button>
           </div>
         </div>
+      </header>
 
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+      <main className="max-w-7xl mx-auto px-6 py-6">
+        {/* Filtros por categoria */}
+        <section className="mb-6">
+          <label className="text-xs font-medium mb-3 block" style={{ color: '#888' }}>CATEGORIAS</label>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => { setEditCategoria({}); setShowCategoriaModal(true) }} className="px-3 sm:px-4 py-2 rounded-lg bg-[#252830] text-white text-xs font-bold uppercase">Categorias</button>
-            <button onClick={() => { setEditSabor({}); setShowSaborModal(true) }} className="px-3 sm:px-4 py-2 rounded-lg bg-[#252830] text-white text-xs font-bold uppercase">Sabores</button>
+            <button
+              onClick={() => setFiltroCategoria('todos')}
+              className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+              style={{ 
+                backgroundColor: filtroCategoria === 'todos' ? '#e8391a' : '#16181f',
+                color: filtroCategoria === 'todos' ? '#fff' : '#dde0ee'
+              }}
+            >
+              Todos
+            </button>
+            {categorias.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setFiltroCategoria(cat.id)}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                style={{ 
+                  backgroundColor: filtroCategoria === cat.id ? '#e8391a' : '#16181f',
+                  color: filtroCategoria === cat.id ? '#fff' : '#dde0ee'
+                }}
+              >
+                {cat.nome}
+              </button>
+            ))}
           </div>
-          <button onClick={() => { setEditProduto({}); setShowProdutoModal(true) }} className="w-full sm:w-auto bg-[#e8391a] text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] active:scale-95 transition-all">
-            <span className="material-symbols-outlined text-lg">add</span> Novo Produto
-          </button>
+        </section>
+
+        {/* Barra de busca */}
+        <div className="mb-6">
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar produto..."
+            className="w-full px-4 py-3 rounded-lg text-white placeholder-gray-500"
+            style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+          />
         </div>
 
-        {/* Categorias */}
-        {categorias.length > 0 && (
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-sm font-bold text-gray-400 uppercase mb-3 tracking-wider">Categorias</h2>
-            <div className="flex flex-wrap gap-2">
-              {categorias.map(c => (
-                <div key={c.id} className="relative group">
-                  <button onClick={() => { setEditCategoria(c); setShowCategoriaModal(true) }} className="px-3 py-1.5 rounded-full bg-[#252830] text-white text-xs font-medium hover:bg-[#333] transition-all">{c.nome}</button>
-                  <button onClick={() => deleteCategoria(c.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+        {/* Grid de produtos */}
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="rounded-xl overflow-hidden animate-pulse">
+                <div className="aspect-square" style={{ backgroundColor: '#252830' }} />
+                <div className="p-3" style={{ backgroundColor: '#16181f' }}>
+                  <div className="h-4 rounded mb-2" style={{ backgroundColor: '#252830', width: '70%' }} />
+                  <div className="h-3 rounded" style={{ backgroundColor: '#252830', width: '50%' }} />
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 sm:py-4 px-5 text-sm text-white mb-4 lg:mb-6 placeholder:text-gray-500" />
-
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 lg:mb-6">
-          <button onClick={() => setFiltro(null)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${!filtro ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>Todos</button>
-          {categorias.map(c => (
-            <button key={c.id} onClick={() => setFiltro(c.id)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${filtro === c.id ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>{c.nome}</button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
-          {filteredProdutos.map(p => (
-            <div key={p.id} className="group relative bg-[#16181f] rounded-2xl overflow-hidden border border-[#252830] hover:border-[#e8391a] transition-all">
-              <div className="aspect-[4/3] relative overflow-hidden bg-[#1a1a1a]">
-                {p.imagem_url ? (
-                  <img src={p.imagem_url} alt={p.nome} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-600">
-                    <span className="material-symbols-outlined text-4xl">image</span>
-                  </div>
-                )}
-                {p.destaque && (
-                  <div className="absolute top-2 left-2 bg-[#ffc107] text-black px-2 py-0.5 rounded-full text-[10px] font-bold uppercase">Destaque</div>
-                )}
-                <button onClick={() => { setEditProduto(p); setShowProdutoModal(true) }} className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-lg bg-[#252830] text-[#e8391a] hover:bg-[#e8391a] hover:text-white transition-all">
-                  <span className="material-symbols-outlined text-sm">edit</span>
-                </button>
-                {!p.disponivel && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="text-gray-400 text-xs font-bold uppercase">Indisponível</span>
-                  </div>
-                )}
               </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="font-bold text-white text-sm sm:text-base mb-1 truncate">{p.nome}</h3>
-                <p className="text-gray-400 text-xs line-clamp-2">{p.descricao || 'Sem descrição'}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[#e8391a] font-bold">{Number(p.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                  <button onClick={() => deleteProduto(p.id)} className="text-gray-500 hover:text-red-500 transition-all">
-                    <span className="material-symbols-outlined text-sm">delete</span>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {produtosFiltrados.map(produto => (
+              <div
+                key={produto.id}
+                className="group rounded-xl overflow-hidden transition-all hover:scale-[1.02]"
+                style={{ backgroundColor: '#16181f', border: '1px solid #252830' }}
+              >
+                {/* Foto */}
+                <div className="aspect-square relative" style={{ backgroundColor: '#1c1e26' }}>
+                  {produto.foto_url ? (
+                    <img src={produto.foto_url} alt={produto.nome} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-4xl" style={{ color: '#252830' }}>🍽️</span>
+                    </div>
+                  )}
+                  
+                  {/* Ícone editar */}
+                  <button
+                    onClick={() => abrirEditarProduto(produto)}
+                    className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                    style={{ backgroundColor: '#252830' }}
+                  >
+                    <span className="text-sm" style={{ color: '#e8391a' }}>✏️</span>
                   </button>
+
+                  {/* Badge indisponível */}
+                  {!produto.disponivel && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <span className="text-xs font-bold uppercase" style={{ color: '#666' }}>Indisponível</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-white truncate">{produto.nome}</h3>
+                      <p className="text-xs truncate" style={{ color: '#888' }}>{produto.descricao || '—'}</p>
+                    </div>
+                    <button
+                      onClick={() => deletarProduto(produto)}
+                      className="opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      <span className="text-sm" style={{ color: '#666' }}>🗑️</span>
+                    </button>
+                  </div>
+                  <p className="font-bold mt-2" style={{ color: '#e8391a' }}>
+                    R$ {produto.preco?.toFixed(2).replace('.', ',')}
+                  </p>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Sabores */}
-        {sabores.length > 0 && (
-          <div className="mt-8 sm:mt-12">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Sabores</h2>
-              <button onClick={() => { setEditSabor({}); setShowSaborModal(true) }} className="text-[#e8391a] text-xs font-bold uppercase">+ Novo</button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {sabores.map(s => (
-                <div key={s.id} className="relative group">
-                  <span className="px-3 py-1.5 rounded-full bg-[#252830] text-white text-xs font-medium">{s.nome}</span>
-                  <button onClick={() => { setEditSabor(s); setShowSaborModal(true) }} className="absolute -top-1 -right-1 w-4 h-4 bg-[#ffc107] rounded-full text-black text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">!</button>
-                  <button onClick={() => deleteSabor(s.id)} className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         )}
 
-        {/* Categoria Modal */}
-        {showCategoriaModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={() => setShowCategoriaModal(false)}>
-            <div className="w-full max-w-md rounded-2xl bg-[#16181f] p-6 sm:p-8" onClick={e => e.stopPropagation()}>
-              <h3 className="font-headline text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editCategoria?.id ? 'Editar' : 'Nova'} Categoria</h3>
-              <form onSubmit={categoriaForm.handleSubmit(saveCategoria)} className="space-y-4">
-                <input {...categoriaForm.register('nome', { required: true })} placeholder="Nome da categoria" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 sm:py-4 px-4 text-sm text-white" />
-                <textarea {...categoriaForm.register('descricao')} placeholder="Descrição (opcional)" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 sm:py-4 px-4 text-sm text-white h-24 resize-none" />
-                <input type="number" {...categoriaForm.register('ordem', { valueAsNumber: true })} placeholder="Ordem" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 sm:py-4 px-4 text-sm text-white" />
-                <div className="flex gap-4">
-                  <button type="button" onClick={() => setShowCategoriaModal(false)} className="flex-1 py-4 rounded-xl border border-[#252830] text-gray-400 font-bold text-xs uppercase tracking-widest hover:bg-[#252830] transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 rounded-xl bg-[#e8391a] text-white font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] transition-all">Salvar</button>
-                </div>
-              </form>
-            </div>
+        {produtosFiltrados.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <p style={{ color: '#666' }}>Nenhum produto encontrado</p>
           </div>
         )}
+      </main>
 
-        {/* Sabor Modal */}
-        {showSaborModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={() => setShowSaborModal(false)}>
-            <div className="w-full max-w-md rounded-2xl bg-[#16181f] p-6 sm:p-8" onClick={e => e.stopPropagation()}>
-              <h3 className="font-headline text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editSabor?.id ? 'Editar' : 'Novo'} Sabor</h3>
-              <form onSubmit={saborForm.handleSubmit(saveSabor)} className="space-y-4">
-                <input {...saborForm.register('nome', { required: true })} placeholder="Nome do sabor" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 sm:py-4 px-4 text-sm text-white" />
-                <textarea {...saborForm.register('descricao')} placeholder="Descrição (opcional)" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 sm:py-4 px-4 text-sm text-white h-24 resize-none" />
-                <label className="flex items-center gap-2 text-white text-sm">
-                  <input type="checkbox" {...saborForm.register('disponivel')} className="w-4 h-4" />
-                  Disponível
+      {/* Drawer Lateral */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Overlay */}
+          <div 
+            className="absolute inset-0 bg-black/60" 
+            onClick={() => setDrawerOpen(false)}
+          />
+
+          {/* Panel */}
+          <div 
+            className="absolute right-0 top-0 h-full overflow-y-auto"
+            style={{ 
+              width: '480px', 
+              backgroundColor: '#16181f',
+              borderLeft: '1px solid #252830'
+            }}
+          >
+            {/* Header */}
+            <div className="sticky top-0 px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: '#252830', backgroundColor: '#16181f' }}>
+              <h2 className="text-lg font-bold text-white" style={{ fontFamily: 'Syne, sans-serif' }}>
+                {editingProduto ? 'Editar Produto' : 'Novo Produto'}
+              </h2>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: '#252830' }}
+              >
+                <span className="text-white">×</span>
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="p-6 space-y-6">
+              {/* Upload foto */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>FOTO</label>
+                <label 
+                  className="flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all hover:opacity-80"
+                  style={{ 
+                    backgroundColor: '#1c1e26', 
+                    border: '2px dashed #252830',
+                    minHeight: '160px'
+                  }}
+                >
+                  {previewFoto ? (
+                    <div className="relative w-full h-full">
+                      <img src={previewFoto} alt="Preview" className="w-full h-full object-cover rounded-xl" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                        <span className="text-white text-sm">Alterar foto</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-3xl mb-2">📷</span>
+                      <span className="text-sm" style={{ color: '#666' }}>Adicionar foto</span>
+                    </>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFotoChange}
+                    className="hidden"
+                  />
                 </label>
-                <div className="flex gap-4">
-                  <button type="button" onClick={() => setShowSaborModal(false)} className="flex-1 py-4 rounded-xl border border-[#252830] text-gray-400 font-bold text-xs uppercase tracking-widest hover:bg-[#252830] transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 rounded-xl bg-[#e8391a] text-white font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] transition-all">Salvar</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+              </div>
 
-        {/* Produto Sidebar */}
-        {showProdutoModal && (
-          <div className="fixed inset-0 bg-black/50 z-[999]" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }}>
-            <div className="absolute right-0 top-0 h-full w-full max-w-[500px] bg-[#16181f] shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-headline text-xl font-bold text-white">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
-                  <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="w-10 h-10 rounded-lg bg-[#252830] flex items-center justify-center text-gray-400 hover:text-white transition-all">
-                    <span className="material-symbols-outlined">close</span>
+              {/* Nome */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>
+                  NOME DO PRODUTO <span style={{ color: '#e8391a' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Ex: Pizza Margherita"
+                  className="w-full px-4 py-3 rounded-lg text-white placeholder-gray-500"
+                  style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                />
+              </div>
+
+              {/* Descrição */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>DESCRIÇÃO</label>
+                <textarea
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  placeholder="Descrição do produto..."
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-lg text-white placeholder-gray-500 resize-none"
+                  style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                />
+              </div>
+
+              {/* Preço e Tempo */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>
+                    PREÇO (R$) <span style={{ color: '#e8391a' }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={preco}
+                    onChange={(e) => setPreco(e.target.value)}
+                    placeholder="0,00"
+                    className="w-full px-4 py-3 rounded-lg text-white placeholder-gray-500"
+                    style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>TEMPO (MIN)</label>
+                  <input
+                    type="number"
+                    value={tempoPreparo}
+                    onChange={(e) => setTempoPreparo(e.target.value)}
+                    placeholder="30"
+                    className="w-full px-4 py-3 rounded-lg text-white placeholder-gray-500"
+                    style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                  />
+                </div>
+              </div>
+
+              {/* Categoria */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>CATEGORIA</label>
+                {!novaCategoria ? (
+                  <div className="flex gap-2">
+                    <select
+                      value={categoriaId}
+                      onChange={(e) => setCategoriaId(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-lg text-white"
+                      style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                    >
+                      <option value="">Selecione</option>
+                      {categorias.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setNovaCategoria(' ')}
+                      className="px-4 py-2 rounded-lg font-bold text-white"
+                      style={{ backgroundColor: '#e8391a' }}
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={novaCategoria}
+                      onChange={(e) => setNovaCategoria(e.target.value)}
+                      placeholder="Nome da categoria"
+                      className="flex-1 px-4 py-3 rounded-lg text-white placeholder-gray-500"
+                      style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                      onKeyDown={(e) => e.key === 'Enter' && criarCategoria()}
+                      autoFocus
+                    />
+                    <button
+                      onClick={criarCategoria}
+                      className="px-4 py-2 rounded-lg font-bold text-white"
+                      style={{ backgroundColor: '#e8391a' }}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => setNovaCategoria('')}
+                      className="px-3 py-2 rounded-lg"
+                      style={{ backgroundColor: '#252830' }}
+                    >
+                      <span style={{ color: '#888' }}>×</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Tamanhos e Preços */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>TAMANHOS E PREÇOS</label>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={novoTamanho.tamanho}
+                    onChange={(e) => setNovoTamanho({ ...novoTamanho, tamanho: e.target.value })}
+                    placeholder="Tamanho (ex: Grande)"
+                    className="flex-1 px-3 py-2 rounded-lg text-white text-sm placeholder-gray-500"
+                    style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={novoTamanho.preco}
+                    onChange={(e) => setNovoTamanho({ ...novoTamanho, preco: e.target.value })}
+                    placeholder="R$"
+                    className="w-20 px-3 py-2 rounded-lg text-white text-sm placeholder-gray-500"
+                    style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                  />
+                  <button
+                    onClick={adicionarTamanho}
+                    className="px-4 py-2 rounded-lg font-bold text-black"
+                    style={{ backgroundColor: '#f57c24' }}
+                  >
+                    +
                   </button>
                 </div>
-                <form onSubmit={produtoForm.handleSubmit(async (data) => {
-                  setUploading(true)
-                  const record: any = {
-                    nome: data.nome,
-                    descricao: data.descricao || '',
-                    categoria_id: data.categoria_id || null,
-                    disponivel: data.disponivel,
-                    destaque: data.destaque,
-                    tempo_preparo: data.tempo_preparo || 30,
-                    imagem_url: data.imagem_url || ''
-                  }
-                  if (data.preco !== undefined && data.preco !== null && data.preco > 0) {
-                    record.preco = data.preco
-                  }
-
-                  let produtoId = editProduto?.id
-                  
-                  if (!produtoId) {
-                    const { data: insertData, error: insertError } = await supabase.from('produtos').insert({ ...record, ordem: produtos.length, tenant_id: tenantId }).select().single()
-                    if (insertError) {
-                      alert('Erro ao salvar: ' + insertError.message)
-                      setUploading(false)
-                      return
-                    }
-                    produtoId = insertData.id
-                  } else {
-                    const { error: updateError } = await supabase.from('produtos').update(record).eq('id', produtoId).eq('tenant_id', tenantId)
-                    if (updateError) {
-                      alert('Erro ao salvar: ' + updateError.message)
-                      setUploading(false)
-                      return
-                    }
-                  }
-                  
-                  if (selectedFile && produtoId) {
-                    const imageUrl = await uploadPhoto(produtoId)
-                    if (imageUrl) {
-                      await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId).eq('tenant_id', tenantId)
-                    }
-                  }
-
-                  setUploading(false)
-                  setSelectedFile(null)
-                  setImagePreview(null)
-                  setShowProdutoModal(false)
-                  setEditProduto(null)
-                  fetchProdutos()
-                })} className="space-y-4">
-                  <div className="flex justify-center mb-6">
-                    <div className="relative w-full max-w-[200px] aspect-[4/5]">
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" id="photo-input" disabled={uploading} />
-                      {(imagePreview || editProduto?.imagem_url) ? (
-                        <div className="relative w-full h-full rounded-xl overflow-hidden">
-                          <img src={imagePreview || editProduto?.imagem_url} alt="Preview" className="w-full h-full object-cover" />
-                          <button type="button" onClick={() => { setSelectedFile(null); setImagePreview(null) }} className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white">
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <label htmlFor="photo-input" className="w-full h-full border-2 border-dashed border-[#252830] rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[#e8391a] transition-all">
-                          <span className="material-symbols-outlined text-4xl text-gray-500">add_photo_alternate</span>
-                          <span className="text-gray-500 text-xs mt-2">Adicionar foto</span>
-                        </label>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Nome */}
-                  <div className="mb-4">
-                    <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Nome do Produto *</label>
-                    <input {...produtoForm.register('nome', { required: true })} placeholder="Ex: Pizza Margherita" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
-                  </div>
-
-                  {/* Descrição */}
-                  <div className="mb-4">
-                    <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Descrição</label>
-                    <textarea {...produtoForm.register('descricao')} placeholder="Descrição do produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white h-24 resize-none" />
-                  </div>
-
-                  {/* Preço e Tempo na mesma linha */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                      <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Preço (R$) *</label>
-                      <input type="number" step="0.01" {...produtoForm.register('preco', { valueAsNumber: true })} placeholder="0,00" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-xs uppercase font-bold mb-2 block">Tempo (min)</label>
-                      <input type="number" {...produtoForm.register('tempo_preparo', { valueAsNumber: true })} placeholder="30" className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white" />
-                    </div>
-                  </div>
-
-                  {/* Categoria - COR VERMELHA */}
-                  <div className="mb-4 p-4 rounded-xl bg-[#e8391a]/10 border border-[#e8391a]/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-[#e8391a] text-xs uppercase font-bold">Categoria</label>
-                    </div>
-                    {!novaCategoriaInline ? (
-                      <div className="flex gap-2 items-center">
-                        <select {...produtoForm.register('categoria_id')} className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white">
-                          <option value="">Selecione</option>
-                          {categorias.map(c => (
-                            <option key={c.id} value={c.id}>{c.nome}</option>
-                          ))}
-                        </select>
-                        <button 
-                          type="button" 
-                          onClick={() => setNovaCategoriaInline(' ')} 
-                          className="px-4 bg-[#e8391a] rounded-xl text-white font-bold h-[46px] flex items-center gap-2"
-                        >
-                          + <span className="text-xs hidden sm:inline">Nova</span>
-                        </button>
+                <div className="space-y-2">
+                  {precosTamanho.map(t => (
+                    <div key={t.id} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ backgroundColor: '#1c1e26' }}>
+                      <span className="text-sm text-white">{t.tamanho}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold" style={{ color: '#f57c24' }}>R$ {t.preco.toFixed(2).replace('.', ',')}</span>
+                        <button onClick={() => removerTamanho(t.id)} className="text-red-500">×</button>
                       </div>
-                    ) : (
-                      <div className="flex gap-2 items-center">
-                        <input 
-                          value={novaCategoriaInline} 
-                          onChange={e => setNovaCategoriaInline(e.target.value)}
-                          placeholder="Digite o nome da categoria" 
-                          className="flex-1 bg-[#1a1a1a] border border-[#e8391a]/50 rounded-xl py-3 px-4 text-sm text-white"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              saveCategoriaInline()
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <button 
-                          type="button" 
-                          onClick={saveCategoriaInline}
-                          className="px-4 bg-[#e8391a] rounded-xl text-white font-bold h-[46px] flex items-center"
-                        >
-                          ✓
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => setNovaCategoriaInline('')}
-                          className="px-3 bg-[#252830] rounded-xl text-gray-400 font-bold h-[46px]"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tamanhos - COR LARANJA */}
-                  <div className="mb-4 p-4 rounded-xl bg-[#ff9800]/10 border border-[#ff9800]/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-[#ff9800] text-xs uppercase font-bold">Tamanhos e Preços</label>
                     </div>
-                    {/* Adicionar novo tamanho inline */}
-                    <div className="flex gap-2 mb-3">
-                      <input 
-                        value={novoTamanho.tamanho} 
-                        onChange={e => setNovoTamanho({...novoTamanho, tamanho: e.target.value})}
-                        placeholder="Tamanho (ex: Grande)" 
-                        className="flex-1 bg-[#1a1a1a] border border-[#ff9800]/50 rounded-xl py-2 px-3 text-sm text-white"
-                      />
-                      <input 
-                        type="number"
-                        value={novoTamanho.preco} 
-                        onChange={e => setNovoTamanho({...novoTamanho, preco: e.target.value})}
-                        placeholder="R$" 
-                        className="w-20 bg-[#1a1a1a] border border-[#ff9800]/50 rounded-xl py-2 px-3 text-sm text-white"
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => saveTamanho(editProduto?.id || '')} 
-                        className="px-3 bg-[#ff9800] rounded-xl text-black font-bold"
-                      >+</button>
-                    </div>
-                    {/* Lista de tamanhos */}
-                    <div className="space-y-2">
-                      {loadingTamanhos ? (
-                        <span className="text-gray-500 text-xs">Carregando...</span>
-                      ) : precosTamanho.length === 0 ? (
-                        <span className="text-gray-500 text-xs">Nenhum tamanho cadastrado</span>
-                      ) : (
-                        precosTamanho.map(t => (
-                          <div key={t.id} className="flex items-center justify-between bg-[#252830] rounded-lg px-3 py-2">
-                            <span className="text-white text-sm font-medium">{t.tamanho}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#ff9800] font-bold">{Number(t.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                              <button type="button" onClick={() => deleteTamanho(t.id!)} className="text-red-500 hover:text-red-400">×</button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sabores - COR VERDE */}
-                  <div className="mb-4 p-4 rounded-xl bg-[#4caf50]/10 border border-[#4caf50]/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-[#4caf50] text-xs uppercase font-bold">Sabores</label>
-                    </div>
-                    {/* Adicionar novo sabor inline */}
-                    <div className="flex gap-2 mb-3">
-                      <input 
-                        value={novoSaborInline} 
-                        onChange={e => setNovoSaborInline(e.target.value)}
-                        placeholder="Novo sabor" 
-                        className="flex-1 bg-[#1a1a1a] border border-[#4caf50]/50 rounded-xl py-2 px-3 text-sm text-white"
-                      />
-                      <button 
-                        type="button" 
-                        onClick={saveSaborInline} 
-                        className="px-3 bg-[#4caf50] rounded-xl text-black font-bold"
-                      >+</button>
-                    </div>
-                    {/* Lista de sabores */}
-                    <div className="flex gap-2 flex-wrap">
-                      {sabores.length === 0 ? (
-                        <span className="text-gray-500 text-xs">Nenhum sabor cadastrado</span>
-                      ) : (
-                        sabores.map(s => (
-                          <span key={s.id} className="px-2 py-1 bg-[#252830] rounded-lg text-xs text-white flex items-center gap-1">
-                            {s.nome}
-                            <button type="button" onClick={() => deleteSabor(s.id)} className="text-red-500 hover:text-red-400 ml-1">×</button>
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Opções */}
-                  <div className="mb-4">
-                    <label className="text-gray-400 text-xs uppercase font-bold mb-3 block">Opções</label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
-                        <input type="checkbox" {...produtoForm.register('disponivel')} className="w-5 h-5 rounded" />
-                        Disponível
-                      </label>
-                      <label className="flex items-center gap-2 text-white text-sm cursor-pointer">
-                        <input type="checkbox" {...produtoForm.register('destaque')} className="w-5 h-5 rounded" />
-                        Destaque
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 mt-6">
-                    <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="flex-1 py-3 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#252830] transition-all" disabled={uploading}>Cancelar</button>
-                    <button type="submit" disabled={uploading} className="flex-1 py-3 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
-                  </div>
-                </form>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Novo Tamanho Modal */}
-        {showTamanhoModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[1000] flex items-center justify-center p-4" onClick={() => setShowTamanhoModal(false)}>
-            <div className="w-full max-w-sm rounded-2xl bg-[#16181f] p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="font-headline text-xl font-bold mb-4 text-white">Novo Tamanho</h3>
-              <div className="space-y-3">
-                <input 
-                  value={novoTamanho.tamanho} 
-                  onChange={e => setNovoTamanho({...novoTamanho, tamanho: e.target.value})}
-                  placeholder="Tamanho (ex: Grande)" 
-                  className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white"
-                />
-                <input 
-                  type="number"
-                  value={novoTamanho.preco} 
-                  onChange={e => setNovoTamanho({...novoTamanho, preco: e.target.value})}
-                  placeholder="Preço" 
-                  className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-3 px-4 text-sm text-white"
-                />
-                <div className="flex gap-3 mt-4">
-                  <button onClick={() => setShowTamanhoModal(false)} className="flex-1 py-3 rounded-xl border border-[#252830] text-gray-400 font-bold text-xs uppercase hover:bg-[#252830] transition-all">Cancelar</button>
-                  <button onClick={() => saveTamanho(editProduto?.id || '')} className="flex-1 py-3 rounded-xl bg-[#ff9800] text-black font-bold text-xs uppercase hover:shadow-[0_0_20px_rgba(255,152,0,0.3)] transition-all">Salvar</button>
+              {/* Sabores */}
+              <div>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#888' }}>SABORES</label>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={novoSabor}
+                    onChange={(e) => setNovoSabor(e.target.value)}
+                    placeholder="Novo sabor"
+                    className="flex-1 px-3 py-2 rounded-lg text-white text-sm placeholder-gray-500"
+                    style={{ backgroundColor: '#1c1e26', border: '1px solid #252830' }}
+                    onKeyDown={(e) => e.key === 'Enter' && criarSabor()}
+                  />
+                  <button
+                    onClick={criarSabor}
+                    className="px-4 py-2 rounded-lg font-bold text-black"
+                    style={{ backgroundColor: '#4caf50' }}
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {sabores.map(s => (
+                    <div 
+                      key={s.id} 
+                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm"
+                      style={{ backgroundColor: '#1c1e26' }}
+                    >
+                      <span className="text-white">{s.nome}</span>
+                      <button onClick={() => removerSabor(s.id)} className="text-red-500 ml-1">×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Opções */}
+              <div>
+                <label className="text-xs font-medium mb-3 block" style={{ color: '#888' }}>OPÇÕES</label>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={disponivel}
+                      onChange={(e) => setDisponivel(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span className="text-sm text-white">Disponível</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={destaque}
+                      onChange={(e) => setDestaque(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span className="text-sm text-white">Destaque</span>
+                  </label>
                 </div>
               </div>
             </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 px-6 py-4 border-t flex gap-3" style={{ borderColor: '#252830', backgroundColor: '#16181f' }}>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="flex-1 px-4 py-3 rounded-lg font-medium transition-all"
+                style={{ border: '1px solid #252830', color: '#888' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarProduto}
+                disabled={saving || uploadingFoto}
+                className="flex-1 px-4 py-3 rounded-lg font-medium text-white transition-all disabled:opacity-50"
+                style={{ backgroundColor: '#e8391a' }}
+              >
+                {saving || uploadingFoto ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
