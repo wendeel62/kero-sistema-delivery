@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
-import { toast } from 'sonner'
 
 interface Categoria {
   id: string
@@ -120,7 +119,7 @@ export default function CardapioAdminPage() {
       .upload(fileName, fotoFile)
 
     if (error) {
-      toast.error('Erro ao fazer upload da foto')
+      alert('Erro ao fazer upload da foto')
       setUploadingFoto(false)
       return null
     }
@@ -181,11 +180,11 @@ export default function CardapioAdminPage() {
   // Salvar produto
   const salvarProduto = async () => {
     if (!nome.trim()) {
-      toast.error('Nome do produto é obrigatório')
+      alert('Nome do produto é obrigatório')
       return
     }
     if (!preco || parseFloat(preco) <= 0) {
-      toast.error('Preço é obrigatório')
+      alert('Preço é obrigatório')
       return
     }
 
@@ -248,11 +247,11 @@ export default function CardapioAdminPage() {
         }
       }
 
-      toast.success(editingProduto ? 'Produto atualizado!' : 'Produto criado!')
+      alert(editingProduto ? 'Produto atualizado!' : 'Produto criado!')
       setDrawerOpen(false)
       fetchData()
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao salvar produto')
+      alert(error.message || 'Erro ao salvar produto')
     } finally {
       setSaving(false)
     }
@@ -269,10 +268,10 @@ export default function CardapioAdminPage() {
       // Deletar produto
       await supabase.from('produtos').delete().eq('id', produto.id).eq('tenant_id', tenantId)
       
-      toast.success('Produto excluído!')
+      alert('Produto excluído!')
       fetchData()
     } catch (error) {
-      toast.error('Erro ao deletar produto')
+      alert('Erro ao deletar produto')
     }
   }
 
@@ -287,14 +286,14 @@ export default function CardapioAdminPage() {
       .single()
 
     if (error) {
-      toast.error('Erro ao criar categoria')
+      alert('Erro ao criar categoria')
       return
     }
 
     setCategorias([...categorias, data])
     setCategoriaId(data.id)
     setNovaCategoria('')
-    toast.success('Categoria criada!')
+    alert('Categoria criada!')
   }
 
   // Inline: Novo tamanho
@@ -324,13 +323,13 @@ export default function CardapioAdminPage() {
       .single()
 
     if (error) {
-      toast.error('Erro ao criar sabor')
+      alert('Erro ao criar sabor')
       return
     }
 
     setSabores([...sabores, data])
     setNovoSabor('')
-    toast.success('Sabor criado!')
+    alert('Sabor criado!')
   }
 
   // Inline: Remover sabor
