@@ -445,9 +445,6 @@ export default function CardapioAdminPage() {
                       </div>
                     </div>
                   </div>
-                      ))}
-                    </select>
-                  </div>
 
                   {/* Tamanhos - COR LARANJA */}
                   <div className="mb-4 p-4 rounded-xl bg-[#ff9800]/10 border border-[#ff9800]/30">
