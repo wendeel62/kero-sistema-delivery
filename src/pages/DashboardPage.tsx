@@ -92,6 +92,8 @@ export default function DashboardPage() {
   const tenantId = user?.user_metadata?.tenant_id || getTenantId()
 
   const [linkCardapio, setLinkCardapio] = useState('')
+  const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
+  const [showFunilDropdown, setShowFunilDropdown] = useState(false)
 
   const { data: kpis = defaultKpis, isLoading: loadingKpis, refetch: refetchKpis } = useQuery({
     queryKey: ['dashboard-kpis', tenantId],
@@ -390,6 +392,42 @@ export default function DashboardPage() {
     enabled: !!tenantId
   })
 
+  // Query para dados do funil em tempo real
+  const { data: funilData } = useQuery({
+    queryKey: ['funil-tempo-real', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+      
+      // Eventos da jornada do cliente
+      const { data: eventosData } = await supabase
+        .from('eventos_jornada')
+        .select('tipo_evento, quantidade')
+        .eq('tenant_id', tenantId)
+        .gte('data', today)
+
+      const eventos = eventosData || []
+      
+      // Contagem de WhatsApp messages (precisa existir uma tabela ou campo para isso)
+      const { data: whatsAppData } = await supabase
+        .from('mensagens_whatsapp')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', today)
+
+      return {
+        visualizacoes: eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0),
+        addCarrinho: eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0),
+        checkoutIniciado: eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0),
+        compras: eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0),
+        whatsapp: whatsAppData?.length || 0
+      }
+    },
+    staleTime: 10000,
+    enabled: !!tenantId,
+    refetchInterval: 10000 // Atualiza a cada 10 segundos
+  })
+
   const queryClient = useQueryClient()
 
   const { mutate: toggleLoja, isPending: loadingLoja } = useMutation({
@@ -415,6 +453,7 @@ export default function DashboardPage() {
 
   useRealtime('pedidos', () => { refetchKpis() })
   useRealtime('pedidos_online', () => { refetchKpis() })
+  useRealtime('eventos_jornada', () => { queryClient.invalidateQueries({ queryKey: ['funil-tempo-real', tenantId] }) })
 
   if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento || loadingConfig) {
     return (
@@ -582,33 +621,97 @@ export default function DashboardPage() {
               <h3 className="text-xl font-bold text-on-background">Funil Vendas</h3>
               <p className="text-on-surface-variant text-sm mt-1">Jornada cliente hoje</p>
             </div>
-            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-secondary text-xl">tune</span>
+            <div className="relative">
+              <button 
+                onClick={() => setShowFunilDropdown(!showFunilDropdown)}
+                className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center hover:bg-secondary/20 transition-smooth cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-secondary text-xl">tune</span>
+              </button>
+              {showFunilDropdown && (
+                <div className="absolute top-14 right-0 w-48 bg-surface-container border border-outline rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+                  {[
+                    { id: 'todas', label: 'Todas', icon: 'tune' },
+                    { id: 'whatsapp', label: 'Mensagens WhatsApp', icon: 'chat' },
+                    { id: 'visualizacoes', label: 'Visitas Cardápio', icon: 'visibility' },
+                    { id: 'addCarrinho', label: 'Adicionar Carrinho', icon: 'add_shopping_cart' },
+                    { id: 'checkout', label: 'Inicio Compras', icon: 'shopping_cart' },
+                    { id: 'compras', label: 'Compras', icon: 'point_of_sale' }
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.id}
+                      onClick={() => {
+                        setFunilSelecionado(opcao.id)
+                        setShowFunilDropdown(false)
+                      }}
+                      className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-surface-container-high transition-smooth ${
+                        funilSelecionado === opcao.id ? 'bg-primary/10 text-primary' : 'text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">{opcao.icon}</span>
+                      <span className="text-sm">{opcao.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="space-y-3">
-            {[
-              { label: 'Visitas Cardápio', value: kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
-              { label: 'Adicionado Carrinho', value: kpis.funnelData.addCarrinho, color: '#ff9800' },
-              { label: 'Checkout Iniciado', value: kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
-              { label: 'Compras Feitas', value: kpis.funnelData.compras, color: '#4caf50' }
-            ].map((item, i) => (
-              <div key={i} className="flex justify-between items-center group">
-                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">{item.label}</span>
-                <div className="w-32 h-3 bg-surface-variant rounded-full overflow-hidden group-hover:shadow-lg group-hover:shadow-primary/20">
-                  <div 
-                    className="h-full rounded-full transition-all" 
-                    style={{ 
-                      width: item.value > 0 ? '75%' : '40%', 
-                      backgroundColor: item.color 
-                    }}
-                  />
-                </div>
-                <span className={`font-bold text-sm`} style={{ color: item.color }}>
-                  {item.value}
-                </span>
+            {funilSelecionado === 'todas' ? (
+              <>
+                {[
+                  { label: 'Visitas Cardápio', value: funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
+                  { label: 'Adicionado Carrinho', value: funilData?.addCarrinho || kpis.funnelData.addCarrinho, color: '#ff9800' },
+                  { label: 'Checkout Iniciado', value: funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
+                  { label: 'Compras Feitas', value: funilData?.compras || kpis.funnelData.compras, color: '#4caf50' }
+                ].map((item, i) => {
+                  const maxValue = Math.max(funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, funilData?.addCarrinho || kpis.funnelData.addCarrinho, funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, funilData?.compras || kpis.funnelData.compras, 1)
+                  const valorFinal = item.value > 0 ? (item.value / maxValue) * 100 : 0
+                  return (
+                    <div key={i} className="flex justify-between items-center group">
+                      <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">{item.label}</span>
+                      <div className="w-32 h-3 bg-surface-variant rounded-full overflow-hidden group-hover:shadow-lg group-hover:shadow-primary/20">
+                        <div 
+                          className="h-full rounded-full transition-all" 
+                          style={{ 
+                            width: `${Math.max(valorFinal, item.value > 0 ? 10 : 0)}%`,
+                            backgroundColor: item.color 
+                          }}
+                        />
+                      </div>
+                      <span className={`font-bold text-sm`} style={{ color: item.color }}>
+                        {item.value}
+                      </span>
+                    </div>
+                  )
+                })}
+              </>
+            ) : funilSelecionado === 'whatsapp' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Mensagens WhatsApp</span>
+                <span className="text-2xl font-bold text-primary">{funilData?.whatsapp || 0}</span>
               </div>
-            ))}
+            ) : funilSelecionado === 'visualizacoes' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Visitas Cardápio</span>
+                <span className="text-2xl font-bold" style={{ color: '#d32f2f' }}>{funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes || 0}</span>
+              </div>
+            ) : funilSelecionado === 'addCarrinho' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Adicionar Carrinho</span>
+                <span className="text-2xl font-bold" style={{ color: '#ff9800' }}>{funilData?.addCarrinho || kpis.funnelData.addCarrinho || 0}</span>
+              </div>
+            ) : funilSelecionado === 'checkout' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Início Compras</span>
+                <span className="text-2xl font-bold" style={{ color: '#ffb74d' }}>{funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado || 0}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Compras</span>
+                <span className="text-2xl font-bold" style={{ color: '#4caf50' }}>{funilData?.compras || kpis.funnelData.compras || 0}</span>
+              </div>
+            )}
           </div>
         </div>
 
