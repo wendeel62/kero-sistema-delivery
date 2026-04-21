@@ -606,10 +606,16 @@ export default function CardapioAdminPage() {
       )}
 
       {showProdutoModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-[4px] z-[999] flex items-center justify-center p-3 sm:p-4 md:p-6" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }}>
-          <div className="w-full max-w-[600px] max-h-[95vh] overflow-y-auto rounded-2xl bg-[#16181f] p-5 sm:p-8 md:rounded-3xl md:p-10 no-scrollbar animate-fade-in" onClick={e => e.stopPropagation()}>
-            <h3 className="font-headline text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
-            <form onSubmit={produtoForm.handleSubmit(async (data) => {
+        <div className="fixed inset-0 bg-black/50 z-[999]" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }}>
+          <div className="absolute right-0 top-0 h-full w-full max-w-[500px] bg-[#16181f] shadow-2xl overflow-y-auto animate-slide-in-right" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-headline text-xl font-bold text-white">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
+                <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="w-10 h-10 rounded-lg bg-[#252830] flex items-center justify-center text-gray-400 hover:text-white transition-all">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <form onSubmit={produtoForm.handleSubmit(async (data) => {
               setUploading(true)
               const record: any = {
                 nome: data.nome,
@@ -740,25 +746,23 @@ export default function CardapioAdminPage() {
                       </div>
                   </div>
                 </div>
-              )}
+)}
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="flex-1 py-3 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#252830] transition-all" disabled={uploading}>Cancelar</button>
+                <button type="submit" disabled={uploading} className="flex-1 py-3 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
+              </div>
             </form>
-            <div className="flex gap-4 mt-12">
-              <button type="button" onClick={() => { setShowProdutoModal(false); setSelectedFile(null); setImagePreview(null); }} className="flex-1 py-4 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#1a1a1a] transition-all" disabled={uploading}>Cancelar</button>
-              <button type="button" onClick={produtoForm.handleSubmit(async (data) => {
-                setUploading(true)
-                const record: any = {
-                  nome: data.nome,
-                  descricao: data.descricao || '',
-                  categoria_id: data.categoria_id || null,
-                  disponivel: data.disponivel,
-                  destaque: data.destaque,
-                  tempo_preparo: data.tempo_preparo || 30,
-                  imagem_url: data.imagem_url || ''
-                }
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
                 if (data.preco !== undefined && data.preco !== null && data.preco > 0) {
                   record.preco = data.preco
                 }
-
+ 
                 let produtoId = editProduto?.id
                 
                 if (!produtoId) {
@@ -781,17 +785,24 @@ export default function CardapioAdminPage() {
                 if (selectedFile && produtoId) {
                   const imageUrl = await uploadPhoto(produtoId)
                   if (imageUrl) {
-await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId).eq('tenant_id', tenantId)
+                    await supabase.from('produtos').update({ imagem_url: imageUrl }).eq('id', produtoId).eq('tenant_id', tenantId)
                   }
                 }
-
+ 
                 setUploading(false)
                 setSelectedFile(null)
                 setImagePreview(null)
                 setShowProdutoModal(false)
                 setEditProduto(null)
                 fetchProdutos()
-              })} disabled={uploading} className="flex-1 py-4 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
+              })} disabled={uploading} className="flex-1 py-3 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+            </form>
+          </div>
+        </div>
+)}
+            </div>
+            </form>
             </div>
           </div>
         </div>
