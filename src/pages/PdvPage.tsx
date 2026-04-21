@@ -373,7 +373,7 @@ export default function PdvPage() {
             </button>
           </div>
           <div className="flex gap-1.5 mb-2">
-            {(['balcao', 'entrega', 'mesa'] as const).map(t => (
+            {(['balcao', 'entrega'] as const).map(t => (
               <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-1.5 lg:py-2 rounded-md text-[10px] lg:text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
             ))}
           </div>
