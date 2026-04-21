@@ -358,79 +358,82 @@ export default function PdvPage() {
         </div>
       </div>
 
-      {/* Right - Cart / Order */}
-      <div className={`w-full lg:w-[28rem] xl:w-[32rem] bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 h-[calc(100vh-8rem)] lg:h-auto ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
-        <div className="p-4 lg:p-6 border-b border-[#252830] shrink-0">
-          <div className="flex justify-between items-center mb-3 lg:mb-4">
-            <h3 className="font-[Outfit] font-bold text-base lg:text-lg text-white">Pedido Atual</h3>
+      {/* Right - Cart / Order - Maior e completo */}
+      <div className={`w-full lg:w-[30rem] xl:w-[34rem] bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 max-h-[calc(100vh-6rem)] lg:max-h-none ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
+        {/* Header - compacto */}
+        <div className="p-3 lg:p-4 border-b border-[#252830] shrink-0">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-[Outfit] font-bold text-base text-white">Pedido Atual</h3>
             <button 
               onClick={() => setTabPdv('produtos')} 
               className="lg:hidden flex items-center gap-1 text-[#e8391a] text-xs font-bold uppercase transition-all hover:opacity-80"
             >
               <span className="material-symbols-outlined text-sm">arrow_back</span>
-              Continuar Comprando
+              Voltar
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 mb-2">
             {(['balcao', 'entrega', 'mesa'] as const).map(t => (
-              <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-2 lg:py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
+              <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-1.5 lg:py-2 rounded-md text-[10px] lg:text-xs font-bold uppercase transition-all ${tipo === t ? 'bg-[#e8391a] text-white' : 'bg-[#252830] text-gray-400'}`}>{t}</button>
             ))}
           </div>
-          {tipo === 'mesa' && (
-            <input value={mesaNumero} onChange={e => setMesaNumero(e.target.value)} placeholder="Nº Mesa" className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
-          )}
-          {tipo === 'entrega' && (
-            <input value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)} placeholder="Endereço de entrega completo" className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
-          )}
-          <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder={tipo === 'entrega' ? "Nome do cliente *" : "Nome do cliente (Opcional)"} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
-          <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder={tipo === 'entrega' ? "Telefone (WhatsApp) *" : "Telefone (WhatsApp - Opcional)"} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white mt-3" />
+          <div className="grid grid-cols-2 gap-2">
+            {tipo === 'mesa' && (
+              <input value={mesaNumero} onChange={e => setMesaNumero(e.target.value)} placeholder="Nº Mesa" className="col-span-2 bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+            )}
+            {tipo === 'entrega' && (
+              <input value={enderecoEntrega} onChange={e => setEnderecoEntrega(e.target.value)} placeholder="Endereço" className="col-span-2 bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+            )}
+            <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder="Cliente" className="bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+            <input value={clienteTelefone} onChange={e => setClienteTelefone(e.target.value)} placeholder="WhatsApp" className="bg-[#16181f] border border-[#252830] rounded-lg py-1.5 px-2 text-xs text-white" />
+          </div>
         </div>
 
-        {/* Items - com mais espaço para exibição */}
-        <div className="flex-1 p-4 space-y-2 overflow-y-auto min-h-[200px] lg:min-h-[300px]">
+        {/* Items - área principal com scroll */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {itens.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               <span className="material-symbols-outlined text-4xl mb-2 block">shopping_cart</span>
-              <p className="text-sm">Adicione produtos ao pedido</p>
+              <p className="text-sm">Adicione produtos</p>
             </div>
           ) : itens.map(item => (
-            <div key={item.produto.id} className="flex items-center gap-3 bg-[#252830] p-3 rounded-lg">
+            <div key={item.produto.id} className="flex items-center gap-2 bg-[#252830] p-2 rounded-lg">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate text-white">{item.produto.nome}</p>
-                <p className="text-xs text-gray-400">{Number(item.produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p className="text-xs font-bold truncate text-white">{item.produto.nome}</p>
+                <p className="text-[10px] text-gray-400">{Number(item.produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => removeItem(item.produto.id)} className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-white"><span className="material-symbols-outlined text-sm">remove</span></button>
-                <span className="text-sm font-bold w-5 text-center text-white">{item.quantidade}</span>
-                <button onClick={() => addItem(item.produto)} className="w-8 h-8 rounded-lg bg-[#e8391a] flex items-center justify-center text-white"><span className="material-symbols-outlined text-sm">add</span></button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => removeItem(item.produto.id)} className="w-6 h-6 rounded bg-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-white"><span className="material-symbols-outlined text-xs">remove</span></button>
+                <span className="text-xs font-bold w-4 text-center text-white">{item.quantidade}</span>
+                <button onClick={() => addItem(item.produto)} className="w-6 h-6 rounded bg-[#e8391a] flex items-center justify-center text-white"><span className="material-symbols-outlined text-xs">add</span></button>
               </div>
-              <span className="text-sm font-bold w-20 text-right text-white">{(Number(item.produto.preco) * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              <span className="text-xs font-bold text-right text-white min-w-[60px]">{(Number(item.produto.preco) * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
             </div>
           ))}
         </div>
 
         {/* Footer - sempre visível */}
-        <div className="p-4 lg:p-6 border-t border-[#252830] space-y-3 shrink-0">
-          <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2.5 px-3 text-sm text-white">
+        <div className="p-3 lg:p-4 border-t border-[#252830] space-y-2 shrink-0 bg-[#1a1a1a]">
+          <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} className="w-full bg-[#16181f] border border-[#252830] rounded-lg py-2 px-2 text-xs text-white">
             <option value="dinheiro">Dinheiro</option>
             <option value="pix">PIX</option>
             <option value="cartao_credito">Cartão Crédito</option>
             <option value="cartao_debito">Cartão Débito</option>
           </select>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-xs">
             <span className="text-gray-400">Subtotal</span>
             <span className="text-white">{subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
           </div>
-          <div className="flex justify-between items-center text-sm">
+          <div className="flex justify-between items-center text-xs">
             <span className="text-gray-400">Desconto</span>
-            <input type="number" value={desconto || ''} onChange={e => setDesconto(Number(e.target.value))} className="w-20 sm:w-24 text-right bg-transparent border-b border-[#252830] text-sm py-0 text-white" />
+            <input type="number" value={desconto || ''} onChange={e => setDesconto(Number(e.target.value))} className="w-16 text-right bg-transparent border-b border-[#252830] text-xs py-0 text-white" />
           </div>
-          <div className="flex justify-between pt-2 border-t border-[#252830]">
-            <span className="font-bold text-base lg:text-lg text-white">Total</span>
-            <span className="text-xl lg:text-2xl font-[Outfit] font-bold text-[#e8391a]">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          <div className="flex justify-between items-center pt-2 border-t border-[#252830]">
+            <span className="font-bold text-sm text-white">Total</span>
+            <span className="text-lg font-bold text-[#e8391a]">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
           </div>
-          <button onClick={salvarPedido} disabled={itens.length === 0 || salvando} className={`w-full py-3.5 lg:py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${sucesso ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
-            {salvando ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : sucesso ? '✓ Pedido Salvo!' : 'Finalizar Pedido'}
+          <button onClick={salvarPedido} disabled={itens.length === 0 || salvando} className={`w-full py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${sucesso ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
+            {salvando ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : sucesso ? '✓ Salvo!' : 'Finalizar Pedido'}
           </button>
         </div>
       </div>
