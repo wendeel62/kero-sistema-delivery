@@ -229,8 +229,8 @@ export default function CardapioAdminPage() {
         await supabase.from('produtos').insert(produtoData)
       }
 
-      alert(editingProduto ? 'Produto atualizado!' : 'Produto criado!')
       setShowProdutoModal(false)
+      alert(editingProduto ? 'Produto atualizado!' : 'Produto criado!')
       fetchData()
     } catch (error: any) {
       alert(error.message || 'Erro ao salvar produto')
@@ -257,8 +257,8 @@ export default function CardapioAdminPage() {
         await supabase.from('categorias').insert(categoriaData)
       }
 
-      alert(editingCategoria ? 'Categoria atualizada!' : 'Categoria criada!')
       setShowCategoriaModal(false)
+      alert(editingCategoria ? 'Categoria atualizada!' : 'Categoria criada!')
       fetchData()
     } catch (error: any) {
       alert(error.message || 'Erro ao salvar categoria')
