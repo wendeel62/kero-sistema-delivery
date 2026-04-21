@@ -45,7 +45,7 @@ interface ComplementoItem {
 // Icons (using Unicode symbols as fallback)
 const SearchIcon = () => <span className="text-lg">🔍</span>
 const GridIcon = () => <span className="text-lg">▦</span>
-const ListIcon = () = <span className="text-lg">☰</span>
+const ListIcon = () => <span className="text-lg">☰</span>
 const PlusIcon = () => <span className="text-lg font-bold">+</span>
 const EditIcon = () => <span className="text-sm">✏️</span>
 const TrashIcon = () => <span className="text-sm">🗑️</span>
