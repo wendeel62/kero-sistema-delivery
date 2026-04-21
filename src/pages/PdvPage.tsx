@@ -359,7 +359,7 @@ export default function PdvPage() {
       </div>
 
       {/* Right - Cart / Order - Maior e completo */}
-      <div className={`w-full lg:w-[30rem] xl:w-[34rem] bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 max-h-[calc(100vh-6rem)] lg:max-h-none ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`w-full lg:w-[30rem] xl:w-[34rem] bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 h-[calc(100vh-4rem)] lg:h-[calc(100vh-8rem)] ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
         {/* Header - compacto */}
         <div className="p-3 lg:p-4 border-b border-[#252830] shrink-0">
           <div className="flex justify-between items-center mb-2">
