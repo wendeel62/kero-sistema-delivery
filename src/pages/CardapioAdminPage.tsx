@@ -89,7 +89,7 @@ export default function CardapioAdminPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([fetchCategorias(), fetchProdutos(), fetchSabores()])
+      await Promise.all([fetchCategorias(), fetchProdutos(), fetchSabores(), fetchPrecos()])
     }
     loadData()
   }, [])
@@ -353,7 +353,7 @@ export default function CardapioAdminPage() {
           <button onClick={() => { setEditProduto({}); setShowProdutoModal(true) }} className="mb-6 sm:mb-8 w-full sm:w-auto bg-[#e8391a] text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(232,57,26,0.3)] active:scale-95 transition-all">
             <span className="material-symbols-outlined text-lg">add</span> Novo Produto
           </button>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-4">
             {produtos.map(p => (
               <div key={p.id} className={`bg-[#1a1a1a] p-6 rounded-2xl border border-[#252830] hover:border-[#e8391a]/20 transition-all group flex flex-col ${!p.disponivel ? 'opacity-40 grayscale' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
