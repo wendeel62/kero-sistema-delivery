@@ -31,7 +31,7 @@ export default function PdvPage() {
   const [sabor2, setSabor2] = useState<string>('')
   const [filtro, setFiltro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
-  const [tabPdv, setTabPdv] = useState<'mesas' | 'produtos' | 'carrinho'>('produtos')
+  const [tabPdv, setTabPdv] = useState<'carrinho' | 'produtos'>('produtos')
   const [showOcuparMesa, setShowOcuparMesa] = useState(false)
   const [mesaSelecionada, setMesaSelecionada] = useState<Mesa | null>(null)
   const [pessoasMesa, setPessoasMesa] = useState(1)
@@ -257,7 +257,6 @@ export default function PdvPage() {
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-[Outfit] font-bold text-white tracking-tighter">PDV</h2>
           </div>
           <div className="flex bg-[#1a1a1a] rounded-lg sm:rounded-xl p-0.5 sm:p-1 border border-[#252830]">
-            <button onClick={() => setTabPdv('produtos')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Menu</button>
             <button onClick={() => setTabPdv('carrinho')} className={`lg:hidden flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'carrinho' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'} ${cartPulse ? 'scale-110' : ''}`}>
               Carrinho
               {itens.length > 0 && (
