@@ -660,12 +660,13 @@ export default function DashboardPage() {
             {funilSelecionado === 'todas' ? (
               <>
                 {[
+                  { label: 'Mensagens WhatsApp', value: funilData?.whatsapp || 0, color: '#25d366' },
                   { label: 'Visitas Cardápio', value: funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
                   { label: 'Adicionado Carrinho', value: funilData?.addCarrinho || kpis.funnelData.addCarrinho, color: '#ff9800' },
                   { label: 'Checkout Iniciado', value: funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
                   { label: 'Compras Feitas', value: funilData?.compras || kpis.funnelData.compras, color: '#4caf50' }
                 ].map((item, i) => {
-                  const maxValue = Math.max(funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, funilData?.addCarrinho || kpis.funnelData.addCarrinho, funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, funilData?.compras || kpis.funnelData.compras, 1)
+                  const maxValue = Math.max(funilData?.whatsapp || 0, funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, funilData?.addCarrinho || kpis.funnelData.addCarrinho, funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, funilData?.compras || kpis.funnelData.compras, 1)
                   const valorFinal = item.value > 0 ? (item.value / maxValue) * 100 : 0
                   return (
                     <div key={i} className="flex justify-between items-center group">
