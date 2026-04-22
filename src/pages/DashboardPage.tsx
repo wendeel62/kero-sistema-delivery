@@ -277,12 +277,14 @@ export default function DashboardPage() {
       const { data: pedidos } = await supabase
         .from('pedidos')
         .select('id, cliente, total, status, created_at')
+        .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(10)
       
       const { data: pedidosOnline } = await supabase
         .from('pedidos_online')
         .select('id, cliente, total, status, created_at')
+        .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -299,30 +301,45 @@ export default function DashboardPage() {
   const { data: topProdutos = [] as Produto[], isLoading: loadingProdutos } = useQuery({
     queryKey: ['top-produtos', tenantId],
     queryFn: async () => {
+      const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      
       const { data: itensPedido } = await supabase
         .from('itens_pedido')
         .select('produto_id, quantidade, preco')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .eq('tenant_id', tenantId)
+        .gte('created_at', seteDiasAtras)
 
-      const produtoMap: Record<string, { nome: string; totalVendido: number; quantidade: number }> = {}
-
-      if (itensPedido) {
-        for (const item of itensPedido) {
-          if (!produtoMap[item.produto_id]) {
-            const { data: produto } = await supabase
-              .from('produtos')
-              .select('nome')
-              .eq('id', item.produto_id)
-              .maybeSingle()
-            
-            produtoMap[item.produto_id] = {
-              nome: produto?.nome || 'Produto',
-              totalVendido: 0,
-              quantidade: 0
+      // N+1 fix: coletar todos os IDs únicos e buscar produtos em uma única query
+      const produtoIds = [...new Set(itensPedido?.map(item => item.produto_id).filter(Boolean) || [])]
+      
+      let produtoMap: Record<string, { nome: string; totalVendido: number; quantidade: number }> = {}
+      
+      if (produtoIds.length > 0) {
+        const { data: produtos } = await supabase
+          .from('produtos')
+          .select('id, nome')
+          .eq('tenant_id', tenantId)
+          .in('id', produtoIds)
+        
+        // Criar mapa de produtos por ID para acesso O(1)
+        const produtosPorId = (produtos || []).reduce((acc, p) => {
+          acc[p.id] = p.nome
+          return acc
+        }, {} as Record<string, string>)
+        
+        produtoMap = produtoIds.reduce((acc, id) => {
+          acc[id] = { nome: produtosPorId[id] || 'Produto', totalVendido: 0, quantidade: 0 }
+          return acc
+        }, {} as Record<string, { nome: string; totalVendido: number; quantidade: number }>)
+        
+        // Agregar vendas por produto
+        if (itensPedido) {
+          for (const item of itensPedido) {
+            if (produtoMap[item.produto_id]) {
+              produtoMap[item.produto_id].totalVendido += Number(item.preco) * item.quantidade
+              produtoMap[item.produto_id].quantidade += item.quantidade
             }
           }
-          produtoMap[item.produto_id].totalVendido += Number(item.preco) * item.quantidade
-          produtoMap[item.produto_id].quantidade += item.quantidade
         }
       }
 
@@ -351,6 +368,7 @@ export default function DashboardPage() {
         const { data: pedidosDia } = await supabase
           .from('pedidos')
           .select('total')
+          .eq('tenant_id', tenantId)
           .gte('created_at', dataStr)
           .lt('created_at', dataStrProx.toISOString().split('T')[0])
           .neq('status', 'cancelado')
@@ -358,6 +376,7 @@ export default function DashboardPage() {
         const { data: pedidosOnlineDia } = await supabase
           .from('pedidos_online')
           .select('total')
+          .eq('tenant_id', tenantId)
           .gte('created_at', dataStr)
           .lt('created_at', dataStrProx.toISOString().split('T')[0])
           .neq('status', 'cancelado')
@@ -413,8 +432,12 @@ export default function DashboardPage() {
 
   const lojaAberta = configData?.loja_aberta ?? true
 
-  useRealtime('pedidos', () => { refetchKpis() })
-  useRealtime('pedidos_online', () => { refetchKpis() })
+  useRealtime({
+    configs: [
+      { table: 'pedidos', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis() } },
+      { table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis() } }
+    ]
+  })
 
   if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento || loadingConfig) {
     return (

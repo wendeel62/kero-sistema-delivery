@@ -58,7 +58,7 @@ interface Cupom {
   valor: number
   usos_realizados: number
   usos_maximos?: number
-  validade?: string
+  validade_fim?: string
   ativo: boolean
   created_at: string
 }
@@ -98,7 +98,7 @@ export default function ClientesPage() {
       setClientes(updated || [])
     }
     setLoading(false)
-  }, [])
+  }, [tenantId])
 
   const fetchConfig = useCallback(async () => {
     if (!tenantId) return
@@ -118,9 +118,13 @@ export default function ClientesPage() {
     fetchCupons()
   }, [fetchClientes, fetchConfig, fetchCupons])
 
-  useRealtime('clientes', fetchClientes)
-  useRealtime('cupons', fetchCupons)
-  useRealtime('configuracoes', fetchConfig)
+  useRealtime({
+    configs: [
+      { table: 'clientes', filter: `tenant_id=eq.${tenantId}`, callback: fetchClientes },
+      { table: 'cupons', filter: `tenant_id=eq.${tenantId}`, callback: fetchCupons },
+      { table: 'configuracoes', filter: `tenant_id=eq.${tenantId}`, callback: fetchConfig }
+    ]
+  })
 
   const filteredClientes = clientes.filter(c => {
     const matchesSearch = c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -423,7 +427,7 @@ function CuponsContent({ cupons, onUpdate, tenantId }: any) {
                       <td className="p-5 font-black text-primary font-mono tracking-widest text-lg">{c.codigo}</td>
                       <td className="p-5 font-bold text-sm text-on-background">{c.tipo === 'percentual' ? `${c.valor}%` : `R$ ${c.valor.toFixed(2)}`}</td>
                       <td className="p-5 text-sm font-medium text-on-background">{c.usos_realizados} <span className="text-on-surface-variant font-normal">/ {c.usos_maximos || '∞'}</span></td>
-                      <td className="p-5 text-xs font-semibold text-on-surface-variant">{c.validade ? format(new Date(c.validade), 'dd MMM yyyy', { locale: ptBR }) : '---'}</td>
+                      <td className="p-5 text-xs font-semibold text-on-surface-variant">{c.validade_fim ? format(new Date(c.validade_fim), 'dd MMM yyyy', { locale: ptBR }) : '---'}</td>
                       <td className="p-5">
                          <button 
                             type="button"
@@ -454,7 +458,7 @@ function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
       tipo: cupom?.tipo || 'percentual',
       valor: cupom?.valor || 0,
       uso_maximo: cupom?.uso_maximo || undefined,
-      validade: cupom?.validade || ''
+      validade_fim: cupom?.validade_fim || ''
     }
   })
 
@@ -505,11 +509,11 @@ function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
                    <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Limite total de usos</span>
                    <input type="number" placeholder="Vazio = ilimitado" {...register('uso_maximo', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
                 </label>
-                <label>
-                   <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Data de Validade</span>
-                   <input type="date" {...register('validade')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
-                   {errors.validade && <span className="text-red-400 text-xs mt-1 block">{errors.validade.message as string}</span>}
-                </label>
+<label>
+                    <span className="text-[10px] font-bold uppercase text-white/50 ml-1">Data de Validade</span>
+                    <input type="date" {...register('validade_fim')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-xl py-4 px-4 mt-1 text-sm text-white outline-none"/>
+                    {errors.validade_fim && <span className="text-red-400 text-xs mt-1 block">{errors.validade_fim.message as string}</span>}
+                 </label>
              </div>
           </form>
           <div className="p-8 bg-[#0c0e15] flex justify-end gap-4">

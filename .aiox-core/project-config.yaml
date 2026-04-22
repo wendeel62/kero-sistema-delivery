@@ -1,0 +1,169 @@
+# AIOX Framework Project Configuration (Level 2)
+# Team-shared project settings that override core-config.yaml defaults
+# See: .aiox-core/core/config/schemas/project-config.schema.json
+
+project:
+  type: BROWNFIELD
+  installed_at: '2026-04-18T12:19:16-04:00'
+  version: 2.1.0
+
+documentation_paths:
+  qa_dir: docs/qa
+  prd_file: docs/prd.md
+  prd_version: v4
+  prd_sharded: true
+  prd_sharded_location: docs/prd
+  architecture_file: docs/architecture.md
+  architecture_version: v4
+  architecture_sharded: true
+  architecture_sharded_location: docs/architecture
+  stories_dir: docs/stories
+  dev_debug_log: .ai/debug-log.md
+  slash_prefix: AIOX
+  custom_technical_documents: null
+  dev_load_always_files:
+    - docs/framework/coding-standards.md
+    - docs/framework/tech-stack.md
+    - docs/framework/source-tree.md
+  dev_load_always_files_fallback:
+    - docs/architecture/padroes-de-codigo.md
+    - docs/architecture/pilha-tecnologica.md
+    - docs/architecture/arvore-de-origem.md
+
+github_integration:
+  enabled: true
+  cli_required: true
+  features:
+    pr_creation: true
+    issue_management: true
+  pr:
+    title_format: '[#{id}] {title}'
+    include_story_id: true
+    conventional_commits:
+      enabled: true
+      branch_type_map:
+        feat: feature
+        fix: bugfix
+        docs: documentation
+        style: style
+        refactor: refactor
+        perf: performance
+        test: test
+        chore: chore
+      default_type: feat
+    auto_assign_reviewers: false
+    draft_by_default: false
+  semantic_release:
+    enabled: false
+
+coderabbit_integration:
+  enabled: false
+  self_healing:
+    enabled: false
+    type: light
+    max_iterations: 3
+    timeout_minutes: 30
+  severity_handling:
+    CRITICAL: auto_fix
+    HIGH: document_as_debt
+    MEDIUM: document_as_debt
+    LOW: ignore
+  graceful_degradation:
+    skip_if_not_installed: true
+    fallback_message: "CodeRabbit not installed - skipping automated review"
+  report_location: .aiox/coderabbit-reports
+
+squads:
+  template_location: .aiox-core/product/templates
+  auto_load: true
+
+logging:
+  decision_logging:
+    enabled: true
+    async: true
+    location: .ai/
+    index_file: decision-logs-index.md
+    format: adr
+    performance:
+      max_overhead: 50
+  project_status:
+    enabled: true
+    auto_load_on_agent_activation: true
+    show_in_greeting: true
+    cache_time_seconds: 60
+    components:
+      git_branch: true
+      git_status: true
+      recent_work: true
+      current_epic: true
+      current_story: true
+    status_file: .aiox/project-status.yaml
+    max_modified_files: 5
+    max_recent_commits: 2
+  agent_identity:
+    greeting:
+      context_detection: true
+      session_detection: hybrid
+      workflow_detection: hardcoded
+      performance:
+        git_check_cache: true
+        git_check_ttl: 300
+
+story_backlog:
+  enabled: true
+  location: docs/stories
+  prioritization: wsjf
+
+pv_mind_context:
+  enabled: true
+  location: outputs/minds
+  features:
+    persona_voice: true
+    technical_depth: detailed
+    communication_style: professional
+
+auto_claude:
+  enabled: false
+  version: 1.0.0
+  migrated_at: '2026-04-18T12:19:16-04:00'
+  worktree:
+    enabled: true
+    auto_create: feature
+    auto_cleanup: merged
+    max_worktrees: 5
+    stale_days: 7
+    branch_prefix: feature/
+  spec_pipeline:
+    enabled: true
+  execution:
+    enabled: true
+  qa:
+    enabled: true
+
+boundary:
+  frameworkProtection: true
+  protected:
+    - .aiox-core/core/**
+    - .aiox-core/development/tasks/**
+    - .aiox-core/development/templates/**
+    - .aiox-core/development/checklists/**
+    - .aiox-core/development/workflows/**
+    - .aiox-core/infrastructure/**
+    - .aiox-core/constitution.md
+    - bin/aiox.js
+    - bin/aiox-init.js
+  exceptions:
+    - .aiox-core/data/**
+    - .aiox-core/development/agents/*/MEMORY.md
+    - .aiox-core/core/config/schemas/**
+    - .aiox-core/core/config/template-overrides.js
+
+template_overrides:
+  story:
+    sections_order: null
+    optional_sections:
+      - acceptance_criteria
+      - technical_notes
+      - design_considerations
+      - risico_mitigation
+      - dependencies

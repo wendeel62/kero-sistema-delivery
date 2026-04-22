@@ -1,73 +1,70 @@
-# React + TypeScript + Vite
+# Kero - Sistema de Gestão para Lanchonetes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Visão Geral
 
-Currently, two official plugins are available:
+Kero é um sistema completo de gestão para lanchonetes e restaurantes, desenvolvido com React, TypeScript, Supabase e Edge Functions. Inclui PDV, Dashboard, Controle de Estoque, Financeiro, Cardápio Online e mais.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Tech Stack
 
-## React Compiler
+- **Frontend**: React 19, TypeScript, Vite, TailwindCSS
+- **Backend**: Supabase (PostgreSQL + Edge Functions)
+- **Estado**: React Query + Context API
+- **Autenticação**: Supabase Auth (JWT + RBAC multi-tenant)
+- **Testes**: Vitest + React Testing Library
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Funcionalidades
 
-## Expanding the ESLint configuration
+- 📊 Dashboard com métricas em tempo real
+- 🏪 PDV (Ponto de Venda)
+- 📦 Controle de Estoque
+- 💰 Financeiro
+- 🛒 Cardápio Online
+- 📱 Entregas
+- 👨‍🍳 Área da Cozinha
+- ⚙️ Configurações
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```bash
+# Instalar dependências
+npm install
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Iniciar desenvolvimento
+npm run dev
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Executar testes
+npm run test
+
+# Build para produção
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Estrutura do Projeto
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── components/    # Componentes React
+├── contexts/     # React Contexts
+├── hooks/        # Hooks customizados
+├── lib/          # Utilitários
+├── pages/        # Páginas
+├── schemas/      # Zod schemas
+├── constants/   # Constantes
+└── test/         # Testes
+```
+
+## Variáveis de Ambiente
+
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+
+## Documentação
+
+- [src/README.md](./src/README.md) - Estrutura do código
+- [PLANO_DE_TRABALHO_KERO/](./PLANO_DE_TRABALHO_KERO/) - Plano de correções
+
+## Licença
+
+MIT

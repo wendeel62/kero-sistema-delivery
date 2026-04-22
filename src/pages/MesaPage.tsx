@@ -61,7 +61,7 @@ export default function MesaPage() {
       })
       setPrecosTamanho(grouped)
     }
-  }, [numero])
+  }, [numero, tenantId])
 
   useEffect(() => { fetchData() }, [fetchData])
 

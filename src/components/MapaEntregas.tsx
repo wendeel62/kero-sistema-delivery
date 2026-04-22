@@ -153,36 +153,21 @@ function AnimatedMarkerComponent({
 }) {
   const markerRef = useRef<L.Marker>(null)
   const animationRef = useRef<number | null>(null)
-  const currentPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
+  // Usar estado para renderização segura
+  const [displayPosition, setDisplayPosition] = useState<{ lat: number; lng: number }>({ 
+    lat: motoboy.latitude || 0, 
+    lng: motoboy.longitude || 0 
+  })
   const targetPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
-  const animateFnRef = useRef<(() => void) | null>(null)
 
   const animateMarker = useCallback(() => {
     if (!markerRef.current) return;
 
-    const current = currentPosition.current
     const target = targetPosition.current
     
-    const latDiff = target.lat - current.lat
-    const lngDiff = target.lng - current.lng
-    
-    if (Math.abs(latDiff) < 0.00001 && Math.abs(lngDiff) < 0.00001) {
-      currentPosition.current = { ...target }
-      markerRef.current.setLatLng([target.lat, target.lng])
-      return
-    }
-
-    const step = 1 / 60
-    const newLat = current.lat + latDiff * step
-    const newLng = current.lng + lngDiff * step
-
-    currentPosition.current = { lat: newLat, lng: newLng }
-    markerRef.current.setLatLng([newLat, newLng])
-
-    animationRef.current = requestAnimationFrame(animateFnRef.current!)
+    markerRef.current.setLatLng([target.lat, target.lng])
+    setDisplayPosition({ ...target })
   }, [])
-
-  animateFnRef.current = animateMarker
 
   useEffect(() => {
     if (motoboy.latitude !== null && motoboy.longitude !== null) {
@@ -218,7 +203,7 @@ function AnimatedMarkerComponent({
   return (
     <Marker
       ref={markerRef}
-      position={[currentPosition.current.lat, currentPosition.current.lng]}
+      position={[displayPosition.lat, displayPosition.lng]}
       icon={createMotoboyIcon(motoboy.status)}
     >
       <Popup className="motoboy-popup">

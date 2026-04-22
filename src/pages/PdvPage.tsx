@@ -70,13 +70,17 @@ export default function PdvPage() {
       })
       setPrecosTamanho(grouped)
     }
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     fetchData()
-  }, [])
-  useRealtime('produtos', fetchData)
-  useRealtime('mesas', fetchData)
+  }, [fetchData])
+  useRealtime({
+    configs: [
+      { table: 'produtos', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
+      { table: 'mesas', filter: `tenant_id=eq.${tenantId}`, callback: fetchData }
+    ]
+  })
 
   const ocuparMesa = async () => {
     if (!mesaSelecionada) return
@@ -248,7 +252,7 @@ export default function PdvPage() {
   }
 
   return (
-    <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] lg:h-[calc(100vh-8rem)] p-2 sm:p-3 lg:p-6 overflow-hidden">
+    <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] p-2 sm:p-3 lg:p-6">
       {/* Left - Product Grid / Mesas */}
       <div className={`flex-1 flex flex-col min-w-0 ${tabPdv === 'carrinho' ? 'hidden lg:flex' : 'flex'}`}>
         <div className="mb-3 lg:mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3">
@@ -359,7 +363,7 @@ export default function PdvPage() {
       </div>
 
       {/* Right - Cart / Order */}
-      <div className={`w-full lg:w-96 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`w-full lg:flex-1 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
         <div className="p-4 lg:p-6 border-b border-[#252830]">
           <div className="flex justify-between items-center mb-3 lg:mb-4">
             <h3 className="font-[Outfit] font-bold text-base lg:text-lg text-white">Pedido Atual</h3>
@@ -387,7 +391,7 @@ export default function PdvPage() {
         </div>
 
         {/* Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="p-4 space-y-2">
           {itens.length === 0 ? (
             <div className="text-center text-gray-500 py-12">
               <span className="material-symbols-outlined text-4xl mb-2 block">shopping_cart</span>

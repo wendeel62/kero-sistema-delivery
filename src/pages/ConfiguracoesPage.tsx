@@ -86,7 +86,11 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     fetchConfig()
   }, [])
-  useRealtime('configuracoes', fetchConfig)
+  useRealtime({
+    configs: [
+      { table: 'configuracoes', filter: `tenant_id=eq.${user?.id}`, callback: fetchConfig }
+    ]
+  })
 
   const update = (key: keyof Config, value: unknown) => {
     if (config) {

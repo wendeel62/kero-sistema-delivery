@@ -48,7 +48,30 @@ Deno.serve(async (req) => {
 
     console.log('[AdminMetrics] Acesso autorizado. Iniciando consultas...')
 
-    // 3. Garantir tabelas auxiliares existam
+    // 3. Extrair filtro de tenant_id da query string
+    const url = new URL(req.url)
+    const tenantIdFilter = url.searchParams.get('tenant_id')
+
+    // Validar tenant_id se fornecido
+    let validTenantId: string | null = null
+    if (tenantIdFilter) {
+      // Verificar se o tenant existe e pertence ao admin
+      const { data: tenantConfig, error: tenantError } = await supabaseAdmin
+        .from('configuracoes')
+        .select('id')
+        .eq('id', tenantIdFilter)
+        .single()
+      
+      if (tenantError || !tenantConfig) {
+        return new Response(JSON.stringify({ error: 'Tenant não encontrado' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      validTenantId = tenantIdFilter
+      console.log(`[AdminMetrics] Filtrando por tenant_id: ${validTenantId}`)
+    }
+
+    // 4. Garantir tabelas auxiliares existam
     try {
       await supabaseAdmin.rpc('exec_sql', {
         sql: `
@@ -83,11 +106,17 @@ Deno.serve(async (req) => {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()
 
-    // 4. Consultas de Tenants
+    // 5. Consultas de Tenants
     console.log('[AdminMetrics] Consultando configuracoes...')
-    const { data: configs, error: configError } = await supabaseAdmin
+    let configsQuery = supabaseAdmin
       .from('configuracoes')
       .select('id, created_at')
+    
+    if (validTenantId) {
+      configsQuery = configsQuery.eq('id', validTenantId)
+    }
+    
+    const { data: configs, error: configError } = await configsQuery
     
     if (configError) throw new Error(`Erro configuracoes: ${configError.message}`)
 
@@ -100,10 +129,16 @@ Deno.serve(async (req) => {
 
     // Tenants inativos (sem pedidos nos últimos 7 dias)
     console.log('[AdminMetrics] Consultando pedidos recentes...')
-    const { data: recentOrders, error: ordersError } = await supabaseAdmin
+    let recentOrdersQuery = supabaseAdmin
       .from('pedidos')
-      .select('tenant_id')
+      .select('tenant_id, created_at')
       .gte('created_at', sevenDaysAgo)
+    
+    if (validTenantId) {
+      recentOrdersQuery = recentOrdersQuery.eq('tenant_id', validTenantId)
+    }
+    
+    const { data: recentOrders, error: ordersError } = await recentOrdersQuery
     
     if (ordersError) throw new Error(`Erro pedidos: ${ordersError.message}`)
 
@@ -136,11 +171,17 @@ Deno.serve(async (req) => {
     const revenueByPlan: Record<string, number> = { basic: 0, pro: 0, premium: 0 }
 
     // 6. Receita hoje
-    const { data: pedidosHoje, error: hojeError } = await supabaseAdmin
+    let pedidosHojeQuery = supabaseAdmin
       .from('pedidos')
-      .select('total')
+      .select('total, status')
       .gte('created_at', today)
       .neq('status', 'cancelado')
+    
+    if (validTenantId) {
+      pedidosHojeQuery = pedidosHojeQuery.eq('tenant_id', validTenantId)
+    }
+    
+    const { data: pedidosHoje, error: hojeError } = await pedidosHojeQuery
     
     if (hojeError) throw new Error(`Erro pedidos hoje: ${hojeError.message}`)
 
@@ -148,10 +189,16 @@ Deno.serve(async (req) => {
 
     // 7. AI Usage
     console.log('[AdminMetrics] Consultando AI logs...')
-    const { data: aiLogsMonth, error: aiError } = await supabaseAdmin
+    let aiLogsQuery = supabaseAdmin
       .from('ai_usage_logs')
       .select('provider, status, tokens_used, created_at')
       .gte('created_at', startOfMonth)
+    
+    if (validTenantId) {
+      aiLogsQuery = aiLogsQuery.eq('tenant_id', validTenantId)
+    }
+    
+    const { data: aiLogsMonth, error: aiError } = await aiLogsQuery
     
     if (aiError) console.warn('[AdminMetrics] Erro ao carregar AI logs (tabela pode estar vazia):', aiError.message)
 
@@ -167,14 +214,23 @@ Deno.serve(async (req) => {
     const geminiTokens = geminiMonth.reduce((s, l) => s + (l.tokens_used || 0), 0)
 
     // 8. Platform metrics
-    const { data: todayOrders } = await supabaseAdmin
+    let todayOrdersQuery = supabaseAdmin
       .from('pedidos')
-      .select('total, canal')
+      .select('total, canal, status')
       .gte('created_at', today)
-    const { data: monthOrders } = await supabaseAdmin
+    
+    let monthOrdersQuery = supabaseAdmin
       .from('pedidos')
-      .select('total, canal')
+      .select('total, canal, status')
       .gte('created_at', startOfMonth)
+    
+    if (validTenantId) {
+      todayOrdersQuery = todayOrdersQuery.eq('tenant_id', validTenantId)
+      monthOrdersQuery = monthOrdersQuery.eq('tenant_id', validTenantId)
+    }
+    
+    const { data: todayOrders } = await todayOrdersQuery
+    const { data: monthOrders } = await monthOrdersQuery
 
     const allTodayOrders = todayOrders || []
     const allMonthOrders = monthOrders || []
@@ -191,11 +247,17 @@ Deno.serve(async (req) => {
     const topChannel = Object.entries(canalCount).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
 
     // 9. Error logs
-    const { data: errorLogs, error: logErrors } = await supabaseAdmin
+    let errorLogsQuery = supabaseAdmin
       .from('error_logs')
       .select('id, tenant_id, message, context, created_at')
       .order('created_at', { ascending: false })
       .limit(20)
+    
+    if (validTenantId) {
+      errorLogsQuery = errorLogsQuery.eq('tenant_id', validTenantId)
+    }
+    
+    const { data: errorLogs, error: logErrors } = await errorLogsQuery
     
     if (logErrors) console.warn('[AdminMetrics] Erro ao carregar logs de erro:', logErrors.message)
 
