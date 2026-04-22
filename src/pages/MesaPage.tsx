@@ -77,9 +77,10 @@ export default function MesaPage() {
 
   const handleAddToCart = (p: Produto) => {
     const precosProduto = precosTamanho[p.id]
-    if (precosProduto && precosProduto.length > 0) {
+    // Se tem variantes de tamanho OU produto não tem preço, abre modal para selecionar tamanho
+    if ((precosProduto && precosProduto.length > 0) || !p.preco || Number(p.preco) === 0) {
       setProdutoSelecionado(p)
-      setTamanhoSelecionado(precosProduto[0].tamanho)
+      setTamanhoSelecionado(precosProduto?.[0]?.tamanho || '')
       setTipoPizza('inteiro')
       setSabor1('')
       setSabor2('')
@@ -337,8 +338,9 @@ export default function MesaPage() {
 
             <button 
               onClick={() => {
+                // Pega preço do tamanho ou do produto
                 const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
-                const preco = precoTamanho ? Number(precoTamanho.preco) : 0
+                const preco = precoTamanho ? Number(precoTamanho.preco) : (Number(produtoSelecionado.preco) || 0)
                 addToCart(produtoSelecionado, preco, tamanhoSelecionado)
               }}
               disabled={(tipoPizza === 'inteiro' && !sabor1 && sabores.length > 0) || (tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}

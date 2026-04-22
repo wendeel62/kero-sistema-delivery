@@ -107,10 +107,13 @@ export default function PdvPage() {
   }, [])
 
   const addItem = (p: Produto) => {
+    console.log('addItem called:', p.nome, 'preco:', p.preco, 'variants:', precosTamanho[p.id])
     const variants = precosTamanho[p.id]
-    if (variants && variants.length > 0) {
+    
+    // Se tem variantes de tamanho OU produto não tem preço, abre modal para selecionar tamanho
+    if ((variants && variants.length > 0) || !p.preco || Number(p.preco) === 0) {
       setProdutoSelecionado(p)
-      setTamanhoSelecionado(variants[0].tamanho)
+      setTamanhoSelecionado(variants?.[0]?.tamanho || '')
       setTipoPizza('inteiro')
       setSabor1('')
       setSabor2('')
@@ -118,7 +121,8 @@ export default function PdvPage() {
       return
     }
     
-    addToCart(p, Number(p.preco) || 0)
+    // Tem preço específico, adiciona direto
+    addToCart(p, Number(p.preco))
   }
 
   const addToCart = (p: Produto, preco: number, tamanho?: string, s1?: string, s2?: string, tipo?: 'inteiro' | 'meio-a-meio') => {
@@ -344,21 +348,27 @@ export default function PdvPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-3 overflow-y-auto flex-1 pb-4 custom-scrollbar pr-2 pt-1">
-          {filteredProdutos.map(p => {
+          {filteredProdutos.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <span className="material-symbols-outlined text-4xl mb-2 block">inventory_2</span>
+              <p className="text-sm">Nenhum produto encontrado</p>
+              <p className="text-xs mt-1">Cadastre produtos no Cardápio Admin</p>
+            </div>
+          ) : filteredProdutos.map(p => {
              // Buscar preço mínimo se houver variações
              const preco = precosTamanho[p.id]?.length 
                ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco)))
                : Number(p.preco)
 
              return (
-               <ProductCard 
-                 key={p.id}
-                 produto={p}
-                 preco={preco}
-                 onAddToCart={() => addItem(p)}
-               />
-             )
-          })}
+                <ProductCard 
+                  key={p.id}
+                  produto={p}
+                  preco={preco}
+                  onAddToCart={() => addItem(p)}
+                />
+              )
+           })}
         </div>
       </div>
 
@@ -573,20 +583,22 @@ export default function PdvPage() {
                </div>
              </div>
 
-             <div className="flex gap-3 mt-8">
-               <button onClick={() => setShowVariacoesModal(false)} className="flex-1 py-3.5 rounded-xl border border-[#252830] text-gray-400 font-bold text-sm">Cancelar</button>
-               <button 
-                 onClick={() => {
-                   const pt = precosTamanho[produtoSelecionado.id]?.find(x => x.tamanho === tamanhoSelecionado)
-                   const preco = pt ? Number(pt.preco) : 0
-                   addToCart(produtoSelecionado, preco, tamanhoSelecionado, sabor1, sabor2, tipoPizza)
-                 }}
-                 disabled={(tipoPizza === 'inteiro' && !sabor1 && sabores.length > 0) || (tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
-                 className="flex-1 py-3.5 rounded-xl bg-[#e8391a] text-white font-bold text-sm disabled:opacity-50"
-               >
-                 Adicionar
-               </button>
-             </div>
+              <div className="flex gap-3 mt-8">
+                <button onClick={() => setShowVariacoesModal(false)} className="flex-1 py-3.5 rounded-xl border border-[#252830] text-gray-400 font-bold text-sm">Cancelar</button>
+                <button 
+                  onClick={() => {
+                    // Primeiro tenta pegar o preço do tamanho selecionado
+                    const pt = precosTamanho[produtoSelecionado.id]?.find(x => x.tamanho === tamanhoSelecionado)
+                    // Se encontrou preço do tamanho, usa; senão usa o preço do produto
+                    const preco = pt ? Number(pt.preco) : (Number(produtoSelecionado.preco) || 0)
+                    addToCart(produtoSelecionado, preco, tamanhoSelecionado, sabor1, sabor2, tipoPizza)
+                  }}
+                  disabled={(tipoPizza === 'inteiro' && !sabor1 && sabores.length > 0) || (tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
+                  className="flex-1 py-3.5 rounded-xl bg-[#e8391a] text-white font-bold text-sm disabled:opacity-50"
+                >
+                  Adicionar
+                </button>
+              </div>
            </div>
          </div>
        )}
