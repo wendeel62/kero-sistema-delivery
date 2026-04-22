@@ -120,9 +120,13 @@ export default function FinanceiroPage() {
     fetchData()
   }, [fetchData])
 
-  useRealtime('pedidos', fetchData)
-  useRealtime('contas_pagar', fetchData)
-  useRealtime('caixa', fetchData)
+  useRealtime({
+    configs: [
+      { table: 'pedidos', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
+      { table: 'contas_pagar', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
+      { table: 'caixa', filter: `tenant_id=eq.${tenantId}`, callback: fetchData }
+    ]
+  })
 
   const kpis = {
     faturamento: faturamentoTotal,

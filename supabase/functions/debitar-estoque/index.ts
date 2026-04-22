@@ -1,4 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://esm.sh/zod@3'
+
+const DebitarEstoqueInputSchema = z.object({
+  pedido_id: z.string().uuid('pedido_id deve ser um UUID válido'),
+  tenant_id: z.string().uuid('tenant_id deve ser um UUID válido'),
+})
+
+type DebitarEstoqueInput = z.infer<typeof DebitarEstoqueInputSchema>
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,13 +19,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { pedido_id, tenant_id } = await req.json()
+    const body = await req.json()
+    const parsedInput = DebitarEstoqueInputSchema.safeParse(body)
     
-    if (!pedido_id || !tenant_id) {
-      return new Response(JSON.stringify({ success: false, error: 'pedido_id e tenant_id sao obrigatorios' }), {
+    if (!parsedInput.success) {
+      const errors = parsedInput.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+      return new Response(JSON.stringify({ success: false, error: 'Validacao falhou', detalhes: errors }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    const { pedido_id, tenant_id } = parsedInput.data
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,

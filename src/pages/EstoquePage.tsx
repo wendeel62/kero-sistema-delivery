@@ -54,8 +54,12 @@ export default function EstoquePage() {
     fetchData()
   }, [fetchData])
 
-  useRealtime('ingredientes', fetchData)
-  useRealtime('fornecedores', fetchData)
+  useRealtime({
+  configs: [
+    { table: 'ingredientes', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
+    { table: 'fornecedores', filter: `tenant_id=eq.${tenantId}`, callback: fetchData }
+  ]
+})
 
   const filteredIngredientes = ingredientes.filter(i => 
     i.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -549,30 +553,30 @@ function InsumoModal({ data, onClose, onSave }: any) {
    const tenantId = user?.id
    const [saving, setSaving] = useState(false)
 
-   const { register, handleSubmit, formState: { errors } } = useForm({
-     resolver: zodResolver(ingredienteSchema),
-     defaultValues: {
-       nome: data?.nome || '',
-       unidade: data?.unidade || 'un',
-       quantidade_atual: data?.estoque_atual || 0,
-       quantidade_minima: data?.estoque_minimo || 0,
-       custo_unitario: data?.custo_medio || 0,
-       categoria: data?.categoria || ''
-     }
-   })
+const { register, handleSubmit, formState: { errors } } = useForm({
+      resolver: zodResolver(ingredienteSchema),
+      defaultValues: {
+        nome: data?.nome || '',
+        unidade: data?.unidade || 'un',
+        estoque_atual: data?.estoque_atual || 0,
+        estoque_minimo: data?.estoque_minimo || 0,
+        custo_medio: data?.custo_medio || 0,
+        categoria: data?.categoria || ''
+      }
+    })
 
-   const onSubmit = async (formData: any) => {
-     setSaving(true)
-     const payload = {
-       nome: formData.nome,
-       unidade: formData.unidade,
-       estoque_atual: formData.quantidade_atual,
-       estoque_minimo: formData.quantidade_minima,
-       estoque_critico: Math.floor(formData.quantidade_minima * 0.5),
-       custo_medio: formData.custo_unitario,
-       categoria: formData.categoria,
-       tenant_id: tenantId
-     }
+const onSubmit = async (formData: any) => {
+      setSaving(true)
+      const payload = {
+        nome: formData.nome,
+        unidade: formData.unidade,
+        estoque_atual: formData.estoque_atual,
+        estoque_minimo: formData.estoque_minimo,
+        estoque_critico: Math.floor(formData.estoque_minimo * 0.5),
+        custo_medio: formData.custo_medio,
+        categoria: formData.categoria,
+        tenant_id: tenantId
+      }
      if (data?.id) {
        await supabase.from('ingredientes').update(payload).eq('id', data.id).eq('tenant_id', tenantId)
      } else {
@@ -611,16 +615,16 @@ function InsumoModal({ data, onClose, onSave }: any) {
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Categoria</span>
                   <input type="text" {...register('categoria')} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none focus:border-[#e8391a] text-white"/>
                </label>
-               <label>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Qtd Mínima</span>
-                  <input type="number" step="0.01" {...register('quantidade_minima', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
-                  {errors.quantidade_minima && <span className="text-red-400 text-xs mt-1 block">{errors.quantidade_minima.message as string}</span>}
-               </label>
-               <label>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Custo Unit.</span>
-                  <input type="number" step="0.01" {...register('custo_unitario', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
-                  {errors.custo_unitario && <span className="text-red-400 text-xs mt-1 block">{errors.custo_unitario.message as string}</span>}
-               </label>
+<label>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Qtd Mínima</span>
+                   <input type="number" step="0.01" {...register('estoque_minimo', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
+                   {errors.estoque_minimo && <span className="text-red-400 text-xs mt-1 block">{errors.estoque_minimo.message as string}</span>}
+                </label>
+                <label>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Custo Unit.</span>
+                   <input type="number" step="0.01" {...register('custo_medio', { valueAsNumber: true })} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white"/>
+                   {errors.custo_medio && <span className="text-red-400 text-xs mt-1 block">{errors.custo_medio.message as string}</span>}
+                </label>
             </form>
             <div className="p-8 bg-[#0c0e15] flex justify-end gap-4 rounded-b-[2.5rem]">
                <button onClick={onClose} className="px-6 py-2 text-xs font-black uppercase tracking-widest text-white/60">Cancelar</button>

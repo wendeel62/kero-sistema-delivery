@@ -158,13 +158,24 @@ export default function EntregasPage() {
 
     const { data: entregasData } = await query
     if (entregasData) {
-      const entregasCompletas = await Promise.all(
-        entregasData.map(async (e) => {
-          const { data: pedido } = await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total').eq('tenant_id', tenantId).eq('id', e.pedido_id).single()
-          const motoboy = motoboys.find(m => m.id === e.motoboy_id)
-          return { ...e, pedido, motoboy }
-        })
-      )
+      // Coletar todos os pedido_ids para evitar N+1
+      const pedidoIds = [...new Set(entregasData.map(e => e.pedido_id).filter(Boolean))]
+      
+      // Query única para buscar todos os pedidos de uma vez
+      const { data: pedidosData } = pedidoIds.length > 0
+        ? await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total').eq('tenant_id', tenantId).in('id', pedidoIds)
+        : { data: [] }
+      
+      // Criar mapa para acesso O(1)
+      const pedidosMap = new Map(pedidosData?.map(p => [p.id, p]) || [])
+      
+      // Montar entregas sem fazer mais queries
+      const entregasCompletas = entregasData.map(e => ({
+        ...e,
+        pedido: pedidosMap.get(e.pedido_id),
+        motoboy: motoboys.find(m => m.id === e.motoboy_id)
+      }))
+      
       setEntregasHistorico(entregasCompletas as Entrega[])
     }
   }, [filtroPeriodo, filtroMotoboy, dataInicio, dataFim, motoboys, tenantId])
@@ -209,7 +220,7 @@ export default function EntregasPage() {
 
     todasConcluidas.sort((a, b) => { const dateA = a.entregue_em || a.created_at; const dateB = b.entregue_em || b.created_at; return new Date(dateB).getTime() - new Date(dateA).getTime() })
     setEntregasConcluidas(todasConcluidas.slice(0, 20))
-  }, [motoboys])
+  }, [motoboys, tenantId])
 
   useEffect(() => { fetchMotoboys() }, [fetchMotoboys])
   useEffect(() => { if (motoboys.length > 0 || activeTab === 'ativas') { fetchEntregasAtivas(); fetchEntregasConcluidas() } }, [motoboys, activeTab, fetchEntregasAtivas, fetchEntregasConcluidas])

@@ -217,13 +217,25 @@ export default function PedidosPage() {
     enabled: !!tenantId
   })
 
-  useRealtime('pedidos', () => {
-    playAlertSound()
-    queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
-  })
-  useRealtime('pedidos_online', () => {
-    playAlertSound()
-    queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+  useRealtime({
+    configs: [
+      { 
+        table: 'pedidos', 
+        filter: `tenant_id=eq.${tenantId}`, 
+        callback: () => {
+          playAlertSound()
+          queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+        } 
+      },
+      { 
+        table: 'pedidos_online', 
+        filter: `tenant_id=eq.${tenantId}`, 
+        callback: () => {
+          playAlertSound()
+          queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+        } 
+      }
+    ]
   })
 
   const fetchMotoboysDisponiveis = async () => {

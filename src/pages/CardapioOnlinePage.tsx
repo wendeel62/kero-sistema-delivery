@@ -160,7 +160,11 @@ export default function CardapioOnlinePage() {
     fetchData()
   }, [fetchData])
   
-  useRealtime('produtos', () => fetchData())
+  useRealtime({
+    configs: [
+      { table: 'produtos', filter: `tenant_id=eq.${tenantId}`, callback: () => fetchData() }
+    ]
+  })
 
   // Tracking de eventos para o funil de vendas
   const trackEvent = useCallback(async (tipo: 'visualizacao' | 'add_carrinho' | 'checkout_iniciado' | 'compra', quantidade: number = 1) => {
