@@ -44,7 +44,7 @@ export default function ProductCard({ produto, preco, onAddToCart, onImageClick 
             {preco ? Number(preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Consulte'}
           </span>
           <button 
-            onClick={() => onAddToCart(produto)}
+            onClick={(e) => { console.log('Button clicked for:', produto.nome); onAddToCart(produto) }}
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#e8391a] text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-lg shadow-[#e8391a]/20"
           >
             <span className="material-symbols-outlined font-bold text-lg sm:text-xl!">add</span>

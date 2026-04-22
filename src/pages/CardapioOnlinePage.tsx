@@ -196,9 +196,10 @@ export default function CardapioOnlinePage() {
 
   const handleAddToCart = (p: Produto) => {
     const precosProduto = precosTamanho[p.id]
-    if (precosProduto && precosProduto.length > 0) {
+    // Se tem variantes de tamanho OU o produto não tem preço, abre o modal de tamanhos
+    if ((precosProduto && precosProduto.length > 0) || !p.preco || Number(p.preco) === 0) {
       setProdutoSelecionado(p)
-      setTamanhoSelecionado(precosProduto[0].tamanho)
+      setTamanhoSelecionado(precosProduto?.[0]?.tamanho || '')
       setTipoPizza('inteiro')
       setSabor1('')
       setSabor2('')
@@ -416,7 +417,7 @@ export default function CardapioOnlinePage() {
               {filteredProdutos.map(p => {
                 const preco = precosTamanho[p.id]?.length 
                   ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco)))
-                  : p.preco
+                  : (Number(p.preco) || 0)
                 return (
                   <ProductCard 
                     key={p.id}
@@ -773,7 +774,7 @@ export default function CardapioOnlinePage() {
                 <div className="text-3xl font-black text-white italic tracking-tighter">
                   {(() => {
                     const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
-                    const preco = precoTamanho ? Number(precoTamanho.preco) : 0
+                    const preco = precoTamanho ? Number(precoTamanho.preco) : (Number(produtoSelecionado.preco) || 0)
                     return preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                   })()}
                 </div>
@@ -783,7 +784,7 @@ export default function CardapioOnlinePage() {
             <button 
               onClick={() => {
                 const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
-                const preco = precoTamanho ? Number(precoTamanho.preco) : 0
+                const preco = precoTamanho ? Number(precoTamanho.preco) : (Number(produtoSelecionado.preco) || 0)
                 addToCart(produtoSelecionado, preco, tamanhoSelecionado)
               }}
               disabled={(tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
