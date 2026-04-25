@@ -92,6 +92,10 @@ export default function DashboardPage() {
   const tenantId = user?.user_metadata?.tenant_id || getTenantId()
 
   const [linkCardapio, setLinkCardapio] = useState('')
+  const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
+  const [showFunilDropdown, setShowFunilDropdown] = useState(false)
+  const [receitaDias, setReceitaDias] = useState<number>(7)
+  const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
 
   const { data: kpis = defaultKpis, isLoading: loadingKpis, refetch: refetchKpis } = useQuery({
     queryKey: ['dashboard-kpis', tenantId],
@@ -104,7 +108,7 @@ export default function DashboardPage() {
 
       const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])]
       const validos = allPedidos.filter(p => p.status !== 'cancelado')
-      const entregues = allPedidos.filter(p => p.status === 'entregue')
+      const entregando = allPedidos.filter(p => p.status === 'entregue')
       const abertos = allPedidos.filter(p => !['entregue', 'cancelado'].includes(p.status))
       
       const faturamento = validos.reduce((sum, p) => sum + Number(p.total || 0), 0)
@@ -260,7 +264,7 @@ export default function DashboardPage() {
         avaliacao: avaliacaoMedia,
         totalAvaliacoes: allNpsData.length,
         pedidosAbertos: abertos.length,
-        totalEntregues: entregues.length,
+        totalEntregues: entregando.length,
         receita7Dias: receitaPorDia,
         temposMedios,
         funnelData: { visualizacoes, addCarrinho, checkoutIniciado, compras },
@@ -309,7 +313,6 @@ export default function DashboardPage() {
         .eq('tenant_id', tenantId)
         .gte('created_at', seteDiasAtras)
 
-      // N+1 fix: coletar todos os IDs únicos e buscar produtos em uma única query
       const produtoIds = [...new Set(itensPedido?.map(item => item.produto_id).filter(Boolean) || [])]
       
       let produtoMap: Record<string, { nome: string; totalVendido: number; quantidade: number }> = {}
@@ -321,7 +324,6 @@ export default function DashboardPage() {
           .eq('tenant_id', tenantId)
           .in('id', produtoIds)
         
-        // Criar mapa de produtos por ID para acesso O(1)
         const produtosPorId = (produtos || []).reduce((acc, p) => {
           acc[p.id] = p.nome
           return acc
@@ -332,7 +334,6 @@ export default function DashboardPage() {
           return acc
         }, {} as Record<string, { nome: string; totalVendido: number; quantidade: number }>)
         
-        // Agregar vendas por produto
         if (itensPedido) {
           for (const item of itensPedido) {
             if (produtoMap[item.produto_id]) {
@@ -409,6 +410,87 @@ export default function DashboardPage() {
     enabled: !!tenantId
   })
 
+  const { data: funilData } = useQuery({
+    queryKey: ['funil-tempo-real', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+      
+      const { data: eventosData } = await supabase
+        .from('eventos_jornada')
+        .select('tipo_evento, quantidade')
+        .eq('tenant_id', tenantId)
+        .gte('data', today)
+
+      const eventos = eventosData || []
+      
+      const { data: whatsAppData } = await supabase
+        .from('mensagens_whatsapp')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', today)
+
+      return {
+        visualizacoes: eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0),
+        addCarrinho: eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0),
+        checkoutIniciado: eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0),
+        compras: eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0),
+        whatsapp: whatsAppData?.length || 0
+      }
+    },
+    staleTime: 10000,
+    enabled: !!tenantId,
+    refetchInterval: 10000
+  })
+
+  const { data: receitaData } = useQuery({
+    queryKey: ['receita-por-periodo', tenantId, receitaDias],
+    queryFn: async () => {
+      const now = new Date()
+      const diasAtras = new Date()
+      diasAtras.setDate(now.getDate() - receitaDias)
+      const isoDiasAtras = diasAtras.toISOString().split('T')[0]
+      
+      const { data: pedidosPeriodo } = await supabase
+        .from('pedidos')
+        .select('total, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', isoDiasAtras)
+        .neq('status', 'cancelado')
+
+      const { data: pedidosOnlinePeriodo } = await supabase
+        .from('pedidos_online')
+        .select('total, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', isoDiasAtras)
+        .neq('status', 'cancelado')
+
+      const allPedidosPeriodo = [...(pedidosPeriodo || []), ...(pedidosOnlinePeriodo || [])]
+      
+      const receitaPorDia: number[] = []
+      for (let i = receitaDias - 1; i >= 0; i--) {
+        const data = new Date(now)
+        data.setDate(now.getDate() - i)
+        const dataStr = data.toISOString().split('T')[0]
+        
+        const totalDia = allPedidosPeriodo
+          .filter(p => p.created_at && p.created_at.startsWith(dataStr))
+          .reduce((sum, p) => sum + Number(p.total || 0), 0)
+        
+        receitaPorDia.push(totalDia)
+      }
+
+      const totalReceita = allPedidosPeriodo.reduce((sum, p) => sum + Number(p.total || 0), 0)
+
+      return {
+        receitaPorDia,
+        totalReceita
+      }
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
   const queryClient = useQueryClient()
 
   const { mutate: toggleLoja, isPending: loadingLoja } = useMutation({
@@ -434,8 +516,9 @@ export default function DashboardPage() {
 
   useRealtime({
     configs: [
-      { table: 'pedidos', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis() } },
-      { table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis() } }
+      { table: 'pedidos', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis(); queryClient.invalidateQueries({ queryKey: ['receita-por-periodo', tenantId, receitaDias] }) } },
+      { table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis(); queryClient.invalidateQueries({ queryKey: ['receita-por-periodo', tenantId, receitaDias] }) } },
+      { table: 'eventos_jornada', filter: `tenant_id=eq.${tenantId}`, callback: () => { queryClient.invalidateQueries({ queryKey: ['funil-tempo-real', tenantId] }) } }
     ]
   })
 
@@ -472,7 +555,7 @@ export default function DashboardPage() {
     { id: 'ticketMedio', icon: 'trending_up', label: 'Ticket Médio', value: kpis.ticketMedio, color: '#ff9800', isCurrency: true },
     { id: 'tempoEntrega', icon: 'timer', label: 'Tempo Médio', value: `${kpis.tempoEntrega} min`, color: '#ff9800' },
     { id: 'avaliacao', icon: 'star', label: 'NPS', value: `${kpis.avaliacao.toFixed(1)}`, color: '#ffb74d' },
-    { id: 'visualizacoes', icon: 'visibility', label: 'Visitas Cardápio', value: kpis.visualizacoes, color: '#d32f2f' },
+    { id: 'visualizacoes', icon: 'visibility', label: 'VISITA AO CARDÁPIO AGORA', value: kpis.visualizacoes, color: '#d32f2f' },
   ]
 
   const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -485,7 +568,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
-      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-slide-in-down">
         <div>
           <h1 className="text-3xl lg:text-4xl font-bold font-headline text-on-background tracking-tight">Dashboard</h1>
@@ -516,7 +598,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPIs Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-stagger">
         {kpiData.map((kpi, i) => (
           <div 
@@ -541,36 +622,67 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Receita 7 Dias */}
         <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-on-background">Receita 7 Dias</h3>
+              <h3 className="text-xl font-bold text-on-background">Receita {receitaDias} Dias</h3>
               <p className="text-on-surface-variant text-sm mt-1">Vendas diárias</p>
             </div>
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-xl">bar_chart</span>
+            <div className="relative">
+              <button 
+                onClick={() => setShowReceitaDropdown(!showReceitaDropdown)}
+                className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center hover:bg-primary/20 transition-smooth cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-primary text-xl">bar_chart</span>
+              </button>
+              {showReceitaDropdown && (
+                <div className="absolute top-14 right-0 w-36 bg-surface-container border border-outline rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+                  {[
+                    { dias: 7, label: '7 Dias' },
+                    { dias: 15, label: '15 Dias' },
+                    { dias: 30, label: '30 Dias' }
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.dias}
+                      onClick={() => {
+                        setReceitaDias(opcao.dias)
+                        setShowReceitaDropdown(false)
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-surface-container-high transition-smooth ${
+                        receitaDias === opcao.dias ? 'bg-primary/10 text-primary' : 'text-on-surface'
+                      }`}
+                    >
+                      <span className="text-sm">{opcao.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-2 h-32 items-end">
-            {kpis.receita7Dias.map((valor, i) => (
-              <div key={i} className="flex flex-col items-center group">
+          <div className="flex items-end justify-between gap-1 h-32">
+            {(receitaData?.receitaPorDia || kpis.receita7Dias).map((valor: number, i: number) => (
+              <div key={i} className="flex flex-col items-center group flex-1">
                 <div 
-                  className="w-4 rounded transition-all duration-700 group-hover:shadow-lg group-hover:shadow-primary/50" 
+                  className="w-full rounded transition-all duration-700 group-hover:shadow-lg group-hover:shadow-primary/50 max-w-3" 
                   style={{ 
-                    height: `${(valor / maxReceita) * 100}%`,
-                    background: valor === kpis.receita7Dias[6] ? 'linear-gradient(to top, #d32f2f, #ff5722)' : '#ff9800'
+                    height: `${(valor / (Math.max(...(receitaData?.receitaPorDia || kpis.receita7Dias), 1))) * 100}%`,
+                    background: valor === (receitaData?.receitaPorDia || kpis.receita7Dias)[(receitaData?.receitaPorDia || kpis.receita7Dias).length - 1] ? 'linear-gradient(to top, #d32f2f, #ff5722)' : '#ff9800'
                   }}
                 />
-                <span className="text-xs text-on-surface-variant mt-1">{dias[i]}</span>
               </div>
             ))}
           </div>
+          <div className="flex justify-between mt-2">
+            <span className="text-xs text-on-surface-variant">-{receitaDias}d</span>
+            <span className="text-xs text-on-surface-variant">Hoje</span>
+          </div>
+          <div className="mt-4 pt-4 border-t border-outline flex justify-between items-center">
+            <span className="text-sm text-on-surface-variant">Total {receitaDias} dias</span>
+            <span className="text-lg font-bold text-primary">{formatCurrency(receitaData?.totalReceita || 0)}</span>
+          </div>
         </div>
 
-        {/* Picos por Hora */}
         <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -598,48 +710,111 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Funil Vendas */}
-        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth col-span-1 lg:col-span-2 animate-fade-in-up">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-bold text-on-background">Funil Vendas</h3>
               <p className="text-on-surface-variant text-sm mt-1">Jornada cliente hoje</p>
             </div>
-            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-secondary text-xl">tune</span>
+            <div className="relative">
+              <button 
+                onClick={() => setShowFunilDropdown(!showFunilDropdown)}
+                className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center hover:bg-secondary/20 transition-smooth cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-secondary text-xl">tune</span>
+              </button>
+              {showFunilDropdown && (
+                <div className="absolute top-14 right-0 w-48 bg-surface-container border border-outline rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+                  {[
+                    { id: 'todas', label: 'Todas', icon: 'tune' },
+                    { id: 'whatsapp', label: 'Mensagens WhatsApp', icon: 'chat' },
+                    { id: 'visualizacoes', label: 'Visitas Cardápio', icon: 'visibility' },
+                    { id: 'addCarrinho', label: 'Adicionar Carrinho', icon: 'add_shopping_cart' },
+                    { id: 'checkout', label: 'Inicio Compras', icon: 'shopping_cart' },
+                    { id: 'compras', label: 'Compras', icon: 'point_of_sale' }
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.id}
+                      onClick={() => {
+                        setFunilSelecionado(opcao.id)
+                        setShowFunilDropdown(false)
+                      }}
+                      className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-surface-container-high transition-smooth ${
+                        funilSelecionado === opcao.id ? 'bg-primary/10 text-primary' : 'text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">{opcao.icon}</span>
+                      <span className="text-sm">{opcao.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="space-y-3">
-            {[
-              { label: 'Visitas Cardápio', value: kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
-              { label: 'Adicionado Carrinho', value: kpis.funnelData.addCarrinho, color: '#ff9800' },
-              { label: 'Checkout Iniciado', value: kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
-              { label: 'Compras Feitas', value: kpis.funnelData.compras, color: '#4caf50' }
-            ].map((item, i) => (
-              <div key={i} className="flex justify-between items-center group">
-                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">{item.label}</span>
-                <div className="w-32 h-3 bg-surface-variant rounded-full overflow-hidden group-hover:shadow-lg group-hover:shadow-primary/20">
-                  <div 
-                    className="h-full rounded-full transition-all" 
-                    style={{ 
-                      width: item.value > 0 ? '75%' : '40%', 
-                      backgroundColor: item.color 
-                    }}
-                  />
-                </div>
-                <span className={`font-bold text-sm`} style={{ color: item.color }}>
-                  {item.value}
-                </span>
+            {funilSelecionado === 'todas' ? (
+              <>
+                {[
+                  { label: 'Mensagens WhatsApp', value: funilData?.whatsapp || 0, color: '#25d366' },
+                  { label: 'Visitas Cardápio', value: funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
+                  { label: 'Adicionado Carrinho', value: funilData?.addCarrinho || kpis.funnelData.addCarrinho, color: '#ff9800' },
+                  { label: 'Checkout Iniciado', value: funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
+                  { label: 'Compras Feitas', value: funilData?.compras || kpis.funnelData.compras, color: '#4caf50' }
+                ].map((item, i) => {
+                  const maxValue = Math.max(funilData?.whatsapp || 0, funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, funilData?.addCarrinho || kpis.funnelData.addCarrinho, funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, funilData?.compras || kpis.funnelData.compras, 1)
+                  const valorFinal = item.value > 0 ? (item.value / maxValue) * 100 : 0
+                  return (
+                    <div key={i} className="flex justify-between items-center group">
+                      <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">{item.label}</span>
+                      <div className="w-32 h-3 bg-surface-variant rounded-full overflow-hidden group-hover:shadow-lg group-hover:shadow-primary/20">
+                        <div 
+                          className="h-full rounded-full transition-all" 
+                          style={{ 
+                            width: `${Math.max(valorFinal, item.value > 0 ? 10 : 0)}%`,
+                            backgroundColor: item.color 
+                          }}
+                        />
+                      </div>
+                      <span className={`font-bold text-sm`} style={{ color: item.color }}>
+                        {item.value}
+                      </span>
+                    </div>
+                  )
+                })}
+              </>
+            ) : funilSelecionado === 'whatsapp' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Mensagens WhatsApp</span>
+                <span className="text-2xl font-bold text-primary">{funilData?.whatsapp || 0}</span>
               </div>
-            ))}
+            ) : funilSelecionado === 'visualizacoes' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Visitas Cardápio</span>
+                <span className="text-2xl font-bold" style={{ color: '#d32f2f' }}>{funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes || 0}</span>
+              </div>
+            ) : funilSelecionado === 'addCarrinho' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Adicionar Carrinho</span>
+                <span className="text-2xl font-bold" style={{ color: '#ff9800' }}>{funilData?.addCarrinho || kpis.funnelData.addCarrinho || 0}</span>
+              </div>
+            ) : funilSelecionado === 'checkout' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Início Compras</span>
+                <span className="text-2xl font-bold" style={{ color: '#ffb74d' }}>{funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado || 0}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Compras</span>
+                <span className="text-2xl font-bold" style={{ color: '#4caf50' }}>{funilData?.compras || kpis.funnelData.compras || 0}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Tempos Médios */}
         <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-on-background">Tempo por Etapa</h3>
+              <h3 className="text-xl font-bold text-on-background">Tempo por Pedido</h3>
               <p className="text-on-surface-variant text-sm mt-1">Média hoje</p>
             </div>
             <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
