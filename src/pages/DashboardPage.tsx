@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
+import { BarChart, Bar, AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface TemposMedios {
   novo: number
@@ -89,7 +90,7 @@ function getTenantId(): string {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || '19f48a0b-3117-4d2b-856e-41673dc43275'
 
   const [linkCardapio, setLinkCardapio] = useState('')
   const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
@@ -514,11 +515,20 @@ export default function DashboardPage() {
 
   const lojaAberta = configData?.loja_aberta ?? true
 
+  // Fallback fixo para tenantId
+  const safeTenantId = tenantId || '19f48a0b-3117-4d2b-856e-41673dc43275'
+
   useRealtime({
     configs: [
-      { table: 'pedidos', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis(); queryClient.invalidateQueries({ queryKey: ['receita-por-periodo', tenantId, receitaDias] }) } },
-      { table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}`, callback: () => { refetchKpis(); queryClient.invalidateQueries({ queryKey: ['receita-por-periodo', tenantId, receitaDias] }) } },
-      { table: 'eventos_jornada', filter: `tenant_id=eq.${tenantId}`, callback: () => { queryClient.invalidateQueries({ queryKey: ['funil-tempo-real', tenantId] }) } }
+      { table: 'pedidos', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { 
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] }) 
+        queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] }) 
+      }},
+      { table: 'pedidos_online', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { 
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] }) 
+        queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] }) 
+      }},
+      { table: 'eventos_jornada', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { queryClient.invalidateQueries({ queryKey: ['funil-tempo-real', safeTenantId] }) } },
     ]
   })
 
@@ -661,17 +671,17 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-end justify-between gap-1 h-32">
-            {(receitaData?.receitaPorDia || kpis.receita7Dias).map((valor: number, i: number) => (
-              <div key={i} className="flex flex-col items-center group flex-1">
-                <div 
-                  className="w-full rounded transition-all duration-700 group-hover:shadow-lg group-hover:shadow-primary/50 max-w-3" 
-                  style={{ 
-                    height: `${(valor / (Math.max(...(receitaData?.receitaPorDia || kpis.receita7Dias), 1))) * 100}%`,
-                    background: valor === (receitaData?.receitaPorDia || kpis.receita7Dias)[(receitaData?.receitaPorDia || kpis.receita7Dias).length - 1] ? 'linear-gradient(to top, #d32f2f, #ff5722)' : '#ff9800'
-                  }}
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={receitaData?.receitaPorDia?.map((valor, i) => ({ dia: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][6 - i], valor })).reverse() || []}>
+                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Receita']}
+                  contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#9ca3af' }}
                 />
-              </div>
-            ))}
+                <Bar dataKey="valor" fill="#e8391a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
           <div className="flex justify-between mt-2">
             <span className="text-xs text-on-surface-variant">-{receitaDias}d</span>
@@ -693,17 +703,17 @@ export default function DashboardPage() {
               <span className="material-symbols-outlined text-secondary text-xl">insights</span>
             </div>
           </div>
-          <div className="grid grid-cols-12 gap-1 h-32 items-end">
-            {kpis.pedidosPorHora.map((count, hour) => (
-              <div key={hour} className="flex flex-col items-center group">
-                <div 
-                  className={`w-3 rounded transition-all group-hover:shadow-lg group-hover:shadow-primary/50 ${count === maxPicos ? 'bg-primary' : 'bg-secondary/60'}`} 
-                  style={{ height: `${(count / maxPicos) * 100}%` }}
-                />
-                {hour % 3 === 0 && <span className="text-[10px] text-on-surface-variant">{hour}h</span>}
-              </div>
-            ))}
-          </div>
+          <ResponsiveContainer width="100%" height={120}>
+            <AreaChart data={kpis.pedidosPorHora.map((count, hour) => ({ hora: `${hour}h`, pedidos: count }))}>
+              <XAxis dataKey="hora" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+              <Tooltip 
+                formatter={(value: number) => [`${value} pedidos`, 'Qtd']}
+                contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: '#9ca3af' }}
+              />
+              <Area type="monotone" dataKey="pedidos" fill="#f57c24" fillOpacity={0.2} stroke="#f57c24" />
+            </AreaChart>
+          </ResponsiveContainer>
           <div className="mt-6 pt-4 border-t border-outline flex justify-between">
             <span className="text-sm text-on-surface-variant">Total hoje</span>
             <span className="text-lg font-bold text-primary">{kpis.totalPedidos}</span>

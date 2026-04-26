@@ -413,7 +413,7 @@ export default function CardapioOnlinePage() {
               filtroAtivo={filtroCategoria} 
               onSetFiltro={setFiltroCategoria} 
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {filteredProdutos.map(p => {
                 const preco = precosTamanho[p.id]?.length 
                   ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco)))
@@ -667,8 +667,8 @@ export default function CardapioOnlinePage() {
           <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-8 w-full max-w-md border border-[#252830] shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h3 className="font-[Outfit] text-2xl font-black text-white italic tracking-tighter">{produtoSelecionado.nome}</h3>
-                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">Personalize seu pedido</p>
+                <h3 className="font-sans text-2xl font-bold text-white">{produtoSelecionado.nome}</h3>
+                <p className="text-gray-500 text-xs font-medium mt-1">Personalize seu pedido</p>
               </div>
               <button 
                 onClick={() => setShowTamanhoModal(false)}
@@ -679,7 +679,7 @@ export default function CardapioOnlinePage() {
             </div>
             
             <div className="space-y-3 mb-8">
-              <label className="text-[10px] font-black text-[#e8391a] uppercase tracking-widest ml-1">Selecione o tamanho</label>
+              <label className="text-[10px] font-medium text-[#e8391a] ml-1">Selecione o tamanho</label>
               <div className="grid grid-cols-1 gap-2">
                 {precosTamanho[produtoSelecionado.id].map((pt) => (
                   <button
@@ -695,9 +695,9 @@ export default function CardapioOnlinePage() {
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${tamanhoSelecionado === pt.tamanho ? 'border-[#e8391a]' : 'border-gray-600'}`}>
                         {tamanhoSelecionado === pt.tamanho && <div className="w-2.5 h-2.5 rounded-full bg-[#e8391a]" />}
                       </div>
-                      <span className={`font-bold ${tamanhoSelecionado === pt.tamanho ? 'text-white' : 'text-gray-400'}`}>{pt.tamanho}</span>
+                      <span className={`font-medium ${tamanhoSelecionado === pt.tamanho ? 'text-white' : 'text-gray-400'}`}>{pt.tamanho}</span>
                     </div>
-                    <span className="font-black text-[#e8391a]">{Number(pt.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    <span className="font-bold text-[#e8391a]">{Number(pt.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                   </button>
                 ))}
               </div>
@@ -707,27 +707,27 @@ export default function CardapioOnlinePage() {
             <div className="flex bg-[#252830] rounded-2xl p-1.5 mb-8">
               <button 
                 onClick={() => { setTipoPizza('inteiro'); setSabor1(''); setSabor2('') }} 
-                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${tipoPizza === 'inteiro' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex-1 py-3 rounded-xl text-xs font-medium transition-all ${tipoPizza === 'inteiro' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
               >
                 Inteiro
               </button>
               <button 
                 onClick={() => { setTipoPizza('meio-a-meio'); setSabor1(sabores[0]?.nome || ''); setSabor2(sabores[1]?.nome || '') }} 
-                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${tipoPizza === 'meio-a-meio' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex-1 py-3 rounded-xl text-xs font-medium transition-all ${tipoPizza === 'meio-a-meio' ? 'bg-[#e8391a] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
               >
                 2 Sabores
               </button>
             </div>
 
-            {/* Seleção de Sabores */}
+{/* Seleção de Sabores */}
             {tipoPizza === 'meio-a-meio' && (
               <div className="space-y-4 mb-8 bg-[#16181f] p-4 rounded-2xl border border-[#252830]">
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">1º Sabor</label>
+                  <label className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">1º Sabor</label>
                   <select 
                     value={sabor1} 
                     onChange={(e) => setSabor1(e.target.value)}
-                    className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-bold appearance-none cursor-pointer"
+                    className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-medium appearance-none cursor-pointer"
                   >
                     <option value="">Selecione...</option>
                     {sabores.filter(s => s.disponivel).map(s => (
@@ -736,11 +736,11 @@ export default function CardapioOnlinePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">2º Sabor</label>
+                  <label className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">2º Sabor</label>
                   <select 
                     value={sabor2} 
                     onChange={(e) => setSabor2(e.target.value)}
-                    className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-bold appearance-none cursor-pointer"
+                    className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-medium appearance-none cursor-pointer"
                   >
                     <option value="">Selecione...</option>
                     {sabores.filter(s => s.disponivel).map(s => (
@@ -753,11 +753,11 @@ export default function CardapioOnlinePage() {
 
             {tipoPizza === 'inteiro' && sabores.length > 0 && (
               <div className="mb-8">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">Observação de Sabor</label>
+                <label className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">Observação de Sabor</label>
                 <select 
                   value={sabor1} 
                   onChange={(e) => setSabor1(e.target.value)}
-                  className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-bold appearance-none cursor-pointer"
+                  className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-medium appearance-none cursor-pointer"
                 >
                   <option value="">Opcional: Selecione...</option>
                   {sabores.filter(s => s.disponivel).map(s => (
@@ -770,8 +770,8 @@ export default function CardapioOnlinePage() {
             {/* Preço Total */}
             {tamanhoSelecionado && (tipoPizza === 'inteiro' ? true : (sabor1 && sabor2)) && (
               <div className="bg-[#e8391a] p-5 rounded-2xl mb-4 text-center shadow-[0_10px_40px_-5px_rgba(232,57,26,0.5)]">
-                <div className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Valor Total</div>
-                <div className="text-3xl font-black text-white italic tracking-tighter">
+                <div className="text-[10px] font-medium text-white/60 mb-1">Valor Total</div>
+                <div className="text-3xl font-bold text-white">
                   {(() => {
                     const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
                     const preco = precoTamanho ? Number(precoTamanho.preco) : (Number(produtoSelecionado.preco) || 0)
@@ -788,7 +788,7 @@ export default function CardapioOnlinePage() {
                 addToCart(produtoSelecionado, preco, tamanhoSelecionado)
               }}
               disabled={(tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}
-              className="w-full py-5 rounded-2xl bg-white text-black font-black text-xs uppercase tracking-widest shadow-xl disabled:opacity-30 active:scale-95 transition-all"
+              className="w-full py-5 rounded-2xl bg-white text-black font-bold shadow-xl disabled:opacity-30 active:scale-95 transition-all"
             >
               Confirmar e Adicionar
             </button>

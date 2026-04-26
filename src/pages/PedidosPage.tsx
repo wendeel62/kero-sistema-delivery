@@ -63,11 +63,11 @@ const mapKanbanStatus = (rawStatus: string): UnifiedPedido['status_kanban'] => {
 }
 
 const COLUMNS = [
-  { id: 'novo', title: 'Novo', color: 'border-primary', headerBg: 'bg-primary/10', textColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
-  { id: 'em_preparo', title: 'Em Preparo', color: 'border-secondary', headerBg: 'bg-secondary/10', textColor: 'text-secondary', gradient: 'from-secondary/20 to-secondary/5' },
-  { id: 'saiu_entrega', title: 'Saiu para Entrega', color: 'border-purple-500', headerBg: 'bg-purple-500/10', textColor: 'text-purple-500', gradient: 'from-purple-500/20 to-purple-500/5' },
-  { id: 'entregue', title: 'Entregue', color: 'border-green-500', headerBg: 'bg-green-500/10', textColor: 'text-green-500', gradient: 'from-green-500/20 to-green-500/5' },
-  { id: 'cancelado', title: 'Cancelado', color: 'border-red-500', headerBg: 'bg-red-500/10', textColor: 'text-red-500', gradient: 'from-red-500/20 to-red-500/5' },
+  { id: 'novo', title: 'Novo', color: '#3b82f6', textColor: 'text-[#3b82f6]' },
+  { id: 'em_preparo', title: 'Em Preparo', color: '#f59e0b', textColor: 'text-[#f59e0b]' },
+  { id: 'saiu_entrega', title: 'Saiu para Entrega', color: '#8b5cf6', textColor: 'text-[#8b5cf6]' },
+  { id: 'entregue', title: 'Entregue', color: '#22c55e', textColor: 'text-[#22c55e]' },
+  { id: 'cancelado', title: 'Cancelado', color: '#ef4444', textColor: 'text-[#ef4444]' },
 ] as const
 
 function getTenantId(): string {
@@ -85,7 +85,8 @@ function getTenantId(): string {
 
 export default function PedidosPage() {
   const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
+  // Fallback para tenant_id do usuário logado ou do tenant_id do primeiro pedido
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || '19f48a0b-3117-4d2b-856e-41673dc43275'
   const queryClient = useQueryClient()
   const toast = useToast()
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -242,7 +243,7 @@ export default function PedidosPage() {
     const { data } = await supabase
       .from('motoboys')
       .select('*')
-      .eq('status', 'disponivel')
+      .eq('disponivel', true)
     if (data) setMotoboysDisponiveis(data)
   }
 
@@ -268,7 +269,7 @@ export default function PedidosPage() {
 
       await supabase
         .from('motoboys')
-        .update({ status: 'em_entrega' })
+        .update({ status: 'em_entrega', disponivel: false })
         .eq('id', motoboyId)
 
       await supabase
@@ -290,21 +291,32 @@ export default function PedidosPage() {
   }
 
   const handleAvançarStatus = async (pedido: UnifiedPedido) => {
-    const nextStatusMap: Record<string, string> = {
+    // Para balcao e mesa: pular "saiu_entrega" (NOVO → EM PREPARO → ENTREGUE)
+    // Para entrega: fluxo completo com motoboy
+    const isDelivery = pedido.canal === 'entrega' || pedido.canal === 'app' || pedido.canal === 'ifood' || pedido.canal === 'rappi' || pedido.canal === 'whatsapp'
+    
+    const nextStatusMap: Record<string, string> = isDelivery ? {
       aberto: 'preparando',
       pendente: 'preparando',
       confirmado: 'preparando',
-      preparando: pedido.tipo_tabela === 'pedidos_online' ? 'saiu_entrega' : 'pronto',
+      preparando: 'saiu_entrega',
       pronto: 'saiu_entrega',
+      saiu_entrega: 'entregue'
+    } : {
+      // balcao e mesa: pula "saiu_entrega"
+      aberto: 'preparando',
+      pendente: 'preparando',
+      confirmado: 'preparando',
+      preparando: 'entregue',  // vai direto para entregue
+      pronto: 'entregue',
       saiu_entrega: 'entregue'
     }
 
     const nextRaw = nextStatusMap[pedido.raw_status]
     if (!nextRaw) return
 
-    const needsMotoboy = 
-      (pedido.raw_status === 'preparando' && nextRaw === 'saiu_entrega') ||
-      (pedido.raw_status === 'pronto' && nextRaw === 'saiu_entrega')
+    // Abrir modal de motoboy APENAS para pedidos de entrega ao sair de EM PREPARO
+    const needsMotoboy = isDelivery && pedido.raw_status === 'preparando'
 
     if (needsMotoboy) {
       await fetchMotoboysDisponiveis()
@@ -599,135 +611,130 @@ export default function PedidosPage() {
       <div 
         ref={kanbanRef}
         onScroll={handleScroll}
-        className="flex-1 w-full overflow-x-auto no-scrollbar pb-2 scroll-smooth animate-fade-in-up"
-        style={{ scrollSnapType: 'x mandatory' }}
+        className="flex w-full gap-2 h-full pb-4 overflow-x-auto snap-x snap-mandatory no-scrollbar"
       >
-        <div className="flex md:grid md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 h-full items-stretch">
-          {COLUMNS.map((col, idx) => {
-            const colPedidos = columnsData[col.id] || []
-            
-            return (
-              <div 
-                key={col.id} 
-                className="min-w-[85vw] sm:min-w-[45vw] md:min-w-0 flex flex-col h-full max-h-full overflow-hidden"
-                style={{ scrollSnapAlign: 'start' }}
-              >
-                {/* Column Header */}
-                <div className={`shrink-0 flex justify-between items-center p-2.5 sm:p-3 lg:p-4 rounded-t-xl lg:rounded-t-2xl border-t-4 ${col.color} bg-gradient-to-r ${col.gradient} border-x border-outline border-b border-outline/50`}>
-                  <h2 className={`font-bold text-xs sm:text-sm leading-tight ${col.textColor}`}>{col.title}</h2>
-                  <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm bg-surface-container border ${col.color} text-on-background shadow-md`}>
+        <div className="flex gap-2 w-full">
+        {COLUMNS.map((col, idx) => {
+          const colPedidos = columnsData[col.id] || []
+          
+          return (
+            <div 
+              key={col.id} 
+              className="flex-none w-[85vw] sm:w-[300px] md:flex-1 md:min-w-0 flex flex-col snap-start"
+            >
+              {/* Column Header */}
+              <div className="bg-[#16181f] rounded-t-xl p-3">
+                {/* Barra colorida fina no topo */}
+                <div 
+                  className="h-1 rounded-t-xl mb-2" 
+                  style={{ backgroundColor: col.color }}
+                />
+                <div className="flex justify-between items-center">
+                  <h2 className={`${col.textColor} text-sm font-semibold uppercase tracking-wider`}>
+                    {col.title}
+                  </h2>
+                  <span 
+                    className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                    style={{ backgroundColor: col.color }}
+                  >
                     {colPedidos.length}
                   </span>
                 </div>
-                
-                {/* Column Content */}
-                <div className="flex-1 overflow-y-auto space-y-2.5 sm:space-y-3 p-2.5 sm:p-3 bg-surface-container/50 border-x border-b border-outline rounded-b-xl lg:rounded-b-2xl no-scrollbar relative min-h-[250px] sm:min-h-[300px]">
-                  {loading ? (
-                    <div className="absolute inset-0 flex items-center justify-center text-primary animate-pulse text-sm">
-                      Carregando...
-                    </div>
-                  ) : colPedidos.length === 0 ? (
-                    <div className="text-center py-8 sm:py-10 opacity-20 text-xs sm:text-sm font-bold flex flex-col items-center gap-2">
-                      <span className="material-symbols-outlined text-3xl sm:text-4xl">inventory_2</span>
-                      Vazio
-                    </div>
-                  ) : (
-                    colPedidos.map(pedido => {
-                      const minutesElapsed = differenceInMinutes(currentTime, parseISO(pedido.created_at))
-                      let timeClass = 'text-on-surface-variant'
-                      let pingTime = false
-                      
-                      if (minutesElapsed >= 30 && pedido.status_kanban !== 'entregue' && pedido.status_kanban !== 'cancelado') {
-                        timeClass = 'text-red-500 font-bold'
-                        pingTime = true
-                      } else if (minutesElapsed >= 15 && pedido.status_kanban === 'novo') {
-                        timeClass = 'text-yellow-400 font-bold'
-                      }
+              </div>
+              
+              {/* Column Content */}
+              <div className="bg-[#0f1117] rounded-b-xl p-2 flex flex-col gap-2 flex-1 overflow-y-auto min-h-[300px]">
+                {loading ? (
+                  <div className="flex items-center justify-center text-[#e8391a] animate-pulse text-sm py-8">
+                    Carregando...
+                  </div>
+                ) : colPedidos.length === 0 ? (
+                  <div className="text-center py-8 text-gray-600 text-sm flex flex-col items-center gap-2">
+                    <span className="material-symbols-outlined text-3xl">inventory_2</span>
+                    Vazio
+                  </div>
+                ) : (
+                  colPedidos.map(pedido => {
+                    const minutesElapsed = differenceInMinutes(currentTime, parseISO(pedido.created_at))
+                    const isCancelled = pedido.status_kanban === 'cancelado'
 
-                      const isCancelled = pedido.status_kanban === 'cancelado'
+                    // Formatar forma de pagamento
+                    const formaPagto = pedido.forma_pagamento?.toUpperCase() || 'DINHEIRO'
+                    const formaLabel = formaPagto === 'CARTAO_CREDITO' ? 'Cartão Crédito' :
+                                    formaPagto === 'CARTAO_DEBITO' ? 'Cartão Débito' :
+                                    formaPagto === 'PIX' ? 'PIX' : 'Dinheiro'
 
-                      return (
-                        <div 
-                          key={pedido.id} 
-                          className={`bg-gradient-to-br from-surface-container-high to-surface-container p-2.5 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl border ${isCancelled ? 'border-red-500/20 opacity-60' : 'border-outline hover:border-primary/30'} shadow-lg transition-all animate-fade-in-up group flex flex-col gap-2 relative overflow-hidden hover:shadow-xl hover:shadow-primary/20`}
-                          style={{ animationDelay: `${(colPedidos.indexOf(pedido) * 50)}ms` }}
-                        >
-                          {/* Alerta de atraso */}
-                          {pingTime && <div className="absolute top-0 left-0 right-0 h-1 bg-red-500 animate-pulse" />}
-
-                          {/* Topo: Número + Cliente + Tempo */}
-                          <div className="flex justify-between items-start gap-1.5">
-                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                              <span className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-widest ${col.textColor}`}>
-                                #{String(pedido.numero).padStart(4, '0')}
-                              </span>
-                              <h3 className="font-bold text-xs sm:text-sm text-on-background leading-tight truncate" title={pedido.cliente_nome}>
-                                {pedido.cliente_nome}
-                              </h3>
-                            </div>
-                            
-                            <div className="flex items-center gap-1 shrink-0 relative">
-                              {pingTime && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping absolute -top-1 -right-1" />}
-                              <div className={`px-1.5 py-0.5 rounded-md bg-surface-variant flex items-center gap-0.5 text-[8px] sm:text-[9px] ${timeClass}`}>
-                                <span className="material-symbols-outlined text-[10px] sm:text-[12px]">schedule</span>
-                                <span>{minutesElapsed}m</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Itens do pedido */}
-                          <div className="grid grid-cols-[1fr_auto] gap-1.5 p-1.5 sm:p-2 bg-surface-dim/40 rounded-lg sm:rounded-xl items-center">
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              {pedido.itens.slice(0, 2).map((it, i) => (
-                                <p key={i} className="text-[8px] sm:text-[9px] text-on-surface-variant truncate">
-                                  <span className="font-bold text-on-surface">{it.qtd}x</span> {it.nome}
-                                </p>
-                              ))}
-                              {pedido.itens.length > 2 && (
-                                <p className="text-[7px] sm:text-[8px] font-bold text-primary opacity-60">+{pedido.itens.length - 2} mais</p>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-center gap-0.5 border-l border-outline/10 pl-1.5 sm:pl-2">
-                              <span className="material-symbols-outlined text-xs sm:text-sm text-on-surface-variant/30" title={pedido.canal}>{getCanalIcon(pedido.canal)}</span>
-                              <span className="text-[6px] sm:text-[7px] uppercase font-bold tracking-widest opacity-50 whitespace-nowrap text-on-surface-variant">{pedido.forma_pagamento}</span>
-                            </div>
-                          </div>
-
-                          {/* Rodapé: Total + Ações */}
-                          <div className="flex justify-between items-center">
-                            <span className="text-emerald-400 font-bold text-xs sm:text-sm">
-                              R$ {Number(pedido.total).toFixed(2)}
-                            </span>
-
-                            <div className="flex gap-1 sm:gap-1.5 transition-all">
-                              {!isCancelled && pedido.status_kanban !== 'entregue' && (
-                                <>
-                                  <button onClick={() => setCancelModalPedido(pedido)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md sm:rounded-lg bg-surface-variant hover:bg-red-500/10 hover:text-red-500 text-on-surface-variant transition-colors" title="Cancelar">
-                                    <span className="material-symbols-outlined text-[12px] sm:text-[14px]">close</span>
-                                  </button>
-                                  <button 
-                                    onClick={() => handleAvançarStatus(pedido)}
-                                    className={`h-6 sm:h-7 px-1.5 sm:px-2 flex items-center justify-center rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${col.textColor.replace('text', 'bg').replace('500', '500/20')} ${col.textColor}`}
-                                    title="Avançar"
-                                  >
-                                    Avançar
-                                  </button>
-                                </>
-                              )}
-                              
-                              <button onClick={() => setSelectedPedido(pedido)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md sm:rounded-lg bg-surface-variant hover:bg-primary/20 hover:text-primary text-on-surface-variant transition-colors" title="Ver Detalhes">
-                                <span className="material-symbols-outlined text-[12px] sm:text-[14px]">open_in_new</span>
-                              </button>
-                            </div>
+                    return (
+                      <div 
+                        key={pedido.id} 
+                        className="bg-[#16181f] border border-[#252830] rounded-xl p-3 hover:border-[#353840] transition-colors flex flex-col gap-2"
+                      >
+                        {/* LINHA 1 — header do card: Número + Tempo */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-[#e8391a]">
+                            #{String(pedido.numero).padStart(4, '0')}
+                          </span>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <span className="material-symbols-outlined text-xs">schedule</span>
+                            <span>{minutesElapsed}m</span>
                           </div>
                         </div>
-                      )
-                    })
-                  )}
-                </div>
+
+                        {/* LINHA 2 — nome do cliente */}
+                        <h3 className="text-sm font-semibold text-[#dde0ee]">
+                          {pedido.cliente_nome}
+                        </h3>
+
+                        {/* LINHA 3 — itens */}
+                        <div className="flex flex-col gap-0.5">
+                          {pedido.itens.slice(0, 3).map((it, i) => (
+                            <p key={i} className="text-xs text-gray-400">
+                              {it.qtd}x {it.nome}
+                            </p>
+                          ))}
+                          {pedido.itens.length > 3 && (
+                            <p className="text-xs font-bold text-[#e8391a]">
+                              +{pedido.itens.length - 3} itens
+                            </p>
+                          )}
+                        </div>
+
+                        {/* LINHA 4 — forma de pagamento */}
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <span className="material-symbols-outlined text-xs">payments</span>
+                          <span>{formaLabel}</span>
+                        </div>
+
+                        {/* LINHA 5 — footer: Valor + Botões */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-[#e8391a]">
+                            R$ {Number(pedido.total).toFixed(2)}
+                          </span>
+                          <div className="flex gap-2">
+                            {!isCancelled && pedido.status_kanban !== 'entregue' && (
+                              <>
+                                <button onClick={() => setCancelModalPedido(pedido)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20" title="Cancelar">
+                                  <span className="material-symbols-outlined text-sm">close</span>
+                                </button>
+                                <button 
+                                  onClick={() => handleAvançarStatus(pedido)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#e8391a] text-white hover:scale-105 transition-transform"
+                                  title="Avançar"
+                                >
+                                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
               </div>
-            )
-          })}
+            </div>
+          )
+        })}
         </div>
       </div>
 
