@@ -34,7 +34,7 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
     const { data: pedidos, error } = await supabase
       .from('pedidos')
       .select('*, itens_pedido(*)')
-      .in('status', ['novo', 'pendente', 'aberto', 'em_preparo', 'preparando'])
+      .in('status', ['novo', 'pendente', 'aberto', 'preparando'])
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true })
 
@@ -68,7 +68,7 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
 
       if (['novo', 'pendente', 'aberto'].includes(p.status)) {
         novos.push(pedido)
-      } else if (p.status === 'em_preparo' || p.status === 'preparando') {
+      } else if (p.status === 'preparando') {
         emPreparo.push(pedido)
       }
     })
@@ -127,9 +127,10 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
 
   const iniciarPreparo = useCallback(
     async (pedidoId: string) => {
+      // Atualizar para 'preparando' (status correto do fluxo)
       const { error } = await supabase
         .from('pedidos')
-        .update({ status: 'em_preparo', updated_at: new Date().toISOString() })
+        .update({ status: 'preparando', updated_at: new Date().toISOString() })
         .eq('id', pedidoId)
         .eq('tenant_id', tenantId)
 
@@ -142,13 +143,16 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
         pedido_id: pedidoId,
         origem_tabela: 'pedidos',
         status_anterior: 'novo',
-        status_novo: 'em_preparo',
+        status_novo: 'preparando',
         tenant_id: tenantId,
       })
 
+      // Refetch para atualizar a lista
+      refetch()
+
       return true
     },
-    [tenantId]
+    [tenantId, refetch]
   )
 
   const marcarPronto = useCallback(
@@ -167,14 +171,17 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
       await supabase.from('historico_status').insert({
         pedido_id: pedidoId,
         origem_tabela: 'pedidos',
-        status_anterior: 'em_preparo',
+        status_anterior: 'preparando',
         status_novo: 'pronto',
         tenant_id: tenantId,
       })
 
+      // Refetch para atualizar a lista
+      refetch()
+
       return true
     },
-    [tenantId]
+    [tenantId, refetch]
   )
 
   return {

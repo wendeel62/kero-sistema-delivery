@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
@@ -8,7 +8,7 @@ import type { Produto } from './CardapioOnlinePage'
 import ProductCard from '../components/ProductCard'
 
 interface Categoria { id: string; nome: string }
-interface ItemPedido { produto: Produto; quantidade: number; observacoes: string; tamanho?: string; sabor1?: string; sabor2?: string; tipoPizza?: 'inteiro' | 'meio-a-meio' }
+interface ItemPedido { produto: Produto; quantidade: number; observacoes: string; tamanho?: string; sabor1?: string; sabor2?: string; tipoPizza?: 'inteiro' | 'meio-a-meio'; adicionais?: string; pontoCarne?: string }
 interface Mesa { id: string; numero: number; capacidade: number; status: string; responsavel: string; pessoas: number; aberta_em: string }
 interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
 interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
@@ -22,6 +22,7 @@ export default function PdvPage() {
   const [itens, setItens] = useState<ItemPedido[]>([])
   const [cartPulse, setCartPulse] = useState(false)
   const [precosTamanho, setPrecosTamanho] = useState<Record<string, PrecoTamanho[]>>({})
+  const pedidoAtualRef = useRef<HTMLDivElement>(null)
   const [sabores, setSabores] = useState<Sabor[]>([])
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null)
   const [showVariacoesModal, setShowVariacoesModal] = useState(false)
@@ -31,7 +32,6 @@ export default function PdvPage() {
   const [sabor2, setSabor2] = useState<string>('')
   const [filtro, setFiltro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
-  const [tabPdv, setTabPdv] = useState<'mesas' | 'produtos' | 'carrinho'>('produtos')
   const [showOcuparMesa, setShowOcuparMesa] = useState(false)
   const [mesaSelecionada, setMesaSelecionada] = useState<Mesa | null>(null)
   const [pessoasMesa, setPessoasMesa] = useState(1)
@@ -258,19 +258,17 @@ export default function PdvPage() {
   return (
     <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] p-2 sm:p-3 lg:p-6">
       {/* Left - Product Grid / Mesas */}
-      <div className={`flex-1 flex flex-col min-w-0 ${tabPdv === 'carrinho' ? 'hidden lg:flex' : 'flex'}`}>
+      <div className="flex-1 flex flex-col min-w-0 flex">
         <div className="mb-3 lg:mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3">
           <div>
             <span className="text-[#e8391a] font-bold uppercase tracking-[0.3em] text-[10px] mb-0.5 block">Ponto de Venda</span>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-[Outfit] font-bold text-white tracking-tighter">PDV</h2>
           </div>
           <div className="flex bg-[#1a1a1a] rounded-lg sm:rounded-xl p-0.5 sm:p-1 border border-[#252830]">
-            <button onClick={() => setTabPdv('mesas')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'mesas' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Mesas</button>
-            <button onClick={() => setTabPdv('produtos')} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'produtos' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'}`}>Menu</button>
-            <button onClick={() => setTabPdv('carrinho')} className={`lg:hidden flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all ${tabPdv === 'carrinho' ? 'bg-[#e8391a] text-white' : 'text-gray-400 hover:text-white'} ${cartPulse ? 'scale-110' : ''}`}>
+            <button onClick={() => pedidoAtualRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className={`lg:hidden flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all bg-[#e8391a] text-white ${cartPulse ? 'scale-110' : ''}`}>
               Carrinho
               {itens.length > 0 && (
-                <span className={`w-4 h-4 flex items-center justify-center rounded-full text-[8px] animate-in fade-in zoom-in duration-300 ${tabPdv === 'carrinho' ? 'bg-white text-[#e8391a]' : 'bg-[#e8391a] text-white'}`}>
+                <span className="w-4 h-4 flex items-center justify-center rounded-full text-[8px] animate-in fade-in zoom-in duration-300 bg-white text-[#e8391a]">
                   {itens.length}
                 </span>
               )}
@@ -278,7 +276,7 @@ export default function PdvPage() {
           </div>
         </div>
 
-        {tabPdv === 'mesas' && (
+        {/* Mesas - sempre visível */}
           <div className="mb-3">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
               {mesas.filter(m => m.status !== 'inativa').map(mesa => (
@@ -334,11 +332,8 @@ export default function PdvPage() {
               ))}
             </div>
           </div>
-        )}
 
-        {tabPdv === 'produtos' && (
-          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-2 sm:py-3 px-4 sm:px-5 text-xs sm:text-sm text-white mb-3 lg:mb-4 placeholder:text-gray-500" />
-        )}
+        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar produto..." className="w-full bg-[#1a1a1a] border border-[#252830] rounded-xl py-2 sm:py-3 px-4 sm:px-5 text-xs sm:text-sm text-white mb-3 lg:mb-4 placeholder:text-gray-500" />
 
         <div className="flex gap-2 overflow-x-auto pb-2 mb-3 lg:mb-4">
           <button onClick={() => setFiltro(null)} className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${!filtro ? 'bg-[#e8391a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}>Todos</button>
@@ -347,7 +342,7 @@ export default function PdvPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-3 overflow-y-auto flex-1 pb-4 custom-scrollbar pr-2 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start overflow-y-auto flex-1 pb-4 custom-scrollbar pr-2 pt-1">
           {filteredProdutos.length === 0 ? (
             <div className="col-span-full text-center py-12 text-gray-500">
               <span className="material-symbols-outlined text-4xl mb-2 block">inventory_2</span>
@@ -373,17 +368,10 @@ export default function PdvPage() {
       </div>
 
       {/* Right - Cart / Order */}
-      <div className={`w-full lg:flex-1 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 ${tabPdv === 'carrinho' ? 'flex' : 'hidden lg:flex'}`}>
+      <div ref={pedidoAtualRef} className="w-full lg:flex-1 bg-[#1a1a1a] rounded-2xl border border-[#252830] flex flex-col shrink-0 flex">
         <div className="p-4 lg:p-6 border-b border-[#252830]">
           <div className="flex justify-between items-center mb-3 lg:mb-4">
             <h3 className="font-[Outfit] font-bold text-base lg:text-lg text-white">Pedido Atual</h3>
-            <button 
-              onClick={() => setTabPdv('produtos')} 
-              className="lg:hidden flex items-center gap-1 text-[#e8391a] text-xs font-bold uppercase transition-all hover:opacity-80"
-            >
-              <span className="material-symbols-outlined text-sm">arrow_back</span>
-              Continuar Comprando
-            </button>
           </div>
           <div className="flex gap-2">
             {(['balcao', 'entrega', 'mesa'] as const).map(t => (
@@ -407,20 +395,36 @@ export default function PdvPage() {
               <span className="material-symbols-outlined text-4xl mb-2 block">shopping_cart</span>
               <p className="text-sm">Adicione produtos ao pedido</p>
             </div>
-          ) : itens.map(item => (
-            <div key={item.produto.id} className="flex items-center gap-3 bg-[#252830] p-3 rounded-lg">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate text-white">{item.produto.nome}</p>
-                <p className="text-xs text-gray-400">{Number(item.produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => removeItem(item.produto.id)} className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-white"><span className="material-symbols-outlined text-sm">remove</span></button>
-                <span className="text-sm font-bold w-5 text-center text-white">{item.quantidade}</span>
-                <button onClick={() => addItem(item.produto)} className="w-8 h-8 rounded-lg bg-[#e8391a] flex items-center justify-center text-white"><span className="material-symbols-outlined text-sm">add</span></button>
-              </div>
-              <span className="text-sm font-bold w-20 text-right text-white">{(Number(item.produto.preco) * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-            </div>
-          ))}
+          ) : (
+            <>
+              {itens.map(item => {
+                const detalhes: string[] = []
+                if (item.tamanho) detalhes.push(item.tamanho)
+                if (item.sabor1) detalhes.push(item.sabor1)
+                if (item.sabor2) detalhes.push(item.sabor2)
+                if (item.pontoCarne) detalhes.push(item.pontoCarne)
+                if (item.adicionais) detalhes.push(item.adicionais)
+                if (item.observacoes) detalhes.push(item.observacoes)
+                const detalheStr = detalhes.join(' | ')
+
+                return (
+                  <div key={item.produto.id} className="flex items-center gap-3 bg-[#252830] p-3 rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate text-white">{item.produto.nome}</p>
+                      {detalheStr && <p className="text-xs text-gray-400 truncate">{detalheStr}</p>}
+                      <p className="text-xs text-gray-400">{Number(item.produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => removeItem(item.produto.id)} className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-white"><span className="material-symbols-outlined text-sm">remove</span></button>
+                      <span className="text-sm font-bold w-5 text-center text-white">{item.quantidade}</span>
+                      <button onClick={() => addItem(item.produto)} className="w-8 h-8 rounded-lg bg-[#e8391a] flex items-center justify-center text-white"><span className="material-symbols-outlined text-sm">add</span></button>
+                    </div>
+                    <span className="text-sm font-bold w-20 text-right text-white">{(Number(item.produto.preco) * item.quantidade).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
 
         {/* Footer */}
