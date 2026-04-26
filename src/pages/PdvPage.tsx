@@ -49,6 +49,11 @@ export default function PdvPage() {
   const [enderecoEntrega, setEnderecoEntrega] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
+  const [pedidoMesaSalvo, setPedidoMesaSalvo] = useState(false)
+  const [mesaDosPedido, setMesaDosPedido] = useState<Mesa | null>(null)
+  const [showMesasPanel, setShowMesasPanel] = useState(false)
+  const [mesasComItens, setMesasComItens] = useState<Record<string, any[]>>({})
+  const [mesaExpandida, setMesaExpandida] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     const [{ data: prods }, { data: cats }, { data: mesasData }, { data: precos }, { data: saboresData }] = await Promise.all([
@@ -227,6 +232,13 @@ export default function PdvPage() {
 
     setSalvando(false)
     setSucesso(true)
+    if (tipo === 'mesa') {
+      const mesaEncontrada = mesas.find(m => m.numero === Number(mesaNumero))
+      if (mesaEncontrada) {
+        setPedidoMesaSalvo(true)
+        setMesaDosPedido(mesaEncontrada)
+      }
+    }
     setTimeout(() => {
       setSucesso(false)
       setItens([])
@@ -236,7 +248,7 @@ export default function PdvPage() {
       setEnderecoEntrega('')
       setObservacoes('')
       setDesconto(0)
-    }, 2000)
+    }, 10000)
   }
 
   const filteredProdutos = produtos.filter(p => {
@@ -255,6 +267,34 @@ export default function PdvPage() {
     }
   }
 
+  const abrirPainelMesas = async () => {
+    const mesasOcupadas = mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento')
+    const dados: Record<string, any[]> = {}
+    await Promise.all(mesasOcupadas.map(async (mesa) => {
+      const { data: pedidos } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('mesa_numero', mesa.numero)
+        .in('status', ['pendente', 'preparando'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+      const ultimoPedido = pedidos?.[0]
+      if (ultimoPedido) {
+        const { data: itensPedido } = await supabase
+          .from('itens_pedido')
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .eq('pedido_id', ultimoPedido.id)
+        dados[mesa.id] = itensPedido || []
+      } else {
+        dados[mesa.id] = []
+      }
+    }))
+    setMesasComItens(dados)
+    setShowMesasPanel(true)
+  }
+
   return (
     <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] p-2 sm:p-3 lg:p-6">
       {/* Left - Product Grid / Mesas */}
@@ -265,6 +305,18 @@ export default function PdvPage() {
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-[Outfit] font-bold text-white tracking-tighter">PDV</h2>
           </div>
           <div className="flex bg-[#1a1a1a] rounded-lg sm:rounded-xl p-0.5 sm:p-1 border border-[#252830]">
+            <button
+              onClick={abrirPainelMesas}
+              className="lg:flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all bg-[#252830] text-yellow-400 border border-yellow-500/30"
+            >
+              <span className="material-symbols-outlined text-sm">table_restaurant</span>
+              Mesas
+              {mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento').length > 0 && (
+                <span className="w-4 h-4 flex items-center justify-center rounded-full text-[8px] bg-yellow-500 text-black font-black">
+                  {mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento').length}
+                </span>
+              )}
+            </button>
             <button onClick={() => pedidoAtualRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className={`lg:hidden flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-bold uppercase transition-all bg-[#e8391a] text-white ${cartPulse ? 'scale-110' : ''}`}>
               Carrinho
               {itens.length > 0 && (
@@ -450,8 +502,152 @@ export default function PdvPage() {
           <button onClick={salvarPedido} disabled={itens.length === 0 || salvando} className={`w-full py-3.5 lg:py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${sucesso ? 'bg-emerald-500 text-white' : 'bg-[#e8391a] text-white'} disabled:opacity-50`}>
             {salvando ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : sucesso ? '✓ Pedido Salvo!' : 'Finalizar Pedido'}
           </button>
+          {pedidoMesaSalvo && mesaDosPedido && (
+            <button
+              onClick={async () => {
+                const { data: pedidos } = await supabase
+                  .from('pedidos')
+                  .select('*')
+                  .eq('tenant_id', tenantId)
+                  .eq('mesa_numero', mesaDosPedido.numero)
+                  .in('status', ['pendente', 'preparando'])
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                const ultimoPedido = pedidos?.[0]
+                if (ultimoPedido) {
+                  const { data: itensPedido } = await supabase
+                    .from('itens_pedido')
+                    .select('*')
+                    .eq('tenant_id', tenantId)
+                    .eq('pedido_id', ultimoPedido.id)
+                  setItensMesa(itensPedido || [])
+                } else {
+                  setItensMesa([])
+                }
+                setMesaFechar(mesaDosPedido)
+                setShowDivisaoConta(true)
+              }}
+              className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-yellow-500 text-black animate-in fade-in zoom-in duration-300"
+            >
+              <span className="material-symbols-outlined text-sm">receipt_long</span>
+              Fechar Mesa {mesaDosPedido.numero}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Painel Mesas Abertas */}
+      {showMesasPanel && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6" onClick={() => setShowMesasPanel(false)}>
+          <div className="bg-[#1a1a1a] rounded-2xl w-full max-w-lg border border-[#252830] shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b border-[#252830] flex justify-between items-center">
+              <div>
+                <h3 className="font-[Outfit] text-lg sm:text-xl font-bold text-white">Mesas Abertas</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento').length} mesa(s) em uso
+                </p>
+              </div>
+              <button onClick={() => setShowMesasPanel(false)} className="w-8 h-8 rounded-lg bg-[#252830] flex items-center justify-center text-gray-400">
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+
+            {/* Lista de mesas */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+              {mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento').length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <span className="material-symbols-outlined text-4xl mb-2 block">table_restaurant</span>
+                  <p className="text-sm">Nenhuma mesa aberta</p>
+                </div>
+              ) : (
+                mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento').map(mesa => {
+                  const itensDestaMesa = mesasComItens[mesa.id] || []
+                  const totalMesa = itensDestaMesa.reduce((sum, item) => sum + (item.total || 0), 0)
+                  const expandida = mesaExpandida === mesa.id
+
+                  return (
+                    <div key={mesa.id} className="bg-[#252830] rounded-xl border border-[#353840] overflow-hidden">
+                      
+                      {/* Card header - clicável para expandir */}
+                      <button
+                        onClick={() => setMesaExpandida(expandida ? null : mesa.id)}
+                        className="w-full p-4 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#e8391a]/10 border border-[#e8391a]/30 flex items-center justify-center">
+                            <span className="text-[#e8391a] font-black text-sm">{mesa.numero}</span>
+                          </div>
+                          <div>
+                            <p className="text-white font-bold text-sm">Mesa {mesa.numero}</p>
+                            <p className="text-gray-400 text-xs">
+                              {mesa.responsavel ? mesa.responsavel : `${mesa.pessoas || 0} pessoa(s)`}
+                              {mesa.aberta_em ? ` · ${getTempoOcupada(mesa.aberta_em)}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[#e8391a] font-bold text-sm">
+                            {totalMesa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </span>
+                          <span className="material-symbols-outlined text-gray-400 text-sm transition-transform" style={{ transform: expandida ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                            expand_more
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Conteúdo expandido */}
+                      {expandida && (
+                        <div className="border-t border-[#353840] p-4 space-y-3">
+                          
+                          {/* Lista de itens */}
+                          <div className="space-y-1.5">
+                            {itensDestaMesa.length === 0 ? (
+                              <p className="text-xs text-gray-500 text-center py-2">Nenhum item registrado</p>
+                            ) : (
+                              itensDestaMesa.map((item, i) => (
+                                <div key={i} className="flex justify-between items-center text-xs">
+                                  <span className="text-gray-300">{item.quantidade}x {item.produto_nome}</span>
+                                  <span className="text-gray-400 font-bold">
+                                    {Number(item.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Total */}
+                          <div className="flex justify-between items-center pt-2 border-t border-[#353840]">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total</span>
+                            <span className="text-[#e8391a] font-black">
+                              {totalMesa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                          </div>
+
+                          {/* Botão fechar conta */}
+                          <button
+                            onClick={async () => {
+                              setItensMesa(itensDestaMesa)
+                              setMesaFechar(mesa)
+                              setShowMesasPanel(false)
+                              setShowDivisaoConta(true)
+                            }}
+                            className="w-full py-3 rounded-xl bg-yellow-500 text-black font-bold text-sm flex items-center justify-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-sm">receipt_long</span>
+                            Fechar Conta
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Ocupar Mesa */}
       {showOcuparMesa && mesaSelecionada && (

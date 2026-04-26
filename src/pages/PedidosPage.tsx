@@ -28,6 +28,7 @@ type UnifiedPedido = {
   itens: any[]
   endereco_entrega?: string
   updated_at?: string
+  mesa_numero?: number
 }
 
 type MainTab = 'kanban' | 'operacional' | 'gestor'
@@ -55,7 +56,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
 }
 
 const mapKanbanStatus = (rawStatus: string): UnifiedPedido['status_kanban'] => {
-  if (['aberto', 'pendente', 'confirmado'].includes(rawStatus)) return 'novo'
+  if (['aberto', 'pendente', 'confirmado', 'em_preparo'].includes(rawStatus)) return 'novo'
   if (rawStatus === 'preparando') return 'em_preparo'
   if (['pronto', 'saiu_entrega'].includes(rawStatus)) return 'saiu_entrega'
   if (rawStatus === 'entregue') return 'entregue'
@@ -106,6 +107,7 @@ export default function PedidosPage() {
   const [motoboyModalPedido, setMotoboyModalPedido] = useState<UnifiedPedido | null>(null)
   const [motoboysDisponiveis, setMotoboysDisponiveis] = useState<any[]>([])
   const [vinculandoMotoboy, setVinculandoMotoboy] = useState(false)
+  const [expandedCard, setExpandedCard] = useState<string | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
@@ -156,7 +158,7 @@ export default function PedidosPage() {
         unified.push({
           id: p.id,
           numero: p.numero,
-          cliente_nome: p.cliente_nome || 'Cliente Balcão',
+          cliente_nome: p.cliente_nome || (p.tipo === 'mesa' ? `Mesa ${p.mesa_numero}` : 'Cliente Balcão'),
           cliente_telefone: p.cliente_telefone || '',
           total: Number(p.total),
           tipo_tabela: 'pedidos',
@@ -166,6 +168,7 @@ export default function PedidosPage() {
           canal: p.tipo,
           forma_pagamento: p.forma_pagamento,
           endereco_entrega: p.endereco_entrega,
+          mesa_numero: p.mesa_numero,
           itens: p.itens_pedido?.map((ip: any) => ({
             nome: ip.produto_nome,
             qtd: ip.quantidade,
@@ -667,7 +670,11 @@ export default function PedidosPage() {
                     return (
                       <div 
                         key={pedido.id} 
-                        className="bg-[#16181f] border border-[#252830] rounded-xl p-3 hover:border-[#353840] transition-colors flex flex-col gap-2"
+                        className="bg-[#16181f] border border-[#252830] rounded-xl p-3 hover:border-[#353840] transition-all flex flex-col gap-2"
+                        onClick={() => {
+                          console.log('Clicou card:', pedido.id, expandedCard)
+                          setExpandedCard(pedido.id)
+                        }}
                       >
                         {/* LINHA 1 — header do card: Número + Tempo */}
                         <div className="flex justify-between items-center">
@@ -681,21 +688,31 @@ export default function PedidosPage() {
                         </div>
 
                         {/* LINHA 2 — nome do cliente */}
-                        <h3 className="text-sm font-semibold text-[#dde0ee]">
-                          {pedido.cliente_nome}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-semibold text-[#dde0ee]">
+                            {pedido.cliente_nome}
+                          </h3>
+                          {pedido.canal === 'mesa' && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f59e0b] text-black">
+                              MESA {pedido.mesa_numero}
+                            </span>
+                          )}
+                          {(pedido.forma_pagamento?.includes('cartao') || pedido.forma_pagamento?.toUpperCase() === 'PIX') && pedido.status_kanban === 'entregue' && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500 text-white">
+                              PAGO
+                            </span>
+                          )}
+                        </div>
 
                         {/* LINHA 3 — itens */}
                         <div className="flex flex-col gap-0.5">
-                          {pedido.itens.slice(0, 3).map((it, i) => (
+                          {pedido.itens.map((it, i) => (
                             <p key={i} className="text-xs text-gray-400">
                               {it.qtd}x {it.nome}
                             </p>
                           ))}
-                          {pedido.itens.length > 3 && (
-                            <p className="text-xs font-bold text-[#e8391a]">
-                              +{pedido.itens.length - 3} itens
-                            </p>
+                          {pedido.itens.length === 0 && (
+                            <p className="text-xs text-gray-500">Sem itens</p>
                           )}
                         </div>
 
