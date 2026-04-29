@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm install",
+  "git": {
+    "productionBranch": "imaginary-amaryllis"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
