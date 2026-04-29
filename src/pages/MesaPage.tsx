@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useParams } from 'react-router-dom'
+import type { Produto, Categoria, PrecoTamanho, Sabor, Mesa } from '../types'
 
-interface Produto { id: string; nome: string; preco: number; categoria_id: string; descricao: string; disponivel: boolean }
-interface Categoria { id: string; nome: string }
-interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
-interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 interface CartItem { produto: Produto; quantidade: number; tamanho?: string; precoUnitario: number; tipoPizza?: 'inteiro' | 'meio-a-meio'; sabor1?: string; sabor2?: string }
-interface Mesa { id: string; numero: number; capacidade: number; status: string; responsavel: string }
 
 type Step = 'menu' | 'carrinho'
 
 export default function MesaPage() {
   const { numero } = useParams<{ numero: string }>()
+  const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || user?.id
   const [mesa, setMesa] = useState<Mesa | null>(null)
   const [mesaNaoEncontrada, setMesaNaoEncontrada] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -37,11 +36,11 @@ export default function MesaPage() {
   const fetchData = useCallback(async () => {
     const mesaNum = parseInt(numero || '0')
     const [{ data: mesaData }, { data: cats }, { data: prods }, { data: precos }, { data: saboresData }] = await Promise.all([
-      supabase.from('mesas').select('*').eq('numero', mesaNum).single(),
-      supabase.from('categorias').select('*').eq('ativo', true).order('ordem'),
-      supabase.from('produtos').select('*').eq('disponivel', true).order('ordem'),
-      supabase.from('precos_tamanho').select('*'),
-      supabase.from('sabores').select('*').eq('disponivel', true).order('nome'),
+      supabase.from('mesas').select('*').eq('tenant_id', tenantId).eq('numero', mesaNum).single(),
+      supabase.from('categorias').select('*').eq('tenant_id', tenantId).eq('ativo', true).order('ordem'),
+      supabase.from('produtos').select('*').eq('tenant_id', tenantId).eq('disponivel', true).order('ordem'),
+      supabase.from('precos_tamanho').select('*').eq('tenant_id', tenantId),
+      supabase.from('sabores').select('*').eq('tenant_id', tenantId).eq('disponivel', true).order('nome'),
     ])
     
     if (!mesaData) {
@@ -62,13 +61,13 @@ export default function MesaPage() {
       })
       setPrecosTamanho(grouped)
     }
-  }, [numero])
+  }, [numero, tenantId])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   useEffect(() => {
-    const channel = supabase.channel('mesa-updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'itens_pedido' }, () => {
+    const channel = supabase.channel(`mesa-updates-${tenantId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'itens_pedido', filter: `tenant_id=eq.${tenantId}` }, () => {
         setNotificacao('Nova atualização na comanda!')
         setTimeout(() => setNotificacao(''), 5000)
       })
@@ -78,9 +77,10 @@ export default function MesaPage() {
 
   const handleAddToCart = (p: Produto) => {
     const precosProduto = precosTamanho[p.id]
-    if (precosProduto && precosProduto.length > 0) {
+    // Se tem variantes de tamanho OU produto não tem preço, abre modal para selecionar tamanho
+    if ((precosProduto && precosProduto.length > 0) || !p.preco || Number(p.preco) === 0) {
       setProdutoSelecionado(p)
-      setTamanhoSelecionado(precosProduto[0].tamanho)
+      setTamanhoSelecionado(precosProduto?.[0]?.tamanho || '')
       setTipoPizza('inteiro')
       setSabor1('')
       setSabor2('')
@@ -126,7 +126,7 @@ export default function MesaPage() {
       tamanho: item.tamanho,
     }))
 
-    await supabase.from('itens_pedido').insert(itens)
+    await supabase.from('itens_pedido').insert(itens.map(i => ({ ...i, tenant_id: tenantId })))
 
     setLoading(false)
     setSucesso(true)
@@ -338,8 +338,9 @@ export default function MesaPage() {
 
             <button 
               onClick={() => {
+                // Pega preço do tamanho ou do produto
                 const precoTamanho = precosTamanho[produtoSelecionado.id]?.find(pt => pt.tamanho === tamanhoSelecionado)
-                const preco = precoTamanho ? Number(precoTamanho.preco) : 0
+                const preco = precoTamanho ? Number(precoTamanho.preco) : (Number(produtoSelecionado.preco) || 0)
                 addToCart(produtoSelecionado, preco, tamanhoSelecionado)
               }}
               disabled={(tipoPizza === 'inteiro' && !sabor1 && sabores.length > 0) || (tipoPizza === 'meio-a-meio' && (!sabor1 || !sabor2))}

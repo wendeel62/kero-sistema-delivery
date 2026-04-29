@@ -1,211 +1,226 @@
-# AGENTS.md
+# Kero Project - Agent Configuration
 
-## Build/Dev/Lint Commands
+This file defines the agents available in the Kero project for the Kilo CLI.
 
-```bash
-npm run dev          # Start Vite dev server
-npm run build        # TypeScript check + Vite build (tsc -b && vite build)
-npm run lint         # ESLint on entire project
-npm run preview      # Preview production build
-npx tsc --noEmit     # TypeScript type checking without build
-```
+## Orchestration Mode - ATIVADO
 
-No test framework is configured. Run `npm run build` before committing to verify TypeScript compiles.
+This project has **orchestration mode activated**. Use these commands:
 
-## Project Structure
+### Build Commands
+- `*build {story-id}` - Execute full autonomous build cycle
+- `*build-autonomous` - Start autonomous build loop
+- `*build-resume` - Resume from last checkpoint
 
-```
-src/
-├── pages/           # Route pages (CardapioAdminPage.tsx, DashboardPage.tsx, etc.)
-├── components/      # Reusable components (Sidebar.tsx, Layout.tsx, etc.)
-├── contexts/        # React contexts (AuthContext.tsx)
-├── hooks/           # Custom hooks (useRealtime.ts)
-├── lib/             # Utilities and clients (supabase.ts)
-├── assets/          # Static assets
-├── App.tsx          # Router setup
-├── main.tsx         # Entry point
-└── index.css        # Global styles
-```
+### Development Modes
+- `*develop-yolo` - Autonomous development (no confirmation)
+- `*develop-interactive` - Interactive development (default)
+- `*execute-subtask` - Execute single subtask
 
-## Tech Stack
+### Execution Modes
+- **ask** (default) - Confirm each step
+- **auto** - Execute without confirmation  
+- **explore** - Exploration mode without execution
 
-- **Framework**: React 19 + TypeScript 5.9
-- **Build**: Vite 8
-- **Styling**: Tailwind CSS 4 (utility-first, inline classes)
-- **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Routing**: React Router v7
-- **State**: useState, useCallback, useEffect (no Redux/Zustand)
+Use `--auto` flag or `*yolo` prefix for autonomous execution.
 
-## Code Style
+## COMPORTAMENTOS DO AGENTE
 
-### Components
-- Default exports for pages and components
-- Arrow functions for handlers, async functions for API calls
-- Function components with hooks (no class components)
-- One component per file, filename matches component name
+The following agents are available and **ACTIVATED** for this project:
 
-```tsx
-export default function ComponentName() {
-  const [state, setState] = useState<Type>(initialValue)
+### 1. Architect Agent
+- **Path**: .aiox-core/development/agents/architect.md
+- **Fallback**: .codex/agents/architect.md
+- **Purpose**: Software architecture and system design
+- **Shortcut**: /architect, @architect
+- **Expertise**: Hexagonal architecture, DDD, Clean Architecture, system design
 
-  const handleAction = async () => {
-    const { data, error } = await supabase.from('table').select('*')
-    if (data) setState(data)
-  }
+### 2. Dev Agent  
+- **Path**: .aiox-core/development/agents/dev.md
+- **Fallback**: .codex/agents/dev.md
+- **Purpose**: Full-stack development implementation
+- **Shortcut**: /dev, @dev
+- **Expertise**: React, TypeScript, Node.js, Supabase, testing
 
-  return <div className="tailwind-classes">...</div>
-}
-```
+### 3. QA Agent
+- **Path**: .aiox-core/development/agents/qa.md
+- **Fallback**: .codex/agents/qa.md
+- **Purpose**: Testing, quality assurance, and test coverage
+- **Shortcut**: /qa, @qa
+- **Expertise**: Vitest, React Testing Library, e2e testing, accessibility
 
-### Imports
-- React hooks first, then external packages, then local imports
-- No destructured imports from supabase (use `supabase.from(...)`)
-```tsx
-import { useState, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
-```
+### 4. PM Agent
+- **Path**: .aiox-core/development/agents/pm.md
+- **Fallback**: .codex/agents/pm.md
+- **Purpose**: Project management and coordination
+- **Shortcut**: /pm, @pm
+- **Expertise**: Agile/Scrum, sprint planning, risk management
 
-### TypeScript
-- Interfaces for data shapes (not types)
-- `any` is allowed (ESLint rule disabled)
-- Strict mode enabled in tsconfig
-- Use explicit types for state: `useState<Produto[]>([])`
+### 5. PO Agent
+- **Path**: .aiox-core/development/agents/po.md
+- **Fallback**: .codex/agents/po.md
+- **Purpose**: Product ownership and backlog management
+- **Shortcut**: /po, @po
+- **Expertise**: Product management, user stories, prioritization
 
-### Styling
-- Tailwind CSS classes only (no CSS modules)
-- Inline styles with object syntax when needed: `style={{ aspectRatio: '4/5' }}`
-- Colors: `#16181f` (bg), `#1a1a1a` (input), `#ff5722` (primary), `#ffc107` (accent)
-- Material Symbols for icons: `<span className="material-symbols-outlined">icon_name</span>`
+### 6. SM Agent
+- **Path**: .aiox-core/development/agents/sm.md
+- **Fallback**: .codex/agents/sm.md
+- **Purpose**: Scrum mastery and team facilitation
+- **Shortcut**: /sm, @sm
+- **Expertise**: Scrum ceremonies, impediment removal, coaching
 
-### Naming
-- Portuguese for UI text and database fields
-- camelCase for variables and functions
-- PascalCase for components and interfaces
-- Descriptive names: `editProduto`, `fetchCategorias`, `showModal`
+### 7. Analyst Agent
+- **Path**: .aiox-core/development/agents/analyst.md
+- **Fallback**: .codex/agents/analyst.md
+- **Purpose**: Business and technical analysis
+- **Shortcut**: /analyst, @analyst
+- **Expertise**: Requirements gathering, process modeling, specifications
 
-### Error Handling
-- `alert()` for user-facing errors (Portuguese messages)
-- `console.error()` for developer debugging
-- Supabase errors: check `error` from destructured response
+### 8. DevOps Agent
+- **Path**: .aiox-core/development/agents/devops.md
+- **Fallback**: .codex/agents/devops.md
+- **Purpose**: Infrastructure, CI/CD, and deployment
+- **Shortcut**: /devops, @devops
+- **Expertise**: CI/CD pipelines, cloud infrastructure, monitoring
 
-### State Management
-- Local state with `useState`
-- Realtime updates via `useRealtime` hook
-- Auth state via `useAuth` context
+### 9. UX Design Expert Agent
+- **Path**: .aiox-core/development/agents/ux-design-expert.md
+- **Fallback**: .codex/agents/ux-design-expert.md
+- **Purpose**: User experience design and accessibility
+- **Shortcut**: /ux-design-expert, @ux-design-expert
+- **Expertise**: UX research, wireframing, WCAG accessibility
 
-## Key Patterns
+### 10. Squad Creator Agent
+- **Path**: .aiox-core/development/agents/squad-creator.md
+- **Fallback**: .codex/agents/squad-creator.md
+- **Purpose**: Multi-agent squad design and orchestration
+- **Shortcut**: /squad-creator, @squad-creator
+- **Expertise**: Multi-agent systems, team composition, workflows
 
-### Supabase Queries
-```tsx
-const { data, error } = await supabase.from('table').select('*').eq('field', value)
-if (data) setItems(data)
-if (error) console.error('Error:', error)
-```
+### 11. Data Engineer Agent
+- **Path**: .aiox-core/development/agents/data-engineer.md
+- **Fallback**: .codex/agents/data-engineer.md
+- **Purpose**: Database architecture and data modeling
+- **Shortcut**: /data-engineer, @data-engineer
+- **Expertise**: PostgreSQL, Supabase, schema design, query optimization
 
-### Realtime Subscriptions
-```tsx
-useRealtime('table', () => fetchData())
-```
+---
 
-### Protected Routes
-Wrap admin pages with `<ProtectedRoute>` in App.tsx.
+## Quality Gates
 
-## Multi-Tenant Rules (CRITICAL)
+Run these commands before concluding any task:
+- 
+pm run lint - ESLint validation
+- 
+pm run typecheck - TypeScript check
+- 
+pm run build - Production build
 
-> ⚠️ Never violate these rules. Every query MUST include tenant_id filter.
+---
 
-1. **Every Supabase query must include `.eq('tenant_id', tenantId)`**
-2. **Never omit tenant_id in INSERTs - always include explicitly**
-3. **Never mix data from different tenants**
-4. `tenantId` comes from auth context - never from URL parameters
+## Skills Available
 
-```tsx
-// ✅ CORRECT - Always filter by tenant_id
-const { data } = await supabase
-  .from('pedidos')
-  .select('*')
-  .eq('tenant_id', tenantId)
+The following skills are also available:
+- .kilo/skills/frontend-design/ - Production-grade frontend interfaces
+- .kilo/skills/web-design-guidelines/ - Web UI best practices
+- .kilo/skills/angular-component/ - Angular component patterns
+- .kilo/skills/angular-di/ - Angular dependency injection
+- .kilo/skills/create-pull-request/ - GitHub PR creation
+- .kilo/skills/file-organizer/ - File organization
+- .kilo/skills/skill-creator/ - Skill development guide
 
-// ✅ CORRECT - Always include tenant_id in INSERT
-await supabase.from('pedidos').insert({
-  tenant_id: tenantId,
-  cliente_nome: 'João',
-  // ...
-})
+---
 
-// ❌ WRONG - Missing tenant_id filter
-const { data } = await supabase.from('pedidos').select('*')
-```
+## Activation
 
-## Routes
+To activate an agent, use the shortcut or type the agent name in the CLI.
+All agents above are **ACTIVATED** and ready to use.
 
-| Route | Access | Description |
-|-------|--------|-------------|
-| `/` | Authenticated | Redirects to /dashboard |
-| `/login` | Public | Login screen |
-| `/dashboard` | Authenticated | KPIs dashboard |
-| `/pedidos` | Authenticated | Kanban de pedidos |
-| `/pdv` | Authenticated | Point of sale |
-| `/cardapio` | **Public** | Online menu for customers |
-| `/clientes` | Authenticated | CRM de clientes |
-| `/estoque` | Authenticated | Stock control |
-| `/financeiro` | Authenticated | Financial module |
-| `/entrega` | Authenticated | Delivery management |
-| `/agente-ia` | Authenticated | AI Agent (Atendant + Manager) |
-| `/configuracoes` | Authenticated | Store settings |
-| `/pedido/:numero` | **Public** | Order tracking |
-| `/cozinha` | **Public** | KDS - Kitchen monitor |
-| `/mesa/:numero` | **Public** | Menu via QR Code |
-| `/motoboy` | **Public** | Delivery app (token auth) |
+## Activation
 
-Public routes (`/cardapio`, `/pedido/:numero`, `/cozinha`, `/mesa/:numero`, `/motoboy`) have no sidebar or topbar.
+To activate an agent, use the shortcut or type the agent name in the CLI.
+All agents above are **ACTIVATED** and ready to use.
 
-## Order Status Flow
+## Workflow Example
 
-```
-NOVO → EM_PREPARO → SAIU_PARA_ENTREGA → ENTREGUE
-                                         ↘ CANCELADO (any stage)
-```
+1. **Analyst** - Gather and analyze requirements
+2. **Architect** - Design the solution
+3. **UX Design Expert** - Design the interface
+4. **Dev** - Implement the features
+5. **QA** - Test and ensure quality
+6. **DevOps** - Deploy to production
 
-| Status | Kanban Color |
-|--------|--------------|
-| novo | Blue |
-| em_preparo | Orange |
-| saiu_para_entrega | Purple |
-| entregue | Green |
-| cancelado | Red |
 
-## Git Conventions
+---
 
-- Use conventional commits: `feat:`, `fix:`, `refactor:`, `chore:`
-- Example: `git commit -m "fix: corrigir erro no cardápio online"`
-- Run `npm run build` before pushing to verify TypeScript compiles
+<!-- AIOX-MANAGED SECTIONS -->
+<!-- These sections are managed by AIOX. Edit content between markers carefully. -->
+<!-- Your custom content above will be preserved during updates. -->
 
-## Deployment
+<!-- AIOX-MANAGED-START: core -->
+## Core Rules
 
-### Vercel (Recommended)
-1. Connect GitHub repository in Vercel
-2. Framework Preset: **Vite**
-3. Build Command: `npm run build`
-4. Output Directory: `dist`
-5. Add environment variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+1. Siga a Constitution em `.aiox-core/constitution.md`
+2. Priorize `CLI First -> Observability Second -> UI Third`
+3. Trabalhe por stories em `docs/stories/`
+4. Nao invente requisitos fora dos artefatos existentes
+<!-- AIOX-MANAGED-END: core -->
 
-### Environment Variables
+<!-- AIOX-MANAGED-START: quality -->
+## Quality Gates
 
-Required in `.env`:
-```
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
-```
+- Rode `npm run lint`
+- Rode `npm run typecheck`
+- Rode `npm test`
+- Atualize checklist e file list da story antes de concluir
+<!-- AIOX-MANAGED-END: quality -->
 
-Segredos server-only como `SUPABASE_SERVICE_ROLE_KEY` nao devem usar prefixo `VITE_` e nao podem ficar no frontend.
+<!-- AIOX-MANAGED-START: codebase -->
+## Project Map
 
-## ESLint Rules (Relaxed)
+- Core framework: `.aiox-core/`
+- CLI entrypoints: `bin/`
+- Shared packages: `packages/`
+- Tests: `tests/`
+- Docs: `docs/`
+<!-- AIOX-MANAGED-END: codebase -->
 
-- `@typescript-eslint/no-explicit-any`: OFF
-- `@typescript-eslint/no-unused-vars`: OFF
-- `react-hooks/exhaustive-deps`: OFF
-- `react-refresh/only-export-components`: WARN
+<!-- AIOX-MANAGED-START: commands -->
+## Common Commands
+
+- `npm run sync:ide`
+- `npm run sync:ide:check`
+- `npm run sync:skills:codex`
+- `npm run sync:skills:codex:global` (opcional; neste repo o padrao e local-first)
+- `npm run validate:structure`
+- `npm run validate:agents`
+<!-- AIOX-MANAGED-END: commands -->
+
+<!-- AIOX-MANAGED-START: shortcuts -->
+## Agent Shortcuts
+
+Preferencia de ativacao no Codex CLI:
+1. Use `/skills` e selecione `aiox-<agent-id>` vindo de `.codex/skills` (ex.: `aiox-architect`)
+2. Se preferir, use os atalhos abaixo (`@architect`, `/architect`, etc.)
+
+Interprete os atalhos abaixo carregando o arquivo correspondente em `.aiox-core/development/agents/` (fallback: `.codex/agents/`), renderize o greeting via `generate-greeting.js` e assuma a persona ate `*exit`:
+
+- `@architect`, `/architect`, `/architect.md` -> `.aiox-core/development/agents/architect.md`
+- `@dev`, `/dev`, `/dev.md` -> `.aiox-core/development/agents/dev.md`
+- `@qa`, `/qa`, `/qa.md` -> `.aiox-core/development/agents/qa.md`
+- `@pm`, `/pm`, `/pm.md` -> `.aiox-core/development/agents/pm.md`
+- `@po`, `/po`, `/po.md` -> `.aiox-core/development/agents/po.md`
+- `@sm`, `/sm`, `/sm.md` -> `.aiox-core/development/agents/sm.md`
+- `@analyst`, `/analyst`, `/analyst.md` -> `.aiox-core/development/agents/analyst.md`
+- `@devops`, `/devops`, `/devops.md` -> `.aiox-core/development/agents/devops.md`
+- `@data-engineer`, `/data-engineer`, `/data-engineer.md` -> `.aiox-core/development/agents/data-engineer.md`
+- `@ux-design-expert`, `/ux-design-expert`, `/ux-design-expert.md` -> `.aiox-core/development/agents/ux-design-expert.md`
+- `@squad-creator`, `/squad-creator`, `/squad-creator.md` -> `.aiox-core/development/agents/squad-creator.md`
+- `@aiox-master`, `/aiox-master`, `/aiox-master.md` -> `.aiox-core/development/agents/aiox-master.md`
+
+## AIOX-Core Sync (Synkra v5.0.4)
+
+Os agentes foram sincronizados do npm (Synkra/aiox-core@5.0.4). Os caminhos primary agora apontam para:
+- **Primary**: `.aiox-core/development/agents/` (vindo do npm install)
+- **Fallback**: `.codex/agents/` (backup local)
+<!-- AIOX-MANAGED-END: shortcuts -->

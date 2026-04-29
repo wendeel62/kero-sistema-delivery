@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
+import { BarChart, Bar, AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface TemposMedios {
   novo: number
@@ -32,644 +35,830 @@ interface FunnelData {
   compras: number
 }
 
-interface FunnelData {
-  visualizacoes: number
-  addCarrinho: number
-  checkoutIniciado: number
-  compras: number
-}
-
 interface KpiData {
-  id: string;
-  icon: string;
-  label: string;
-  value: string | number;
-  colorClass?: string;
-  isCurrency?: boolean;
+  id: string
+  icon: string
+  label: string
+  value: string | number
+  color: string
+  isCurrency?: boolean
 }
 
-function KpiCard({ 
-  data, 
-  index, 
-  onDragStart, 
-  onDrop, 
-  isDragging 
-}: {
-  data: KpiData; 
-  index: number;
-  onDragStart: (id: string) => void;
-  onDrop: (targetId: string) => void;
-  isDragging: boolean;
-}) {
-  const valueDisplay = data.isCurrency 
-    ? data.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-    : String(data.value);
+interface Pedido {
+  id: string
+  cliente: string
+  total: number
+  status: string
+  created_at: string
+}
 
-  const colorMap: Record<string, string> = {
-    'faturamento': 'from-emerald-500/20 to-emerald-600/5 border-emerald-500/30',
-    'totalPedidos': 'from-[#e8391a]/20 to-[#e8391a]/5 border-[#e8391a]/30',
-    'ticketMedio': 'from-[#f57c24]/20 to-[#f57c24]/5 border-[#f57c24]/30',
-    'pedidosAbertos': 'from-orange-500/20 to-orange-500/5 border-orange-500/30',
-    'totalEntregues': 'from-emerald-500/20 to-emerald-600/5 border-emerald-500/30',
-    'tempoEntrega': 'from-[#f57c24]/20 to-[#f57c24]/5 border-[#f57c24]/30',
-    'avaliacao': 'from-yellow-500/20 to-yellow-500/5 border-yellow-500/30',
-    'visualizacoes': 'from-[#e8391a]/20 to-[#e8391a]/5 border-[#e8391a]/30',
+interface Produto {
+  id: string
+  nome: string
+  totalVendido: number
+  quantidade: number
+}
+
+const defaultKpis: KPIs = {
+  faturamento: 0,
+  totalPedidos: 0,
+  ticketMedio: 0,
+  tempoEntrega: 0,
+  visualizacoes: 0,
+  avaliacao: 0,
+  totalAvaliacoes: 0,
+  pedidosAbertos: 0,
+  totalEntregues: 0,
+  receita7Dias: [0, 0, 0, 0, 0, 0, 0],
+  temposMedios: { novo: 0, preparo: 0, entrega: 0, total: 0 },
+  funnelData: { visualizacoes: 0, addCarrinho: 0, checkoutIniciado: 0, compras: 0 },
+  pedidosPorHora: Array(24).fill(0)
+}
+
+function getTenantId(): string {
+  const configStr = localStorage.getItem('supabase.auth.token')
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr)
+      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
+    } catch {
+      return ''
+    }
   }
-
-  const iconColorMap: Record<string, string> = {
-    'faturamento': 'text-emerald-400 bg-emerald-500/20',
-    'totalPedidos': 'text-[#e8391a] bg-[#e8391a]/20',
-    'ticketMedio': 'text-[#f57c24] bg-[#f57c24]/20',
-    'pedidosAbertos': 'text-orange-400 bg-orange-500/20',
-    'totalEntregues': 'text-emerald-400 bg-emerald-500/20',
-    'tempoEntrega': 'text-[#f57c24] bg-[#f57c24]/20',
-    'avaliacao': 'text-yellow-400 bg-yellow-500/20',
-    'visualizacoes': 'text-[#e8391a] bg-[#e8391a]/20',
-  }
-
-  const textColorMap: Record<string, string> = {
-    'faturamento': 'text-emerald-400',
-    'totalPedidos': 'text-[#e8391a]',
-    'ticketMedio': 'text-[#f57c24]',
-    'pedidosAbertos': 'text-orange-400',
-    'totalEntregues': 'text-emerald-400',
-    'tempoEntrega': 'text-[#f57c24]',
-    'avaliacao': 'text-yellow-400',
-    'visualizacoes': 'text-[#e8391a]',
-  }
-
-  return (
-    <div 
-      draggable
-      onDragStart={() => onDragStart(data.id)}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={() => onDrop(data.id)}
-      style={{ animationDelay: `${index * 80}ms` }}
-      className={`relative overflow-hidden bg-gradient-to-br ${colorMap[data.id] || 'from-gray-500/20 to-gray-500/5 border-gray-500/30'} p-3 lg:p-6 rounded-xl lg:rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing animate-fade-in ${
-        isDragging ? 'opacity-40 scale-95' : 'hover:scale-[1.02] hover:shadow-lg'
-      }`}
-    >
-      <div className="absolute top-0 right-0 w-16 lg:w-32 h-16 lg:h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-      
-      <div className="flex justify-between items-start relative z-10">
-        <div className="flex flex-col">
-          <span className="text-[9px] lg:text-[11px] font-bold text-white/50 uppercase tracking-widest lg:mb-2">{data.label}</span>
-          <div className="h-0.5 w-6 lg:w-8 bg-white/20 rounded-full" />
-        </div>
-        <div className={`w-8 lg:w-11 h-8 lg:h-11 rounded-lg lg:rounded-xl flex items-center justify-center ${iconColorMap[data.id] || 'bg-white/10 text-white'}`}>
-          <span className="material-symbols-outlined text-lg lg:text-xl">{data.icon}</span>
-        </div>
-      </div>
-      
-      <h3 className={`text-xl lg:text-3xl font-bold mt-3 lg:mt-5 tracking-tight ${textColorMap[data.id] || 'text-white'}`}>
-        {valueDisplay}
-      </h3>
-    </div>
-  )
+  return ''
 }
 
 export default function DashboardPage() {
-  const [kpis, setKpis] = useState<KPIs>({
-    faturamento: 0, totalPedidos: 0, ticketMedio: 0, tempoEntrega: 0,
-    visualizacoes: 0, avaliacao: 0, totalAvaliacoes: 0, pedidosAbertos: 0, totalEntregues: 0,
-    receita7Dias: [0, 0, 0, 0, 0, 0, 0],
-    temposMedios: { novo: 0, preparo: 0, entrega: 0, total: 0 },
-    funnelData: { visualizacoes: 0, addCarrinho: 0, checkoutIniciado: 0, compras: 0 },
-    pedidosPorHora: Array(24).fill(0)
-  })
-  
-  const [order, setOrder] = useState<string[]>([
-    'faturamento', 'totalPedidos', 'ticketMedio', 'pedidosAbertos',
-    'totalEntregues', 'tempoEntrega', 'avaliacao', 'visualizacoes'
-  ])
-  
-  const [draggedKpi, setDraggedKpi] = useState<string | null>(null)
+  const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+
   const [linkCardapio, setLinkCardapio] = useState('')
-  const [lojaAberta, setLojaAberta] = useState(true)
-  const [loadingLoja, setLoadingLoja] = useState(false)
+  const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
+  const [showFunilDropdown, setShowFunilDropdown] = useState(false)
+  const [receitaDias, setReceitaDias] = useState<number>(7)
+  const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
 
-  const fetchKpis = useCallback(async () => {
-    const now = new Date()
-    const today = now.toISOString().split('T')[0]
-    
-    const { data: pedidosHoje } = await supabase.from('pedidos').select('*').gte('created_at', today)
-    const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').gte('created_at', today)
+  const { data: kpis = defaultKpis, isLoading: loadingKpis, refetch: refetchKpis } = useQuery({
+    queryKey: ['dashboard-kpis', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+      
+      const { data: pedidosHoje } = await supabase.from('pedidos').select('*').eq('tenant_id', tenantId).gte('created_at', today)
+      const { data: pedidosOnlineHoje } = await supabase.from('pedidos_online').select('*').eq('tenant_id', tenantId).gte('created_at', today)
 
-    const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])]
-    const validos = allPedidos.filter(p => p.status !== 'cancelado')
-    const entregues = allPedidos.filter(p => p.status === 'entregue')
-    const abertos = allPedidos.filter(p => !['entregue', 'cancelado'].includes(p.status))
-    
-    const faturamento = validos.reduce((sum, p) => sum + Number(p.total || 0), 0)
+      const allPedidos = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])]
+      const validos = allPedidos.filter(p => p.status !== 'cancelado')
+      const entregando = allPedidos.filter(p => p.status === 'entregue')
+      const abertos = allPedidos.filter(p => !['entregue', 'cancelado'].includes(p.status))
+      
+      const faturamento = validos.reduce((sum, p) => sum + Number(p.total || 0), 0)
 
-    const seteDiasAtras = new Date()
-    seteDiasAtras.setDate(now.getDate() - 7)
-    const isoSeteDias = seteDiasAtras.toISOString().split('T')[0]
+      const seteDiasAtras = new Date()
+      seteDiasAtras.setDate(now.getDate() - 7)
+      const isoSeteDias = seteDiasAtras.toISOString().split('T')[0]
 
-    const { data: p7 } = await supabase.from('pedidos').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
-    const { data: po7 } = await supabase.from('pedidos_online').select('total, created_at').gte('created_at', isoSeteDias).neq('status', 'cancelado')
+      const { data: p7 } = await supabase.from('pedidos').select('total, created_at').eq('tenant_id', tenantId).gte('created_at', isoSeteDias).neq('status', 'cancelado')
+      const { data: po7 } = await supabase.from('pedidos_online').select('total, created_at').eq('tenant_id', tenantId).gte('created_at', isoSeteDias).neq('status', 'cancelado')
 
-    const all7 = [...(p7 || []), ...(po7 || [])]
-    const receitaPorDia = [0, 0, 0, 0, 0, 0, 0]
-    
-    all7.forEach(p => {
-       const diff = Math.floor((now.getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24))
-       if (diff >= 0 && diff < 7) {
-          receitaPorDia[6 - diff] += Number(p.total || 0)
-       }
-    })
-
-    const { data: historico } = await supabase
-      .from('historico_status')
-      .select('pedido_id, status_anterior, status_novo, created_at')
-      .gte('created_at', today)
-      .order('created_at', { ascending: true })
-
-    const temposMedios: TemposMedios = { novo: 0, preparo: 0, entrega: 0, total: 0 }
-    
-    if (historico && historico.length > 0) {
-      const porPedido: Record<string, Array<{status_anterior: string, status_novo: string, created_at: string}>> = {}
-      historico.forEach((h: any) => {
-        if (!porPedido[h.pedido_id]) porPedido[h.pedido_id] = []
-        porPedido[h.pedido_id].push({
-          status_anterior: h.status_anterior,
-          status_novo: h.status_novo,
-          created_at: h.created_at
-        })
+      const all7 = [...(p7 || []), ...(po7 || [])]
+      const receitaPorDia = [0, 0, 0, 0, 0, 0, 0]
+      
+      all7.forEach(p => {
+         const diff = Math.floor((now.getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24))
+         if (diff >= 0 && diff < 7) {
+            receitaPorDia[6 - diff] += Number(p.total || 0)
+         }
       })
 
-      let somaNovo = 0, somaPreparo = 0, somaEntrega = 0
-      let countNovo = 0, countPreparo = 0, countEntrega = 0
+      const { data: historico } = await supabase
+        .from('historico_status')
+        .select('pedido_id, status_anterior, status_novo, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', today)
+        .order('created_at', { ascending: true })
 
-      Object.entries(porPedido).forEach(([pedidoId, mudancas]) => {
-        let inicioNovo: number | null = null
-        let inicioPreparo: number | null = null
-        let inicioEntrega: number | null = null
-
-        const pedido = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])].find((p: any) => p.id === pedidoId)
-        if (pedido) {
-          inicioNovo = new Date(pedido.created_at).getTime()
-        }
-
-        mudancas.forEach(m => {
-          const tempo = new Date(m.created_at).getTime()
-          
-          if (['pendente', 'aberto', 'confirmado'].includes(m.status_anterior) && m.status_novo === 'preparando') {
-            if (inicioNovo) {
-              somaNovo += Math.floor((tempo - inicioNovo) / 60000)
-              countNovo++
-            }
-            inicioPreparo = tempo
-          }
-          
-          if (m.status_anterior === 'preparando' && ['pronto', 'saiu_entrega'].includes(m.status_novo)) {
-            if (inicioPreparo) {
-              somaPreparo += Math.floor((tempo - inicioPreparo) / 60000)
-              countPreparo++
-            }
-            inicioEntrega = tempo
-          }
-          
-          if (m.status_novo === 'entregue' && m.status_anterior !== 'cancelado') {
-            if (inicioEntrega) {
-              somaEntrega += Math.floor((tempo - inicioEntrega) / 60000)
-              countEntrega++
-            }
-          }
+      const temposMedios: TemposMedios = { novo: 0, preparo: 0, entrega: 0, total: 0 }
+      
+      if (historico && historico.length > 0) {
+        const porPedido: Record<string, Array<{status_anterior: string, status_novo: string, created_at: string}>> = {}
+        historico.forEach((h: any) => {
+          if (!porPedido[h.pedido_id]) porPedido[h.pedido_id] = []
+          porPedido[h.pedido_id].push({
+            status_anterior: h.status_anterior,
+            status_novo: h.status_novo,
+            created_at: h.created_at
+          })
         })
-      })
 
-      temposMedios.novo = countNovo > 0 ? Math.round(somaNovo / countNovo) : 8
-      temposMedios.preparo = countPreparo > 0 ? Math.round(somaPreparo / countPreparo) : 15
-      temposMedios.entrega = countEntrega > 0 ? Math.round(somaEntrega / countEntrega) : 12
-      temposMedios.total = temposMedios.novo + temposMedios.preparo + temposMedios.entrega
-    }
+        let somaNovo = 0, somaPreparo = 0, somaEntrega = 0
+        let countNovo = 0, countPreparo = 0, countEntrega = 0
 
-    const { data: npsDataPedidos } = await supabase
-      .from('pedidos')
-      .select('nps_nota')
-      .eq('nps_respondido', true)
-      .gte('created_at', today)
-      .not('nps_nota', 'is', null)
+        Object.entries(porPedido).forEach(([pedidoId, mudancas]) => {
+          let inicioNovo: number | null = null
+          let inicioPreparo: number | null = null
+          let inicioEntrega: number | null = null
 
-    const { data: npsDataOnline } = await supabase
-      .from('pedidos_online')
-      .select('nps_nota')
-      .eq('nps_respondido', true)
-      .gte('created_at', today)
-      .not('nps_nota', 'is', null)
+          const pedido = [...(pedidosHoje || []), ...(pedidosOnlineHoje || [])].find((p: any) => p.id === pedidoId)
+          if (pedido) {
+            inicioNovo = new Date(pedido.created_at).getTime()
+          }
 
-    const allNpsData = [...(npsDataPedidos || []), ...(npsDataOnline || [])]
+          mudancas.forEach(m => {
+            const tempo = new Date(m.created_at).getTime()
+            
+            if (['pendente', 'aberto', 'confirmado'].includes(m.status_anterior) && m.status_novo === 'preparando') {
+              if (inicioNovo) {
+                somaNovo += Math.floor((tempo - inicioNovo) / 60000)
+                countNovo++
+              }
+              inicioPreparo = tempo
+            }
+            
+            if (m.status_anterior === 'preparando' && ['pronto', 'saiu_entrega'].includes(m.status_novo)) {
+              if (inicioPreparo) {
+                somaPreparo += Math.floor((tempo - inicioPreparo) / 60000)
+                countPreparo++
+              }
+              inicioEntrega = tempo
+            }
+            
+            if (m.status_novo === 'entregue' && m.status_anterior !== 'cancelado') {
+              if (inicioEntrega) {
+                somaEntrega += Math.floor((tempo - inicioEntrega) / 60000)
+                countEntrega++
+              }
+            }
+          })
+        })
 
-    const avaliacaoMedia = allNpsData.length > 0
-      ? Math.round((allNpsData.reduce((sum, p) => sum + (p.nps_nota || 0), 0) / allNpsData.length) * 10) / 10
-      : 0
-
-    // Fetch dados do funil de vendas
-    const { data: eventosData } = await supabase
-      .from('eventos_jornada')
-      .select('tipo_evento, quantidade')
-      .gte('data', today)
-
-    const eventos = eventosData || []
-    const visualizacoes = eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0)
-    const addCarrinho = eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0)
-    const checkoutIniciado = eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0)
-    const compras = eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0)
-
-    // Calcular pedidos por hora (considerando hoje)
-    const pedidosPorHora = Array(24).fill(0)
-    
-    // Processar pedidos internos
-    allPedidos.forEach(p => {
-      const hour = new Date(p.created_at).getHours()
-      if (hour >= 0 && hour < 24) {
-        pedidosPorHora[hour]++
+        temposMedios.novo = countNovo > 0 ? Math.round(somaNovo / countNovo) : 8
+        temposMedios.preparo = countPreparo > 0 ? Math.round(somaPreparo / countPreparo) : 15
+        temposMedios.entrega = countEntrega > 0 ? Math.round(somaEntrega / countEntrega) : 12
+        temposMedios.total = temposMedios.novo + temposMedios.preparo + temposMedios.entrega
       }
-    })
 
-    // Processar pedidos online
-    const { data: pedidosOnlineHojeAll } = await supabase
-      .from('pedidos_online')
-      .select('created_at')
-      .gte('created_at', today)
-    
-    if (pedidosOnlineHojeAll) {
-      pedidosOnlineHojeAll.forEach(p => {
+      const { data: npsDataPedidos } = await supabase
+        .from('pedidos')
+        .select('nps_nota')
+        .eq('tenant_id', tenantId)
+        .eq('nps_respondido', true)
+        .gte('created_at', today)
+        .not('nps_nota', 'is', null)
+
+      const { data: npsDataOnline } = await supabase
+        .from('pedidos_online')
+        .select('nps_nota')
+        .eq('tenant_id', tenantId)
+        .eq('nps_respondido', true)
+        .gte('created_at', today)
+        .not('nps_nota', 'is', null)
+
+      const allNpsData = [...(npsDataPedidos || []), ...(npsDataOnline || [])]
+
+      const avaliacaoMedia = allNpsData.length > 0
+        ? Math.round((allNpsData.reduce((sum, p) => sum + (p.nps_nota || 0), 0) / allNpsData.length) * 10) / 10
+        : 0
+
+      const { data: eventosData } = await supabase
+        .from('eventos_jornada')
+        .select('tipo_evento, quantidade')
+        .eq('tenant_id', tenantId)
+        .gte('data', today)
+
+      const eventos = eventosData || []
+      const visualizacoes = eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0)
+      const addCarrinho = eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0)
+      const checkoutIniciado = eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0)
+      const compras = eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0)
+
+      const pedidosPorHora = Array(24).fill(0)
+      
+      allPedidos.forEach(p => {
         const hour = new Date(p.created_at).getHours()
         if (hour >= 0 && hour < 24) {
           pedidosPorHora[hour]++
         }
       })
+
+      const { data: pedidosOnlineHojeAll } = await supabase
+        .from('pedidos_online')
+        .select('created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', today)
+      
+      if (pedidosOnlineHojeAll) {
+        pedidosOnlineHojeAll.forEach(p => {
+          const hour = new Date(p.created_at).getHours()
+          if (hour >= 0 && hour < 24) {
+            pedidosPorHora[hour]++
+          }
+        })
+      }
+
+      return {
+        faturamento,
+        totalPedidos: allPedidos.length,
+        ticketMedio: validos.length > 0 ? faturamento / validos.length : 0,
+        tempoEntrega: temposMedios.total,
+        visualizacoes,
+        avaliacao: avaliacaoMedia,
+        totalAvaliacoes: allNpsData.length,
+        pedidosAbertos: abertos.length,
+        totalEntregues: entregando.length,
+        receita7Dias: receitaPorDia,
+        temposMedios,
+        funnelData: { visualizacoes, addCarrinho, checkoutIniciado, compras },
+        pedidosPorHora
+      }
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: pedidosRecentes = [] as Pedido[], isLoading: loadingPedidos } = useQuery({
+    queryKey: ['pedidos-recentes', tenantId],
+    queryFn: async () => {
+      const { data: pedidos } = await supabase
+        .from('pedidos')
+        .select('id, cliente, total, status, created_at')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      const { data: pedidosOnline } = await supabase
+        .from('pedidos_online')
+        .select('id, cliente, total, status, created_at')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      const combined = [...(pedidos || []), ...(pedidosOnline || [])]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10)
+
+      return combined as Pedido[]
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: topProdutos = [] as Produto[], isLoading: loadingProdutos } = useQuery({
+    queryKey: ['top-produtos', tenantId],
+    queryFn: async () => {
+      const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      
+      const { data: itensPedido } = await supabase
+        .from('itens_pedido')
+        .select('produto_id, quantidade, preco')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', seteDiasAtras)
+
+      const produtoIds = [...new Set(itensPedido?.map(item => item.produto_id).filter(Boolean) || [])]
+      
+      let produtoMap: Record<string, { nome: string; totalVendido: number; quantidade: number }> = {}
+      
+      if (produtoIds.length > 0) {
+        const { data: produtos } = await supabase
+          .from('produtos')
+          .select('id, nome')
+          .eq('tenant_id', tenantId)
+          .in('id', produtoIds)
+        
+        const produtosPorId = (produtos || []).reduce((acc, p) => {
+          acc[p.id] = p.nome
+          return acc
+        }, {} as Record<string, string>)
+        
+        produtoMap = produtoIds.reduce((acc, id) => {
+          acc[id] = { nome: produtosPorId[id] || 'Produto', totalVendido: 0, quantidade: 0 }
+          return acc
+        }, {} as Record<string, { nome: string; totalVendido: number; quantidade: number }>)
+        
+        if (itensPedido) {
+          for (const item of itensPedido) {
+            if (produtoMap[item.produto_id]) {
+              produtoMap[item.produto_id].totalVendido += Number(item.preco) * item.quantidade
+              produtoMap[item.produto_id].quantidade += item.quantidade
+            }
+          }
+        }
+      }
+
+      return Object.entries(produtoMap)
+        .map(([id, data]) => ({ id, ...data }))
+        .sort((a, b) => b.totalVendido - a.totalVendido)
+        .slice(0, 5) as Produto[]
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: faturamento7Dias = [0, 0, 0, 0, 0, 0, 0] as number[], isLoading: loadingFaturamento } = useQuery({
+    queryKey: ['faturamento-7dias', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const resultado: number[] = [0, 0, 0, 0, 0, 0, 0]
+
+      for (let i = 6; i >= 0; i--) {
+        const data = new Date(now)
+        data.setDate(now.getDate() - i)
+        const dataStr = data.toISOString().split('T')[0]
+        const dataStrProx = new Date(data)
+        dataStrProx.setDate(data.getDate() + 1)
+        
+        const { data: pedidosDia } = await supabase
+          .from('pedidos')
+          .select('total')
+          .eq('tenant_id', tenantId)
+          .gte('created_at', dataStr)
+          .lt('created_at', dataStrProx.toISOString().split('T')[0])
+          .neq('status', 'cancelado')
+
+        const { data: pedidosOnlineDia } = await supabase
+          .from('pedidos_online')
+          .select('total')
+          .eq('tenant_id', tenantId)
+          .gte('created_at', dataStr)
+          .lt('created_at', dataStrProx.toISOString().split('T')[0])
+          .neq('status', 'cancelado')
+
+        const totalDia = [...(pedidosDia || []), ...(pedidosOnlineDia || [])]
+          .reduce((sum, p) => sum + Number(p.total || 0), 0)
+        
+        resultado[6 - i] = totalDia
+      }
+
+      return resultado
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: configData, isLoading: loadingConfig } = useQuery({
+    queryKey: ['configuracoes-loja', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('configuracoes')
+        .select('id, loja_aberta')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return data
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const { data: funilData } = useQuery({
+    queryKey: ['funil-tempo-real', tenantId],
+    queryFn: async () => {
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+      
+      const { data: eventosData } = await supabase
+        .from('eventos_jornada')
+        .select('tipo_evento, quantidade')
+        .eq('tenant_id', tenantId)
+        .gte('data', today)
+
+      const eventos = eventosData || []
+      
+      const { data: whatsAppData } = await supabase
+        .from('mensagens_whatsapp')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', today)
+
+      return {
+        visualizacoes: eventos.filter(e => e.tipo_evento === 'visualizacao').reduce((sum, e) => sum + e.quantidade, 0),
+        addCarrinho: eventos.filter(e => e.tipo_evento === 'add_carrinho').reduce((sum, e) => sum + e.quantidade, 0),
+        checkoutIniciado: eventos.filter(e => e.tipo_evento === 'checkout_iniciado').reduce((sum, e) => sum + e.quantidade, 0),
+        compras: eventos.filter(e => e.tipo_evento === 'compra').reduce((sum, e) => sum + e.quantidade, 0),
+        whatsapp: whatsAppData?.length || 0
+      }
+    },
+    staleTime: 10000,
+    enabled: !!tenantId,
+    refetchInterval: 10000
+  })
+
+  const { data: receitaData } = useQuery({
+    queryKey: ['receita-por-periodo', tenantId, receitaDias],
+    queryFn: async () => {
+      const now = new Date()
+      const diasAtras = new Date()
+      diasAtras.setDate(now.getDate() - receitaDias)
+      const isoDiasAtras = diasAtras.toISOString().split('T')[0]
+      
+      const { data: pedidosPeriodo } = await supabase
+        .from('pedidos')
+        .select('total, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', isoDiasAtras)
+        .neq('status', 'cancelado')
+
+      const { data: pedidosOnlinePeriodo } = await supabase
+        .from('pedidos_online')
+        .select('total, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', isoDiasAtras)
+        .neq('status', 'cancelado')
+
+      const allPedidosPeriodo = [...(pedidosPeriodo || []), ...(pedidosOnlinePeriodo || [])]
+      
+      const receitaPorDia: number[] = []
+      for (let i = receitaDias - 1; i >= 0; i--) {
+        const data = new Date(now)
+        data.setDate(now.getDate() - i)
+        const dataStr = data.toISOString().split('T')[0]
+        
+        const totalDia = allPedidosPeriodo
+          .filter(p => p.created_at && p.created_at.startsWith(dataStr))
+          .reduce((sum, p) => sum + Number(p.total || 0), 0)
+        
+        receitaPorDia.push(totalDia)
+      }
+
+      const totalReceita = allPedidosPeriodo.reduce((sum, p) => sum + Number(p.total || 0), 0)
+
+      return {
+        receitaPorDia,
+        totalReceita
+      }
+    },
+    staleTime: 30000,
+    enabled: !!tenantId
+  })
+
+  const queryClient = useQueryClient()
+
+  const { mutate: toggleLoja, isPending: loadingLoja } = useMutation({
+    mutationFn: async () => {
+      const novoEstado = !configData?.loja_aberta
+      if (configData?.id) {
+        await supabase.from('configuracoes').update({ loja_aberta: novoEstado }).eq('id', configData.id)
+      } else {
+        await supabase.from('configuracoes').insert({ tenant_id: tenantId, loja_aberta: novoEstado })
+      }
+      return novoEstado
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['configuracoes-loja', tenantId] })
     }
+  })
 
-    setKpis({
-      faturamento,
-      totalPedidos: allPedidos.length,
-      ticketMedio: validos.length > 0 ? faturamento / validos.length : 0,
-      tempoEntrega: temposMedios.total,
-      visualizacoes: (pedidosOnlineHoje?.length || 0) * 42,
-      avaliacao: avaliacaoMedia,
-      totalAvaliacoes: allNpsData.length,
-      pedidosAbertos: abertos.length,
-      totalEntregues: entregues.length,
-      receita7Dias: receitaPorDia,
-      temposMedios,
-      funnelData: { visualizacoes, addCarrinho, checkoutIniciado, compras },
-      pedidosPorHora
-    })
-  }, [])
-
-  useEffect(() => { fetchKpis() }, [fetchKpis])
   useEffect(() => {
     setLinkCardapio(window.location.origin + '/cardapio')
   }, [])
 
-  useEffect(() => {
-    const fetchLojaStatus = async () => {
-      const { data } = await supabase.from('configuracoes').select('id, loja_aberta').order('created_at', { ascending: false }).limit(1).maybeSingle()
-      if (data?.loja_aberta !== undefined) {
-        setLojaAberta(data.loja_aberta)
-      }
-    }
-    fetchLojaStatus()
-  }, [])
+  const lojaAberta = configData?.loja_aberta ?? true
 
-  const toggleLoja = async () => {
-    setLoadingLoja(true)
-    const novoEstado = !lojaAberta
-    const { data: existing } = await supabase.from('configuracoes').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
-    
-    if (existing) {
-      await supabase.from('configuracoes').update({ loja_aberta: novoEstado }).eq('id', existing.id)
-    } else {
-      await supabase.from('configuracoes').insert({ loja_aberta: novoEstado })
-    }
-    
-    setLojaAberta(novoEstado)
-    setLoadingLoja(false)
-  }
-  useRealtime('pedidos', fetchKpis)
-  useRealtime('pedidos_online', fetchKpis)
+  // Fallback fixo para tenantId
+  const safeTenantId = tenantId || '19f48a0b-3117-4d2b-856e-41673dc43275'
 
-  const handleDropKpi = (targetId: string) => {
-    if (!draggedKpi || draggedKpi === targetId) return
-    const newOrder = [...order]
-    const dIdx = newOrder.indexOf(draggedKpi)
-    const tIdx = newOrder.indexOf(targetId)
-    newOrder.splice(dIdx, 1)
-    newOrder.splice(tIdx, 0, draggedKpi)
-    setOrder(newOrder)
-    setDraggedKpi(null)
-  }
+  useRealtime({
+    configs: [
+      { table: 'pedidos', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { 
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] }) 
+        queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] }) 
+      }},
+      { table: 'pedidos_online', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { 
+        queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] }) 
+        queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] }) 
+      }},
+      { table: 'eventos_jornada', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { queryClient.invalidateQueries({ queryKey: ['funil-tempo-real', safeTenantId] }) } },
+    ]
+  })
 
-  const [chartsOrder, setChartsOrder] = useState<string[]>(['receita', 'picos', 'funil', 'tempos'])
-  const [draggedChart, setDraggedChart] = useState<string | null>(null)
-
-  const handleDropCharts = (targetId: string) => {
-    if (!draggedChart || draggedChart === targetId) return
-    const newOrder = [...chartsOrder]
-    const dIdx = newOrder.indexOf(draggedChart)
-    const tIdx = newOrder.indexOf(targetId)
-    newOrder.splice(dIdx, 1)
-    newOrder.splice(tIdx, 0, draggedChart)
-    setChartsOrder(newOrder)
-    setDraggedChart(null)
-  }
-
-  const kpiMap: Record<string, KpiData> = {
-    faturamento: { id: 'faturamento', icon: 'payments', label: 'Faturamento', value: kpis.faturamento, isCurrency: true },
-    totalPedidos: { id: 'totalPedidos', icon: 'local_mall', label: 'Pedidos Total', value: kpis.totalPedidos },
-    ticketMedio: { id: 'ticketMedio', icon: 'trending_up', label: 'Ticket Médio', value: kpis.ticketMedio, isCurrency: true },
-    pedidosAbertos: { id: 'pedidosAbertos', icon: 'pending_actions', label: 'Em Preparo', value: kpis.pedidosAbertos },
-    totalEntregues: { id: 'totalEntregues', icon: 'check_circle', label: 'Entregues', value: kpis.totalEntregues },
-    tempoEntrega: { id: 'tempoEntrega', icon: 'schedule', label: 'Tempo Médio', value: `${kpis.tempoEntrega} min` },
-    avaliacao: { 
-      id: 'avaliacao', 
-      icon: 'star', 
-      label: 'Avaliação NPS', 
-      value: kpis.totalAvaliacoes > 0 
-        ? `${kpis.avaliacao.toFixed(1)} (${kpis.totalAvaliacoes})`
-        : '0.0 (sem)', 
-    },
-    visualizacoes: { id: 'visualizacoes', icon: 'visibility', label: 'Visitas', value: kpis.visualizacoes },
-  }
-
-  const renderChart = (id: string) => {
-    const commonClass = `bg-[#16181f] p-3 lg:p-6 rounded-xl lg:rounded-2xl border border-[#252830] transition-all duration-300 animate-fade-in relative group cursor-grab active:cursor-grabbing ${draggedChart === id ? 'opacity-30 scale-95' : 'hover:border-[#e8391a]/30'}`
-    const dragProps = {
-      draggable: true,
-      onDragStart: () => setDraggedChart(id),
-      onDragOver: (e: any) => e.preventDefault(),
-      onDrop: () => handleDropCharts(id)
-    }
-
-    if (id === 'receita') {
-      const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-      const max = Math.max(...kpis.receita7Dias, 1)
-      
-      return (
-        <div key="receita" {...dragProps} className={commonClass} style={{ animationDelay: '400ms' }}>
-          <div className="flex justify-between items-center mb-4 lg:mb-6">
-            <div>
-              <h3 className="text-base lg:text-lg font-bold text-white">Receita dos Últimos 7 Dias</h3>
-              <p className="text-[10px] lg:text-xs text-white/40 mt-0.5 lg:mt-1">Volume de vendas diário</p>
-            </div>
-            <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-lg lg:rounded-xl bg-[#e8391a]/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#e8391a] text-lg lg:text-xl">bar_chart</span>
-            </div>
-          </div>
-          
-          <div className="h-28 lg:h-44 flex items-end justify-between gap-1 lg:gap-2 px-0.5">
-            {kpis.receita7Dias.map((valor, i) => {
-              const height = (valor / max) * 100
-              const isToday = i === 6
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1 lg:gap-2 group/bar">
-                  <div className="w-full relative flex items-end justify-center h-full">
-                    <div 
-                      className={`w-full max-w-[16px] lg:max-w-[28px] rounded-t-sm lg:rounded-t-md transition-all duration-500 ${isToday ? 'bg-gradient-to-t from-[#e8391a] to-[#ff6b4a] shadow-lg shadow-[#e8391a]/20' : 'bg-[#252830] group-hover/bar:bg-[#e8391a]/30'}`} 
-                      style={{ height: `${Math.max(height, 8)}%` }} 
-                    />
-                    {valor > 0 && (
-                      <div className="absolute -top-5 lg:-top-7 bg-[#1a1a1a] px-1.5 lg:px-2 py-0.5 lg:py-1 rounded text-[8px] lg:text-[10px] font-bold text-white opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap z-10 border border-[#252830]">
-                        R$ {valor.toFixed(0)}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-[7px] lg:text-[9px] font-medium ${isToday ? 'text-[#e8391a]' : 'text-white/30'}`}>{dias[i]}</span>
-                </div>
-              )
-            })}
+  if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento || loadingConfig) {
+    return (
+      <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="h-16 w-48 bg-surface-variant rounded-lg animate-pulse"></div>
+          <div className="flex gap-3">
+            <div className="h-12 w-32 bg-surface-variant rounded-lg animate-pulse"></div>
+            <div className="h-12 w-40 bg-surface-variant rounded-lg animate-pulse"></div>
           </div>
         </div>
-      )
-    }
-
-    if (id === 'picos') {
-      const pedidosPorHora = kpis.pedidosPorHora
-      const maxPedidos = Math.max(...pedidosPorHora, 1)
-      const totalPedidos = pedidosPorHora.reduce((a, b) => a + b, 0)
-      const horaPico = pedidosPorHora.indexOf(maxPedidos)
-      
-      return (
-        <div key="picos" {...dragProps} className={commonClass} style={{ animationDelay: '500ms' }}>
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-white">Picos por Hora</h3>
-              <p className="text-xs text-white/40 mt-1">Pedidos por hora hoje</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-[#f57c24]/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#f57c24]">insights</span>
-            </div>
-          </div>
-          
-          <div className="h-32 flex items-end justify-between gap-1">
-            {pedidosPorHora.map((count, hour) => {
-              const height = maxPedidos > 0 ? (count / maxPedidos) * 100 : 0
-              const isPico = count === maxPedidos && count > 0
-              return (
-                <div key={hour} className="flex-1 flex flex-col items-center gap-1 group">
-                  <div className="w-full relative flex items-end justify-center h-full">
-                    <div 
-                      className={`w-full rounded-t-sm transition-all duration-300 ${isPico ? 'bg-gradient-to-t from-[#e8391a] to-[#ff6b4a] shadow-lg' : 'bg-[#252830] group-hover:bg-[#f57c24]/50'}`}
-                      style={{ height: `${Math.max(height, 4)}%` }}
-                    />
-                    {count > 0 && (
-                      <div className="absolute -top-6 text-[9px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-[#1a1a1a] px-1.5 py-0.5 rounded">
-                        {count}
-                      </div>
-                    )}
-                  </div>
-                  {hour % 4 === 0 && (
-                    <span className="text-[8px] text-white/30">{String(hour).padStart(2, '0')}</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          
-          <div className="mt-4 flex justify-between items-center pt-3 border-t border-[#252830]">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#e8391a]" />
-              <span className="text-xs text-white/50">Total hoje</span>
-              <span className="text-sm font-bold text-white">{totalPedidos}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#f57c24]" />
-              <span className="text-xs text-white/50">Pico às</span>
-              <span className="text-sm font-bold text-white">{String(horaPico).padStart(2, '0')}:00</span>
-              <span className="text-xs text-[#f57c24]">({maxPedidos})</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="p-6 rounded-2xl border border-outline bg-surface-container animate-pulse h-36"></div>
+          ))}
         </div>
-      )
-    }
-
-    if (id === 'funil') {
-      const funnelItems = [
-        { label: 'WhatsApp/Cards', value: kpis.funnelData.visualizacoes || kpis.visualizacoes, w: 'w-full' },
-        { label: 'Visualização Cardápio', value: kpis.funnelData.visualizacoes, w: kpis.funnelData.visualizacoes ? 'w-[85%]' : 'w-0' },
-        { label: 'Adição ao Carrinho', value: kpis.funnelData.addCarrinho, w: kpis.funnelData.addCarrinho && kpis.funnelData.visualizacoes ? `w-[${Math.min(100, Math.round((kpis.funnelData.addCarrinho / kpis.funnelData.visualizacoes) * 100))}%)]` : 'w-0' },
-        { label: 'Checkout Iniciado', value: kpis.funnelData.checkoutIniciado, w: kpis.funnelData.checkoutIniciado && kpis.funnelData.addCarrinho ? `w-[${Math.min(100, Math.round((kpis.funnelData.checkoutIniciado / kpis.funnelData.addCarrinho) * 100))}%)]` : 'w-0' },
-        { label: 'Compras Concluídas', value: kpis.funnelData.compras || kpis.totalEntregues, w: kpis.funnelData.compras && kpis.funnelData.checkoutIniciado ? `w-[${Math.min(100, Math.round((kpis.funnelData.compras / kpis.funnelData.checkoutIniciado) * 100))}%)]` : 'w-[40%]' },
-      ]
-      
-      // Calculate widths dynamically based on max value
-      const maxValue = Math.max(...funnelItems.map(i => i.value), 1)
-      const dynamicWidths = funnelItems.map(item => {
-        if (item.value === 0) return 'w-0'
-        const percent = (item.value / maxValue) * 100
-        return `w-[${percent}%]`
-      })
-      
-      const colors = ['bg-[#e8391a]', 'bg-pink-500', 'bg-[#f57c24]', 'bg-yellow-500', 'bg-emerald-500']
-      const textColors = ['text-[#e8391a]', 'text-pink-400', 'text-[#f57c24]', 'text-yellow-500', 'text-emerald-400']
-      
-      const getWidth = (i: number) => {
-        const item = funnelItems[i]
-        if (item.value === 0) return 'w-0'
-        return dynamicWidths[i]
-      }
-      
-      return (
-        <div key="funil" {...dragProps} className={commonClass} style={{ animationDelay: '600ms' }}>
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-white">Funil de Vendas</h3>
-              <p className="text-xs text-white/40 mt-1">Jornada do cliente</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-orange-500">filter_alt</span>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {funnelItems.map((item, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-end">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{item.label}</span>
-                  <span className={`text-sm font-bold ${textColors[i]}`}>{item.value}</span>
-                </div>
-                <div className="h-5 bg-[#1c1e26] rounded-md overflow-hidden">
-                   <div className={`h-full ${colors[i]} ${getWidth(i)} transition-all duration-700 flex items-center justify-end pr-2`}>
-                      {item.value > 0 && <div className="w-1.5 h-1.5 rounded-full bg-white/80" />}
-                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container animate-pulse h-64"></div>
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container animate-pulse h-64"></div>
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container col-span-1 lg:col-span-2 animate-pulse h-48"></div>
+          <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container animate-pulse h-64"></div>
         </div>
-      )
-    }
-
-    if (id === 'tempos') {
-      const totalTempo = kpis.temposMedios.total || 1
-      const temposDetalhes = [
-        { label: 'Novo', tempo: kpis.temposMedios.novo, cor: 'bg-blue-500', icone: 'fiber_new' },
-        { label: 'Preparo', tempo: kpis.temposMedios.preparo, cor: 'bg-orange-500', icone: 'skillet' },
-        { label: 'Entrega', tempo: kpis.temposMedios.entrega, cor: 'bg-purple-500', icone: 'delivery_dining' },
-      ]
-
-      return (
-        <div key="tempos" {...dragProps} className={commonClass} style={{ animationDelay: '700ms' }}>
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-white">Tempo por Etapa</h3>
-              <p className="text-xs text-white/40 mt-1">Tempo médio em minutos</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-[#f57c24]/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#f57c24]">timer</span>
-            </div>
-          </div>
-          
-          <div className="space-y-4 mb-4">
-            {temposDetalhes.map((etapa, i) => {
-              const porcentagem = (etapa.tempo / totalTempo) * 100
-              return (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-base ${etapa.cor.replace('bg-', 'text-')}`}>{etapa.icone}</span>
-                      <span className="text-sm font-medium text-white">{etapa.label}</span>
-                    </div>
-                    <span className={`text-lg font-bold ${etapa.cor.replace('bg-', 'text-')}`}>
-                      {etapa.tempo} min
-                    </span>
-                  </div>
-                  <div className="h-2 bg-[#1c1e26] rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${etapa.cor} rounded-full transition-all duration-700`}
-                      style={{ width: `${porcentagem}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="bg-[#1c1e26] p-4 rounded-xl border border-[#252830]">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium uppercase tracking-wider text-white/50">Total Médio</span>
-              <span className="text-2xl font-bold text-[#e8391a]">{kpis.temposMedios.total} min</span>
-            </div>
-          </div>
-        </div>
-      )
-    }
+      </div>
+    )
   }
+
+  const kpiData = [
+    { id: 'faturamento', icon: 'payments', label: 'Faturamento Hoje', value: kpis.faturamento, color: '#d32f2f', isCurrency: true },
+    { id: 'totalPedidos', icon: 'shopping_cart', label: 'Total Pedidos', value: kpis.totalPedidos, color: '#d32f2f' },
+    { id: 'pedidosAbertos', icon: 'schedule', label: 'Em Preparo', value: kpis.pedidosAbertos, color: '#ff9800' },
+    { id: 'totalEntregues', icon: 'check_circle', label: 'Entregues', value: kpis.totalEntregues, color: '#4caf50' },
+    { id: 'ticketMedio', icon: 'trending_up', label: 'Ticket Médio', value: kpis.ticketMedio, color: '#ff9800', isCurrency: true },
+    { id: 'tempoEntrega', icon: 'timer', label: 'Tempo Médio', value: `${kpis.tempoEntrega} min`, color: '#ff9800' },
+    { id: 'avaliacao', icon: 'star', label: 'NPS', value: `${kpis.avaliacao.toFixed(1)}`, color: '#ffb74d' },
+    { id: 'visualizacoes', icon: 'visibility', label: 'VISITA AO CARDÁPIO AGORA', value: kpis.visualizacoes, color: '#d32f2f' },
+  ]
+
+  const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  const dias = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
+  const maxReceita = Math.max(...kpis.receita7Dias, 1)
+
+  const maxPicos = Math.max(...kpis.pedidosPorHora, 1)
+  const horaPico = kpis.pedidosPorHora.indexOf(maxPicos)
 
   return (
-    <div className="animate-fade-in space-y-4 lg:space-y-6 px-2 lg:px-0">
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 lg:gap-4">
+    <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-slide-in-down">
         <div>
-          <h1 className="text-2xl lg:text-4xl font-bold text-white tracking-tight">Dashboard</h1>
-          <p className="text-white/50 mt-1 text-sm lg:text-base">Visão geral do seu estabelecimento</p>
+          <h1 className="text-3xl lg:text-4xl font-bold font-headline text-on-background tracking-tight">Dashboard</h1>
+          <p className="text-on-surface-variant mt-1 text-lg">Visão geral do dia</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={toggleLoja}
+            onClick={() => toggleLoja()}
             disabled={loadingLoja}
-            className={`flex items-center gap-2 px-3 lg:px-5 py-2 lg:py-2.5 rounded-xl border transition-all text-xs lg:text-sm ${
-              lojaAberta 
-                ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' 
-                : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
+            className={`px-6 py-3 rounded-lg font-bold border-2 transition-all flex items-center gap-2 text-sm ${
+              lojaAberta
+                ? 'border-secondary/50 bg-secondary/5 hover:border-secondary-bright text-secondary-bright hover:bg-secondary/10 shadow-lg shadow-secondary/20'
+                : 'border-primary/50 bg-primary/5 hover:border-primary-bright text-primary hover:bg-primary/10 shadow-lg shadow-primary/20'
             }`}
           >
-            <div className={`w-2 h-2 rounded-full ${lojaAberta ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
-            <span className={`font-bold uppercase tracking-wider ${lojaAberta ? 'text-emerald-400' : 'text-red-400'}`}>
-              {lojaAberta ? 'Loja Aberta' : 'Loja Fechada'}
-            </span>
+            <div className={`w-3 h-3 rounded-full ${lojaAberta ? 'bg-secondary shadow-lg' : 'bg-primary'}`} />
+            {lojaAberta ? 'Loja Aberta' : 'Loja Fechada'}
           </button>
-          
           <a 
             href={linkCardapio} 
             target="_blank" 
+            className="px-6 py-3 bg-gradient-to-r from-primary to-primary-bright hover:from-primary-bright hover:to-secondary text-white font-bold rounded-lg shadow-lg hover:shadow-primary/50 hover:shadow-xl transition-all border border-transparent flex items-center gap-2 text-sm animate-slide-in-right"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#e8391a]/10 px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl border border-[#e8391a]/30 hover:bg-[#e8391a]/20 transition-all group"
           >
-            <span className="material-symbols-outlined text-[#e8391a]">qr_code_2</span>
-            <span className="text-xs lg:text-sm font-bold uppercase tracking-wider text-[#e8391a] hidden sm:inline">Cardápio</span>
-            <span className="material-symbols-outlined text-[#e8391a]/60 text-sm group-hover:translate-x-0.5 transition-transform">open_in_new</span>
+            <span className="material-symbols-outlined !text-lg">qr_code_scanner</span>
+            Abrir Cardápio
           </a>
-          
-          <button
-            onClick={() => navigator.clipboard.writeText(linkCardapio)}
-            className="p-2 lg:p-2.5 bg-[#16181f] rounded-xl border border-[#252830] hover:border-[#e8391a]/30 transition-all"
-            title="Copiar Link"
-          >
-            <span className="material-symbols-outlined text-white/60 text-lg">content_copy</span>
-          </button>
         </div>
-      </header>
+      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
-        {order.map((id, index) => (
-          <KpiCard key={id} data={kpiMap[id]} index={index} onDragStart={setDraggedKpi} onDrop={handleDropKpi} isDragging={draggedKpi === id} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-stagger">
+        {kpiData.map((kpi, i) => (
+          <div 
+            key={kpi.id} 
+            className="group p-6 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 hover:bg-surface-container-high shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up"
+            style={{ '--i': i } as any}
+          >
+            <div className="flex flex-col gap-3 h-full">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${kpi.color === '#d32f2f' ? 'bg-primary/10' : kpi.color === '#ff9800' ? 'bg-secondary/10' : 'bg-surface-variant'}`}>
+                  <span className="material-symbols-outlined text-lg md:text-xl group-hover:animate-glow" style={{ color: kpi.color }}>
+                    {kpi.icon}
+                  </span>
+                </div>
+              </div>
+              <p className="text-on-surface-variant text-xs md:text-sm uppercase tracking-wide font-medium line-clamp-2 flex-1">{kpi.label}</p>
+              <div className={`text-xl md:text-2xl font-black truncate`} style={{ color: kpi.color }}>
+                {kpi.isCurrency ? formatCurrency(kpi.value as number) : kpi.value}
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-4">
-        {chartsOrder.map(renderChart)}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-on-background">Receita {receitaDias} Dias</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Vendas diárias</p>
+            </div>
+            <div className="relative">
+              <button 
+                onClick={() => setShowReceitaDropdown(!showReceitaDropdown)}
+                className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center hover:bg-primary/20 transition-smooth cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-primary text-xl">bar_chart</span>
+              </button>
+              {showReceitaDropdown && (
+                <div className="absolute top-14 right-0 w-36 bg-surface-container border border-outline rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+                  {[
+                    { dias: 7, label: '7 Dias' },
+                    { dias: 15, label: '15 Dias' },
+                    { dias: 30, label: '30 Dias' }
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.dias}
+                      onClick={() => {
+                        setReceitaDias(opcao.dias)
+                        setShowReceitaDropdown(false)
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-surface-container-high transition-smooth ${
+                        receitaDias === opcao.dias ? 'bg-primary/10 text-primary' : 'text-on-surface'
+                      }`}
+                    >
+                      <span className="text-sm">{opcao.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-end justify-between gap-1 h-32">
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={receitaData?.receitaPorDia?.map((valor, i) => ({ dia: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][6 - i], valor })).reverse() || []}>
+                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Receita']}
+                  contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#9ca3af' }}
+                />
+                <Bar dataKey="valor" fill="#e8391a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-between mt-2">
+            <span className="text-xs text-on-surface-variant">-{receitaDias}d</span>
+            <span className="text-xs text-on-surface-variant">Hoje</span>
+          </div>
+          <div className="mt-4 pt-4 border-t border-outline flex justify-between items-center">
+            <span className="text-sm text-on-surface-variant">Total {receitaDias} dias</span>
+            <span className="text-lg font-bold text-primary">{formatCurrency(receitaData?.totalReceita || 0)}</span>
+          </div>
+        </div>
+
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-on-background">Picos Hora</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Hoje</p>
+            </div>
+            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-secondary text-xl">insights</span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={120}>
+            <AreaChart data={kpis.pedidosPorHora.map((count, hour) => ({ hora: `${hour}h`, pedidos: count }))}>
+              <XAxis dataKey="hora" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+              <Tooltip 
+                formatter={(value: number) => [`${value} pedidos`, 'Qtd']}
+                contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: '#9ca3af' }}
+              />
+              <Area type="monotone" dataKey="pedidos" fill="#f57c24" fillOpacity={0.2} stroke="#f57c24" />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="mt-6 pt-4 border-t border-outline flex justify-between">
+            <span className="text-sm text-on-surface-variant">Total hoje</span>
+            <span className="text-lg font-bold text-primary">{kpis.totalPedidos}</span>
+          </div>
+        </div>
+
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-on-background">Funil Vendas</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Jornada cliente hoje</p>
+            </div>
+            <div className="relative">
+              <button 
+                onClick={() => setShowFunilDropdown(!showFunilDropdown)}
+                className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center hover:bg-secondary/20 transition-smooth cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-secondary text-xl">tune</span>
+              </button>
+              {showFunilDropdown && (
+                <div className="absolute top-14 right-0 w-48 bg-surface-container border border-outline rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+                  {[
+                    { id: 'todas', label: 'Todas', icon: 'tune' },
+                    { id: 'whatsapp', label: 'Mensagens WhatsApp', icon: 'chat' },
+                    { id: 'visualizacoes', label: 'Visitas Cardápio', icon: 'visibility' },
+                    { id: 'addCarrinho', label: 'Adicionar Carrinho', icon: 'add_shopping_cart' },
+                    { id: 'checkout', label: 'Inicio Compras', icon: 'shopping_cart' },
+                    { id: 'compras', label: 'Compras', icon: 'point_of_sale' }
+                  ].map((opcao) => (
+                    <button
+                      key={opcao.id}
+                      onClick={() => {
+                        setFunilSelecionado(opcao.id)
+                        setShowFunilDropdown(false)
+                      }}
+                      className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-surface-container-high transition-smooth ${
+                        funilSelecionado === opcao.id ? 'bg-primary/10 text-primary' : 'text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">{opcao.icon}</span>
+                      <span className="text-sm">{opcao.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="space-y-3">
+            {funilSelecionado === 'todas' ? (
+              <>
+                {[
+                  { label: 'Mensagens WhatsApp', value: funilData?.whatsapp || 0, color: '#25d366' },
+                  { label: 'Visitas Cardápio', value: funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
+                  { label: 'Adicionado Carrinho', value: funilData?.addCarrinho || kpis.funnelData.addCarrinho, color: '#ff9800' },
+                  { label: 'Checkout Iniciado', value: funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
+                  { label: 'Compras Feitas', value: funilData?.compras || kpis.funnelData.compras, color: '#4caf50' }
+                ].map((item, i) => {
+                  const maxValue = Math.max(funilData?.whatsapp || 0, funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, funilData?.addCarrinho || kpis.funnelData.addCarrinho, funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, funilData?.compras || kpis.funnelData.compras, 1)
+                  const valorFinal = item.value > 0 ? (item.value / maxValue) * 100 : 0
+                  return (
+                    <div key={i} className="flex justify-between items-center group">
+                      <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">{item.label}</span>
+                      <div className="w-32 h-3 bg-surface-variant rounded-full overflow-hidden group-hover:shadow-lg group-hover:shadow-primary/20">
+                        <div 
+                          className="h-full rounded-full transition-all" 
+                          style={{ 
+                            width: `${Math.max(valorFinal, item.value > 0 ? 10 : 0)}%`,
+                            backgroundColor: item.color 
+                          }}
+                        />
+                      </div>
+                      <span className={`font-bold text-sm`} style={{ color: item.color }}>
+                        {item.value}
+                      </span>
+                    </div>
+                  )
+                })}
+              </>
+            ) : funilSelecionado === 'whatsapp' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Mensagens WhatsApp</span>
+                <span className="text-2xl font-bold text-primary">{funilData?.whatsapp || 0}</span>
+              </div>
+            ) : funilSelecionado === 'visualizacoes' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Visitas Cardápio</span>
+                <span className="text-2xl font-bold" style={{ color: '#d32f2f' }}>{funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes || 0}</span>
+              </div>
+            ) : funilSelecionado === 'addCarrinho' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Adicionar Carrinho</span>
+                <span className="text-2xl font-bold" style={{ color: '#ff9800' }}>{funilData?.addCarrinho || kpis.funnelData.addCarrinho || 0}</span>
+              </div>
+            ) : funilSelecionado === 'checkout' ? (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Início Compras</span>
+                <span className="text-2xl font-bold" style={{ color: '#ffb74d' }}>{funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado || 0}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center group">
+                <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">Compras</span>
+                <span className="text-2xl font-bold" style={{ color: '#4caf50' }}>{funilData?.compras || kpis.funnelData.compras || 0}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-secondary/50 shadow-lg hover:shadow-xl hover:shadow-secondary/20 transition-smooth animate-fade-in-up">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-on-background">Tempo por Pedido</h3>
+              <p className="text-on-surface-variant text-sm mt-1">Média hoje</p>
+            </div>
+            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-secondary text-xl">access_time</span>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {[
+              { label: 'Novo → Prep', value: kpis.temposMedios.novo, color: '#2196f3' },
+              { label: 'Preparo', value: kpis.temposMedios.preparo, color: '#ff9800' },
+              { label: 'Entrega', value: kpis.temposMedios.entrega, color: '#9c27b0' }
+            ].map((item, i) => (
+              <div key={i} className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all group-hover:scale-110 ${item.color === '#ff9800' ? 'bg-secondary/10' : 'bg-surface-variant'}`}>
+                    <span className="material-symbols-outlined text-sm" style={{ color: item.color }}>schedule</span>
+                  </div>
+                  <div>
+                    <p className="text-on-surface text-sm font-medium group-hover:text-on-background">{item.label}</p>
+                  </div>
+                </div>
+                <span className={`text-lg font-bold`} style={{ color: item.color }}>
+                  {item.value} min
+                </span>
+              </div>
+            ))}
+            <div className="pt-4 mt-4 border-t border-outline">
+              <div className="flex items-center justify-between">
+                <span className="text-on-surface-variant text-sm">Total Médio</span>
+                <span className="text-2xl font-black text-primary">{kpis.tempoEntrega} min</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

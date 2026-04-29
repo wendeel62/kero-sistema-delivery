@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-
-interface Motoboy {
-  id: string
-  nome: string
-  telefone: string
-  status: string
-  token_acesso: string
-}
+import type { Motoboy } from '../types'
 
 interface EntregaMotoboy {
   id: string
@@ -70,7 +63,7 @@ export default function MotoboyApp() {
               })
               .eq('id', data.id)
           },
-          () => console.log('Permissão de geolocalização negada')
+          // () => console.log('Permissão de geolocalização negada')
         )
       }
     }
@@ -89,17 +82,22 @@ export default function MotoboyApp() {
       .order('atribuido_em', { ascending: false })
 
     if (entregasData) {
-      const entregasCompletas = await Promise.all(
-        entregasData.map(async (e) => {
-          const { data: pedido } = await supabase
+      // Busca todos os pedidos de uma vez para evitar N+1
+      const pedidoIds = entregasData.map(e => e.pedido_id).filter(Boolean)
+      const { data: pedidosData } = pedidoIds.length > 0
+        ? await supabase
             .from('pedidos')
-            .select('numero, cliente_nome, endereco_entrega, total, observacoes')
-            .eq('id', e.pedido_id)
-            .single()
+            .select('id, numero, cliente_nome, endereco_entrega, total, observacoes')
+            .in('id', pedidoIds)
+        : { data: [] }
 
-          return { ...e, pedido }
-        })
-      )
+      const pedidosMap = new Map(pedidosData?.map(p => [p.id, p]) || [])
+
+      const entregasCompletas = entregasData.map(e => ({
+        ...e,
+        pedido: pedidosMap.get(e.pedido_id)
+      }))
+
       setEntregas(entregasCompletas as EntregaMotoboy[])
     }
   }, [motoboy])

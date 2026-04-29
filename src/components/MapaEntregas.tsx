@@ -3,6 +3,20 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+
+function getTenantId(): string {
+  const configStr = localStorage.getItem('supabase.auth.token')
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr)
+      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
 
 interface Motoboy {
   id: string
@@ -139,32 +153,20 @@ function AnimatedMarkerComponent({
 }) {
   const markerRef = useRef<L.Marker>(null)
   const animationRef = useRef<number | null>(null)
-  const currentPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
+  // Usar estado para renderização segura
+  const [displayPosition, setDisplayPosition] = useState<{ lat: number; lng: number }>({ 
+    lat: motoboy.latitude || 0, 
+    lng: motoboy.longitude || 0 
+  })
   const targetPosition = useRef({ lat: motoboy.latitude || 0, lng: motoboy.longitude || 0 })
 
   const animateMarker = useCallback(() => {
-    if (!markerRef.current) return
+    if (!markerRef.current) return;
 
-    const current = currentPosition.current
     const target = targetPosition.current
     
-    const latDiff = target.lat - current.lat
-    const lngDiff = target.lng - current.lng
-    
-    if (Math.abs(latDiff) < 0.00001 && Math.abs(lngDiff) < 0.00001) {
-      currentPosition.current = { ...target }
-      markerRef.current.setLatLng([target.lat, target.lng])
-      return
-    }
-
-    const step = 1 / 60
-    const newLat = current.lat + latDiff * step
-    const newLng = current.lng + lngDiff * step
-
-    currentPosition.current = { lat: newLat, lng: newLng }
-    markerRef.current.setLatLng([newLat, newLng])
-
-    animationRef.current = requestAnimationFrame(animateMarker)
+    markerRef.current.setLatLng([target.lat, target.lng])
+    setDisplayPosition({ ...target })
   }, [])
 
   useEffect(() => {
@@ -201,7 +203,7 @@ function AnimatedMarkerComponent({
   return (
     <Marker
       ref={markerRef}
-      position={[currentPosition.current.lat, currentPosition.current.lng]}
+      position={[displayPosition.lat, displayPosition.lng]}
       icon={createMotoboyIcon(motoboy.status)}
     >
       <Popup className="motoboy-popup">
@@ -370,6 +372,8 @@ function MapUpdater({ motoboys, estabelecimentoPos }: { motoboys: Motoboy[], est
 }
 
 export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: EntregaAtiva[] }) {
+  const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
   const [motoboys, setMotoboys] = useState<Motoboy[]>([])
   const [loading, setLoading] = useState(true)
   const [estabelecimentoPos, setEstabelecimentoPos] = useState<[number, number] | null>(null)
@@ -384,7 +388,7 @@ export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: Entre
           const { latitude, longitude } = position.coords
           setEstabelecimentoPos([latitude, longitude])
           setLocalizacaoStatus('concedida')
-          console.log('Localização obtida:', latitude, longitude)
+          // console.log('Localização obtida:', latitude, longitude)
         },
         (error) => {
           console.warn('Erro ao obter localização:', error.message)
@@ -402,14 +406,29 @@ export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: Entre
   }, [])
 
   const fetchMotoboys = useCallback(async () => {
-    const { data } = await supabase
+    if (!tenantId) {
+      console.warn('MapaEntregas: tenantId não disponível, pulando fetch')
+      setLoading(false)
+      return
+    }
+    
+    console.log('MapaEntregas: Fetching motoboys for tenant:', tenantId)
+    const { data, error } = await supabase
       .from('motoboys')
       .select('id, nome, telefone, status, latitude, longitude')
+      .eq('tenant_id', tenantId)
       .neq('status', 'inativo')
 
-    if (data) setMotoboys(data as Motoboy[])
+    if (error) {
+      console.error('MapaEntregas: Erro ao buscar motoboys:', error)
+    }
+    
+    if (data) {
+      console.log('MapaEntregas: Motoboys encontrados:', data.length)
+      setMotoboys(data as Motoboy[])
+    }
     setLoading(false)
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     fetchMotoboys()
@@ -417,16 +436,25 @@ export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: Entre
 
   // Realtime listener para atualização de posição
   useEffect(() => {
+    if (!tenantId) {
+      console.warn('MapaEntregas: tenantId não disponível para realtime')
+      return
+    }
+
+    console.log('MapaEntregas: Iniciando subscription realtime para motoboys', tenantId)
+    
     const channel = supabase
-      .channel('motoboys-position')
+      .channel(`motoboys-position-${tenantId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'motoboys',
+          filter: `tenant_id=eq.${tenantId}`
         },
         (payload) => {
+          console.log('MapaEntregas: Recebida atualização de motoboy:', payload.new)
           const updatedMotoboy = payload.new as Motoboy
           setMotoboys(prev => {
             const index = prev.findIndex(m => m.id === updatedMotoboy.id)
@@ -439,12 +467,25 @@ export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: Entre
           })
         }
       )
-      .subscribe()
+      .on('system', { event: 'connection_state_changed' }, (payload) => {
+        console.log('MapaEntregas: Estado da conexão mudou:', payload)
+      })
+      .subscribe((status) => {
+        console.log('MapaEntregas: Status da subscription:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('MapaEntregas: Subscription ativa!')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('MapaEntregas: Erro no canal de realtime')
+        } else if (status === 'TIMED_OUT') {
+          console.error('MapaEntregas: Timeout na subscription')
+        }
+      })
 
     return () => {
+      console.log('MapaEntregas: Removendo subscription')
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [tenantId])
 
   const getEntregaForMotoboy = (motoboyId: string) => {
     return entregasAtivas.find(e => e.motoboy_id === motoboyId)
@@ -466,10 +507,17 @@ export default function MapaEntregas({ entregasAtivas }: { entregasAtivas: Entre
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+          <TileLayer
+            attribution='&copy; Google Maps'
+            url={`https://maps.googleapis.com/maps/vt?lyrs=m&x={x}&y={y}&z={z}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`}
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        )}
         
         <MapUpdater motoboys={motoboys} estabelecimentoPos={estabelecimentoPos} />
 

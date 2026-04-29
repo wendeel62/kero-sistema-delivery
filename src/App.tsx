@@ -1,23 +1,37 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
+import ToastContainer from './components/Toast'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { MetaPeriodoProvider } from './contexts/MetaPeriodoContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import ClientesPage from './pages/ClientesPage'
-import PedidosPage from './pages/PedidosPage'
-import CardapioAdminPage from './pages/CardapioAdminPage'
-import CardapioOnlinePage from './pages/CardapioOnlinePage'
-import PdvPage from './pages/PdvPage'
-import ConfiguracoesPage from './pages/ConfiguracoesPage'
-import EstoquePage from './pages/EstoquePage'
-import FinanceiroPage from './pages/FinanceiroPage'
-import MesaPage from './pages/MesaPage'
-import EntregasPage from './pages/EntregasPage'
-import MotoboyApp from './pages/MotoboyApp'
-import PedidoStatusPage from './pages/PedidoStatusPage'
-import WhatsappInboxPage from './pages/WhatsappInboxPage'
+
+// Lazy Loading das páginas
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const ClientesPage = lazy(() => import('./pages/ClientesPage'))
+const PedidosPage = lazy(() => import('./pages/PedidosPage'))
+const CardapioAdminPage = lazy(() => import('./pages/CardapioAdminPage'))
+const CardapioOnlinePage = lazy(() => import('./pages/CardapioOnlinePage'))
+const PdvPage = lazy(() => import('./pages/PdvPage'))
+const ConfiguracoesPage = lazy(() => import('./pages/ConfiguracoesPage'))
+const EstoquePage = lazy(() => import('./pages/EstoquePage'))
+const FinanceiroPage = lazy(() => import('./pages/FinanceiroPage'))
+const MesaPage = lazy(() => import('./pages/MesaPage'))
+const EntregasPage = lazy(() => import('./pages/EntregasPage'))
+const MotoboyApp = lazy(() => import('./pages/MotoboyApp'))
+const PedidoStatusPage = lazy(() => import('./pages/PedidoStatusPage'))
+const WhatsappInboxPage = lazy(() => import('./pages/WhatsappInboxPage'))
+const CozinhaPage = lazy(() => import('./pages/CozinhaPage'))
+const MfaPage = lazy(() => import('./pages/MfaPage'))
+const MfaSetupPage = lazy(() => import('./pages/MfaSetupPage'))
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const AdminGuard = lazy(() => import('./components/admin/AdminGuard'))
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60, retry: 1, refetchOnWindowFocus: false } },
@@ -32,35 +46,64 @@ function PlaceholderPage({ title }: { title: string }) {
   )
 }
 
+// Loading fallback para páginas lazy-loaded
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <span className="text-on-surface-variant text-sm">Carregando...</span>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Rota pública */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/cardapio" element={<CardapioOnlinePage />} />
-            <Route path="/mesa/:numero" element={<MesaPage />} />
-            <Route path="/motoboy" element={<MotoboyApp />} />
-            <Route path="/pedido/:numero" element={<PedidoStatusPage />} />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <BrowserRouter>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* Rota pública */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/cardapio/:slug" element={<CardapioOnlinePage />} />
+                    <Route path="/mesa/:numero" element={<MesaPage />} />
+                    <Route path="/motoboy" element={<MotoboyApp />} />
+                    <Route path="/pedido/:numero" element={<PedidoStatusPage />} />
+                    <Route path="/cozinha" element={<CozinhaPage />} />
+                    <Route path="/mfa-verify" element={<MfaPage />} />
 
-            {/* Rotas privadas */}
-            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/pedidos" element={<PedidosPage />} />
-              <Route path="/pdv" element={<PdvPage />} />
-              <Route path="/cardapio-admin" element={<CardapioAdminPage />} />
-              <Route path="/clientes" element={<ClientesPage />} />
-              <Route path="/estoque" element={<EstoquePage />} />
-              <Route path="/financeiro" element={<FinanceiroPage />} />
-              <Route path="/entregas" element={<EntregasPage />} />
-              <Route path="/whatsapp" element={<WhatsappInboxPage />} />
-              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+                    {/* Rotas Admin SaaS — isoladas */}
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+                    <Route path="/admin/*" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+
+                    {/* Rotas privadas */}
+                    <Route element={<ProtectedRoute><MetaPeriodoProvider><Layout /></MetaPeriodoProvider></ProtectedRoute>}>
+                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/pedidos" element={<PedidosPage />} />
+                      <Route path="/pdv" element={<PdvPage />} />
+                      <Route path="/cardapio-admin" element={<CardapioAdminPage />} />
+                      <Route path="/clientes" element={<ClientesPage />} />
+                      <Route path="/estoque" element={<EstoquePage />} />
+                      <Route path="/financeiro" element={<FinanceiroPage />} />
+                      <Route path="/entregas" element={<EntregasPage />} />
+                      <Route path="/whatsapp" element={<WhatsappInboxPage />} />
+                      <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                      <Route path="/mfa-setup" element={<MfaSetupPage />} />
+                    </Route>
+                  </Routes>
+                </Suspense>
+                <ToastContainer />
+              </BrowserRouter>
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }

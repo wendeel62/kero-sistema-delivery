@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { format, differenceInMinutes, parseISO, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import MapaEntregas from '../components/MapaEntregas'
@@ -39,6 +40,8 @@ interface Entrega {
 }
 
 export default function EntregasPage() {
+  const { user } = useAuth()
+  const tenantId = user?.user_metadata?.tenant_id || user?.id
   const [activeTab, setActiveTab] = useState<'ativas' | 'motoboys' | 'historico'>('ativas')
   const [motoboys, setMotoboys] = useState<Motoboy[]>([])
   const [entregas, setEntregas] = useState<Entrega[]>([])
@@ -56,9 +59,9 @@ export default function EntregasPage() {
   const [entregasConcluidas, setEntregasConcluidas] = useState<Entrega[]>([])
 
   const fetchMotoboys = useCallback(async () => {
-    const { data } = await supabase.from('motoboys').select('*').order('nome')
+    const { data } = await supabase.from('motoboys').select('*').eq('tenant_id', tenantId).order('nome')
     if (data) setMotoboys(data)
-  }, [])
+  }, [tenantId])
 
   const fetchEntregasAtivas = useCallback(async () => {
     const { data: entregasData } = await supabase
@@ -150,34 +153,45 @@ export default function EntregasPage() {
       default: inicio = startOfDay(now)
     }
 
-    let query = supabase.from('entregas').select('*').gte('created_at', inicio.toISOString()).lte('created_at', fim.toISOString()).order('created_at', { ascending: false })
+    let query = supabase.from('entregas').select('*').eq('tenant_id', tenantId).gte('created_at', inicio.toISOString()).lte('created_at', fim.toISOString()).order('created_at', { ascending: false })
     if (filtroMotoboy !== 'todos') query = query.eq('motoboy_id', filtroMotoboy)
 
     const { data: entregasData } = await query
     if (entregasData) {
-      const entregasCompletas = await Promise.all(
-        entregasData.map(async (e) => {
-          const { data: pedido } = await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total').eq('id', e.pedido_id).single()
-          const motoboy = motoboys.find(m => m.id === e.motoboy_id)
-          return { ...e, pedido, motoboy }
-        })
-      )
+      // Coletar todos os pedido_ids para evitar N+1
+      const pedidoIds = [...new Set(entregasData.map(e => e.pedido_id).filter(Boolean))]
+      
+      // Query única para buscar todos os pedidos de uma vez
+      const { data: pedidosData } = pedidoIds.length > 0
+        ? await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total').eq('tenant_id', tenantId).in('id', pedidoIds)
+        : { data: [] }
+      
+      // Criar mapa para acesso O(1)
+      const pedidosMap = new Map(pedidosData?.map(p => [p.id, p]) || [])
+      
+      // Montar entregas sem fazer mais queries
+      const entregasCompletas = entregasData.map(e => ({
+        ...e,
+        pedido: pedidosMap.get(e.pedido_id),
+        motoboy: motoboys.find(m => m.id === e.motoboy_id)
+      }))
+      
       setEntregasHistorico(entregasCompletas as Entrega[])
     }
-  }, [filtroPeriodo, filtroMotoboy, dataInicio, dataFim, motoboys])
+  }, [filtroPeriodo, filtroMotoboy, dataInicio, dataFim, motoboys, tenantId])
 
   const fetchEntregasConcluidas = useCallback(async () => {
-    const { data: entregasData } = await supabase.from('entregas').select('*').eq('status', 'entregue').order('entregue_em', { ascending: false }).limit(20)
-    const { data: pedidosEntregues } = await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total, motoboy_id, created_at, status').eq('status', 'entregue').order('created_at', { ascending: false }).limit(20)
-    const { data: pedidosOnlineEntregues } = await supabase.from('pedidos_online').select('id, numero, cliente_nome, cliente_telefone, endereco, numero_endereco, bairro, total, motoboy_id, created_at, status').eq('status', 'entregue').order('created_at', { ascending: false }).limit(20)
+    const { data: entregasData } = await supabase.from('entregas').select('*').eq('tenant_id', tenantId).eq('status', 'entregue').order('entregue_em', { ascending: false }).limit(20)
+    const { data: pedidosEntregues } = await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total, motoboy_id, created_at, status').eq('tenant_id', tenantId).eq('status', 'entregue').order('created_at', { ascending: false }).limit(20)
+    const { data: pedidosOnlineEntregues } = await supabase.from('pedidos_online').select('id, numero, cliente_nome, cliente_telefone, endereco, numero_endereco, bairro, total, motoboy_id, created_at, status').eq('tenant_id', tenantId).eq('status', 'entregue').order('created_at', { ascending: false }).limit(20)
 
     const todasConcluidas: Entrega[] = []
     const entregasPedidoIds = new Set(entregasData?.map(e => e.pedido_id) || [])
 
     if (entregasData) {
       for (const e of entregasData) {
-        const { data: pedido } = await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total').eq('id', e.pedido_id).maybeSingle()
-        const { data: pedidoOnline } = await supabase.from('pedidos_online').select('id, numero, cliente_nome, cliente_telefone, endereco, numero_endereco, bairro, total').eq('id', e.pedido_id).maybeSingle()
+        const { data: pedido } = await supabase.from('pedidos').select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total').eq('tenant_id', tenantId).eq('id', e.pedido_id).maybeSingle()
+        const { data: pedidoOnline } = await supabase.from('pedidos_online').select('id, numero, cliente_nome, cliente_telefone, endereco, numero_endereco, bairro, total').eq('tenant_id', tenantId).eq('id', e.pedido_id).maybeSingle()
         const pedidoInfo = pedido || pedidoOnline
         const motoboy = motoboys.find(m => m.id === e.motoboy_id)
         if (pedidoInfo) {
@@ -206,30 +220,30 @@ export default function EntregasPage() {
 
     todasConcluidas.sort((a, b) => { const dateA = a.entregue_em || a.created_at; const dateB = b.entregue_em || b.created_at; return new Date(dateB).getTime() - new Date(dateA).getTime() })
     setEntregasConcluidas(todasConcluidas.slice(0, 20))
-  }, [motoboys])
+  }, [motoboys, tenantId])
 
   useEffect(() => { fetchMotoboys() }, [fetchMotoboys])
   useEffect(() => { if (motoboys.length > 0 || activeTab === 'ativas') { fetchEntregasAtivas(); fetchEntregasConcluidas() } }, [motoboys, activeTab, fetchEntregasAtivas, fetchEntregasConcluidas])
   useEffect(() => { if (activeTab === 'historico') fetchHistorico() }, [activeTab, fetchHistorico])
 
   useEffect(() => {
-    const channelMotoboys = supabase.channel('rt-motoboys-entregas').on('postgres_changes', { event: '*', schema: 'public', table: 'motoboys' }, () => { fetchMotoboys() }).subscribe()
-    const channelEntregas = supabase.channel('rt-entregas-ativas').on('postgres_changes', { event: '*', schema: 'public', table: 'entregas' }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas(); if (activeTab === 'historico') fetchHistorico() }).subscribe()
-    const channelPedidos = supabase.channel('rt-pedidos-entregas').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
-    const channelPedidosOnline = supabase.channel('rt-pedidos-online-entregas').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_online' }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
+    const channelMotoboys = supabase.channel(`rt-motoboys-${tenantId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'motoboys', filter: `tenant_id=eq.${tenantId}` }, () => { fetchMotoboys() }).subscribe()
+    const channelEntregas = supabase.channel(`rt-entregas-${tenantId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'entregas', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas(); if (activeTab === 'historico') fetchHistorico() }).subscribe()
+    const channelPedidos = supabase.channel(`rt-pedidos-${tenantId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
+    const channelPedidosOnline = supabase.channel(`rt-pedidos-online-${tenantId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
     return () => { supabase.removeChannel(channelMotoboys); supabase.removeChannel(channelEntregas); supabase.removeChannel(channelPedidos); supabase.removeChannel(channelPedidosOnline) }
   }, [fetchMotoboys, fetchEntregasAtivas, fetchEntregasConcluidas, fetchHistorico, activeTab])
 
   const criarMotoboy = async () => {
     if (!novoMotoboy.nome || !novoMotoboy.telefone) return
     setSalvando(true)
-    await supabase.from('motoboys').insert({ nome: novoMotoboy.nome, telefone: novoMotoboy.telefone, status: 'disponivel', disponivel: true, token_acesso: crypto.randomUUID() })
+    await supabase.from('motoboys').insert({ tenant_id: tenantId, nome: novoMotoboy.nome, telefone: novoMotoboy.telefone, status: 'disponivel', disponivel: true, token_acesso: crypto.randomUUID() })
     setNovoMotoboy({ nome: '', telefone: '' }); setShowNovoMotoboy(false); setSalvando(false); fetchMotoboys()
   }
 
   const toggleMotoboyStatus = async (motoboy: Motoboy) => {
     const novoStatus = motoboy.status === 'inativo' ? 'disponivel' : 'inativo'
-    await supabase.from('motoboys').update({ status: novoStatus, disponivel: novoStatus === 'disponivel' }).eq('id', motoboy.id)
+    await supabase.from('motoboys').update({ status: novoStatus, disponivel: novoStatus === 'disponivel' }).eq('id', motoboy.id).eq('tenant_id', tenantId)
     fetchMotoboys()
   }
 

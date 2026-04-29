@@ -1,0 +1,72 @@
+{
+  "name": "kero-project",
+  "type": "webapp",
+  "version": "1.0.0",
+  "ide": {
+    "selected": ["codex", "claude-code"],
+    "fallback": ".aiox-core/development/agents"
+  },
+  "agents": {
+    "architect": {
+      "path": ".kilo/agents/architect/AGENT.md",
+      "shortcut": "/architect"
+    },
+    "dev": {
+      "path": ".kilo/agents/dev/AGENT.md",
+      "shortcut": "/dev"
+    },
+    "qa": {
+      "path": ".kilo/agents/qa/AGENT.md",
+      "shortcut": "/qa"
+    },
+    "pm": {
+      "path": ".kilo/agents/pm/AGENT.md",
+      "shortcut": "/pm"
+    },
+    "po": {
+      "path": ".kilo/agents/po/AGENT.md",
+      "shortcut": "/po"
+    },
+    "sm": {
+      "path": ".kilo/agents/sm/AGENT.md",
+      "shortcut": "/sm"
+    },
+    "analyst": {
+      "path": ".kilo/agents/analyst/AGENT.md",
+      "shortcut": "/analyst"
+    },
+    "devops": {
+      "path": ".kilo/agents/devops/AGENT.md",
+      "shortcut": "/devops"
+    },
+    "ux-design-expert": {
+      "path": ".kilo/agents/ux-design-expert/AGENT.md",
+      "shortcut": "/ux-design-expert"
+    },
+    "squad-creator": {
+      "path": ".kilo/agents/squad-creator/AGENT.md",
+      "shortcut": "/squad-creator"
+    },
+    "data-engineer": {
+      "path": ".aiox-core/development/agents/data-engineer.md",
+      "shortcut": "/data-engineer"
+    },
+    "aiox-master": {
+      "path": ".aiox-core/development/agents/aiox-master.md",
+      "shortcut": "/aiox-master"
+    }
+  },
+  "commands": {
+    "dev": "npm run dev",
+    "build": "npm run build",
+    "lint": "npm run lint",
+    "typecheck": "npm run typecheck"
+  },
+  "aiox": {
+    "coreVersion": "5.0.4",
+    "sync": {
+      "use": ".aiox-core/development/agents",
+      "fallback": ".codex/agents"
+    }
+  }
+}
