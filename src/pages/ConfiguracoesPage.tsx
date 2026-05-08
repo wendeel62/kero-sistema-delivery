@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { useAuth } from '../hooks/useAuth'
+import { useThermalPrinter } from '../hooks/useThermalPrinter'
 import { ConfigInputField } from '../components/ConfigInputField'
 import { ConfigToggle } from '../components/ConfigToggle'
 
@@ -20,6 +21,7 @@ const slugify = (text: string) => {
 
 interface Config {
   id: string
+  tenant_id: string
   nome_loja: string
   telefone: string
   endereco: string
@@ -36,10 +38,15 @@ interface Config {
   aceita_pix: boolean
   aceita_cartao: boolean
   aceita_dinheiro: boolean
-  cor_primaria: string
-  total_mesas: number
-  capacidade_mesa: number
-  modulo_mesas_ativado: boolean
+  meta_pixel_id?: string
+  ga4_measurement_id?: string
+  utmfy_token?: string
+  impressao_automatica?: boolean
+  largura_papel?: 58 | 80
+  cor_primaria?: string
+  total_mesas?: number
+  capacidade_mesa?: number
+  modulo_mesas_ativado?: boolean
   slug?: string
   logo_url?: string
 }
@@ -49,6 +56,7 @@ interface Config {
 export default function ConfiguracoesPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { status, isSupported, connect, disconnect, print } = useThermalPrinter()
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -271,6 +279,147 @@ export default function ConfiguracoesPage() {
 <ConfigInputField label="Número Total de Mesas" value={config.total_mesas ?? 10} onChange={v => update('total_mesas', Number(v))} type="number" />
             <ConfigInputField label="Capacidade por Mesa" value={config.capacidade_mesa ?? 4} onChange={v => update('capacidade_mesa', Number(v))} type="number" />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
+        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
+          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão Térmica
+        </h3>
+        <div className="space-y-4">
+          {/* Status da impressora */}
+          <div className="flex items-center gap-2">
+            <span className={`inline-block w-2 h-2 rounded-full ${
+              status === 'conectada' ? 'bg-green-500' :
+              status === 'desconectada' ? 'bg-red-500' : 'bg-yellow-500'
+            }`}></span>
+            <span className="text-white capitalize">{status}</span>
+          </div>
+
+          {/* Aviso se não suportado */}
+          {!isSupported && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+              <p className="text-yellow-400 text-sm">
+                Impressão via Web USB funciona apenas no Chrome e Edge. Firefox não é suportado.
+              </p>
+            </div>
+          )}
+
+          {/* Botões de conexão */}
+          <div className="flex gap-3">
+            {status !== 'conectada' && (
+              <button
+                onClick={connect}
+                disabled={!isSupported}
+                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Conectar Impressora
+              </button>
+            )}
+
+            {status === 'conectada' && (
+              <button
+                onClick={disconnect}
+                className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
+              >
+                Desconectar
+              </button>
+            )}
+          </div>
+
+          {/* Toggle impressão automática */}
+          <ConfigToggle
+            label="Impressão automática ao receber pedido"
+            checked={config?.impressao_automatica ?? false}
+            onChange={v => update('impressao_automatica', v)}
+          />
+
+          {/* Seletor largura papel */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => update('largura_papel', 80)}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                (config?.largura_papel ?? 80) === 80
+                  ? 'bg-[#e8391a] text-white'
+                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
+              }`}
+            >
+              80mm
+            </button>
+            <button
+              onClick={() => update('largura_papel', 58)}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                config?.largura_papel === 58
+                  ? 'bg-[#e8391a] text-white'
+                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
+              }`}
+            >
+              58mm
+            </button>
+          </div>
+
+          {/* Botão teste */}
+          {status === 'conectada' && (
+            <button
+              onClick={() => {
+                // Pedido fictício para teste
+                const testPedido: any = {
+                  id: 'test',
+                  numero: 999,
+                  cliente_nome: 'Cliente Teste',
+                  cliente_telefone: '11999999999',
+                  total: 25.90,
+                  canal: 'balcao',
+                  forma_pagamento: 'dinheiro',
+                  created_at: new Date().toISOString(),
+                  itens: [
+                    { quantidade: 1, produto: { nome: 'Produto Teste' }, observacoes: 'Teste de impressão' }
+                  ]
+                }
+                if (config) print(testPedido, config)
+              }}
+              className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
+            >
+              Imprimir Cupom de Teste
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
+        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
+          <span className="material-symbols-outlined text-[#e8391a]">analytics</span> Tracking & Analytics
+        </h3>
+        <div className="space-y-4">
+          <ConfigInputField
+            label="Meta Pixel ID"
+            value={config?.meta_pixel_id || ''}
+            onChange={v => update('meta_pixel_id', v)}
+            placeholder="1234567890123"
+          />
+          <p className="text-xs text-gray-500">
+            Encontre em: Gerenciador de Anúncios → Fontes de Dados → Pixels
+          </p>
+
+          <ConfigInputField
+            label="GA4 Measurement ID"
+            value={config?.ga4_measurement_id || ''}
+            onChange={v => update('ga4_measurement_id', v)}
+            placeholder="G-XXXXXXXXXX"
+          />
+          <p className="text-xs text-gray-500">
+            Encontre em: Google Analytics → Admin → Fluxos de dados
+          </p>
+
+          <ConfigInputField
+            label="UTMfy Token"
+            value={config?.utmfy_token || ''}
+            onChange={v => update('utmfy_token', v)}
+            placeholder="seu-token-utmfy"
+          />
+          <p className="text-xs text-gray-500">
+            Encontre em: utmfy.com → Configurações da conta
+          </p>
         </div>
       </div>
 

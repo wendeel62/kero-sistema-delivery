@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
+import { useThermalPrinter } from '../hooks/useThermalPrinter'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -90,6 +91,7 @@ export default function PedidosPage() {
   const tenantId = user?.user_metadata?.tenant_id || getTenantId() || '19f48a0b-3117-4d2b-856e-41673dc43275'
   const queryClient = useQueryClient()
   const toast = useToast()
+  const { print, isAutoEnabled } = useThermalPrinter()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [activeTab, setActiveTab] = useState<'kanban' | 'whatsapp' | 'gestor'>('kanban')
   const [activeColIndex, setActiveColIndex] = useState(0)
@@ -223,21 +225,57 @@ export default function PedidosPage() {
 
   useRealtime({
     configs: [
-      { 
-        table: 'pedidos', 
-        filter: `tenant_id=eq.${tenantId}`, 
-        callback: () => {
+      {
+        table: 'pedidos',
+        filter: `tenant_id=eq.${tenantId}`,
+        callback: (payload: any) => {
           playAlertSound()
           queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
-        } 
+          // NOVO: impressão automática
+if (payload?.eventType === 'INSERT' && isAutoEnabled) {
+// Usar async/await para evitar problemas com PromiseLike
+(async () => {
+try {
+const { data: configData } = await supabase
+.from('configuracoes')
+.select('*')
+.eq('tenant_id', tenantId)
+.single()
+if (configData) {
+print(payload.new as UnifiedPedido, configData as any)
+}
+} catch (err) {
+console.error('Erro ao buscar config para impressao:', err)
+}
+})()
+}
+        }
       },
-      { 
-        table: 'pedidos_online', 
-        filter: `tenant_id=eq.${tenantId}`, 
-        callback: () => {
+      {
+        table: 'pedidos_online',
+        filter: `tenant_id=eq.${tenantId}`,
+        callback: (payload: any) => {
           playAlertSound()
           queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
-        } 
+          // NOVO: impressão automática
+if (payload?.eventType === 'INSERT' && isAutoEnabled) {
+// Usar async/await para evitar problemas com PromiseLike
+(async () => {
+try {
+const { data: configData } = await supabase
+.from('configuracoes')
+.select('*')
+.eq('tenant_id', tenantId)
+.single()
+if (configData) {
+print(payload.new as UnifiedPedido, configData as any)
+}
+} catch (err) {
+console.error('Erro ao buscar config para impressao:', err)
+}
+})()
+}
+        }
       }
     ]
   })

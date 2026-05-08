@@ -6,138 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { produtoSchema, produtoFormSchema } from '../schemas/produtoSchema'
-
-/**
- * Attempts to extract tenant_id from various possible storage locations and structures.
- * Includes comprehensive error logging for debugging auth token structure issues.
- */
-function getTenantId(): string {
-  const debugLog = (source: string, message: string, data?: unknown) => {
-    console.log(`[getTenantId] ${source}: ${message}`, data ?? '')
-  }
-  const errorLog = (source: string, message: string, data?: unknown) => {
-    console.error(`[getTenantId] ${source}: ${message}`, data ?? '')
-  }
-
-  // Helper function to extract tenant_id from a parsed auth token object
-  const extractFromAuthToken = (tokenObj: unknown, source: string): string | null => {
-    const data = tokenObj as Record<string, unknown> | undefined
-    if (!data) {
-      errorLog(source, 'Token object is null or undefined')
-      return null
-    }
-
-    debugLog(source, 'Examining token structure', Object.keys(data))
-
-    // Try various possible paths where tenant_id might be stored
-    const possiblePaths = [
-      // Path 1: access_token.user_metadata.tenant_id (Supabase v2 format)
-      () => data.access_token?.user_metadata?.tenant_id as string | undefined,
-      // Path 2: user.user_metadata.tenant_id (Supabase v1 format)
-      () => data.user?.user_metadata?.tenant_id as string | undefined,
-      // Path 3: access_token.tenant_id (alternative)
-      () => data.access_token?.tenant_id as string | undefined,
-      // Path 4: user.tenant_id (root level in user object)
-      () => data.user?.tenant_id as string | undefined,
-      // Path 5: tenant_id at root level
-      () => data.tenant_id as string | undefined,
-      // Path 6: metadata.tenant_id
-      () => data.metadata?.tenant_id as string | undefined,
-      // Path 7: session?.user?.user_metadata?.tenant_id (session wrapper)
-      () => data.session?.user?.user_metadata?.tenant_id as string | undefined,
-    ]
-
-    for (const getValue of possiblePaths) {
-      const value = getValue()
-      if (value && typeof value === 'string' && value.trim()) {
-        debugLog(source, `Found tenant_id at path`, value)
-        return value.trim()
-      }
-    }
-
-    errorLog(source, 'tenant_id not found in any expected path', possiblePaths.map((_, i) => `path_${i + 1}`))
-    return null
-  }
-
-  // ====== 1. Check localStorage 'supabase.auth.token' ======
-  const localTokenStr = localStorage.getItem('supabase.auth.token')
-  if (localTokenStr) {
-    debugLog('localStorage.supabase.auth.token', 'Found token, parsing...')
-    try {
-      const tokenObj = JSON.parse(localTokenStr)
-      debugLog('localStorage.supabase.auth.token', 'Parsed successfully', typeof tokenObj)
-      const tenantId = extractFromAuthToken(tokenObj, 'localStorage.supabase.auth.token')
-      if (tenantId) return tenantId
-    } catch (err) {
-      errorLog('localStorage.supabase.auth.token', 'Failed to parse JSON', err instanceof Error ? err.message : String(err))
-    }
-  } else {
-    debugLog('localStorage.supabase.auth.token', 'Not found')
-  }
-
-  // ====== 2. Check sessionStorage for various possible keys ======
-  const sessionKeys = [
-    'supabase.auth.token',
-    'sb-auth-token',
-    'supabase_session',
-    'auth_token',
-    'tenant_id'
-  ]
-
-  for (const key of sessionKeys) {
-    const sessionValue = sessionStorage.getItem(key)
-    if (sessionValue) {
-      debugLog(`sessionStorage.${key}`, 'Found token, parsing...')
-      try {
-        const tokenObj = JSON.parse(sessionValue)
-        debugLog(`sessionStorage.${key}`, 'Parsed successfully', typeof tokenObj)
-        const tenantId = extractFromAuthToken(tokenObj, `sessionStorage.${key}`)
-        if (tenantId) return tenantId
-      } catch (err) {
-        errorLog(`sessionStorage.${key}`, 'Failed to parse JSON', err instanceof Error ? err.message : String(err))
-      }
-    }
-  }
-
-  // ====== 3. Check custom localStorage keys that might have been used ======
-  const customLocalKeys = [
-    'tenant_id',
-    'current_tenant_id',
-    'sb-tenant-id',
-    'auth_tenant_id',
-    'user_tenant_id',
-    'restaurant_id'
-  ]
-
-  for (const key of customLocalKeys) {
-    const value = localStorage.getItem(key)
-    if (value && value.trim()) {
-      debugLog(`localStorage.${key}`, 'Found direct tenant_id value', value)
-      return value.trim()
-    }
-    debugLog(`localStorage.${key}`, 'Not found or empty')
-  }
-
-  // ====== 4. Check sessionStorage for direct tenant_id ======
-  const sessionDirectValue = sessionStorage.getItem('tenant_id')
-  if (sessionDirectValue && sessionDirectValue.trim()) {
-    debugLog('sessionStorage.tenant_id', 'Found direct tenant_id', sessionDirectValue)
-    return sessionDirectValue.trim()
-  }
-
-  // ====== Debug: Log all available storage keys for troubleshooting ======
-  const allLocalKeys = Object.keys(localStorage)
-  const allSessionKeys = Object.keys(sessionStorage)
-  debugLog('DEBUG', 'All localStorage keys', allLocalKeys)
-  debugLog('DEBUG', 'All sessionStorage keys', allSessionKeys)
-
-  // Log the structure of what we found for better debugging
-  if (localTokenStr) {
-    console.error('[getTenantId] DEBUG: Raw supabase.auth.token structure:', localTokenStr.substring(0, 500) + (localTokenStr.length > 500 ? '...[truncated]' : ''))
-  }
-
-  throw new Error('tenant_id not found in any storage location. Please log in again.')
-}
+import { getTenantId } from '../lib/getTenantId'
 
 interface Categoria { id: string; nome: string; descricao: string; ordem: number; ativo: boolean }
 interface Produto { id: string; categoria_id: string; nome: string; descricao: string; preco: number | undefined; disponivel: boolean; destaque: boolean; tempo_preparo: number; imagem_url: string }
@@ -302,14 +171,16 @@ const { user, loading: authLoading } = useAuth()
     if (data) setSabores(data)
   }, [tenantId])
 
-  const fetchSaboresDoProduto = useCallback(async (produtoId: string) => {
-    if (!tenantId) return
-    const { data } = await supabase.from('produto_sabores').select('sabor_id, sabores(id, nome, descricao, disponivel)').eq('produto_id', produtoId).eq('tenant_id', tenantId)
-    if (data) {
-      const saboresData = data.map(item => item.sabores).filter(s => s !== null)
-      setSelectedSabores(saboresData as Sabor[])
-    }
-  }, [tenantId])
+const fetchSaboresDoProduto = useCallback(async (produtoId: string) => {
+if (!tenantId) return
+const { data } = await supabase.from('produto_sabores').select('sabor_id, sabores(id, nome, descricao, disponivel)').eq('produto_id', produtoId).eq('tenant_id', tenantId)
+if (data) {
+  const saboresData = data
+    .map(item => (item.sabores as unknown as Sabor) ?? null)
+    .filter((s): s is Sabor => s !== null)
+  setSelectedSabores(saboresData)
+}
+}, [tenantId])
 
   // FIXED: Proper useEffect with all dependencies included
   // This ensures data is loaded only when tenantId is valid and auth is ready
@@ -532,21 +403,22 @@ const { user, loading: authLoading } = useAuth()
     setTempComplementos(tempComplementos.filter(c => c.id !== id))
   }
 
-  // Shared save function for produto - used by form onSubmit and save button
-  const handleSaveProduto = async (data: typeof produtoForm.getValues) => {
-    setUploading(true)
-    const record: any = {
-      nome: data.nome,
-      descricao: data.descricao || '',
-      categoria_id: data.categoria_id || null,
-      disponivel: data.disponivel,
-      destaque: data.destaque,
-      tempo_preparo: data.tempo_preparo || 30,
-      imagem_url: data.imagem_url || ''
-    }
-    if (data.preco !== undefined && data.preco !== null && data.preco > 0) {
-      record.preco = data.preco
-    }
+// Shared save function for produto - used by form onSubmit and save button
+const handleSaveProduto = async (data: any) => {
+setUploading(true)
+const record: Record<string, any> = {
+nome: String(data.nome || ''),
+descricao: String(data.descricao || ''),
+categoria_id: data.categoria_id || null,
+disponivel: Boolean(data.disponivel),
+destaque: Boolean(data.destaque),
+tempo_preparo: Number(data.tempo_preparo) || 30,
+imagem_url: String(data.imagem_url || '')
+}
+const precoValue = Number(data.preco)
+if (precoValue > 0) {
+record.preco = precoValue
+}
 
     let produtoId = editProduto?.id
     const isNewProduct = !produtoId
@@ -560,10 +432,10 @@ const { user, loading: authLoading } = useAuth()
       }
       produtoId = insertData.id
       
-      // Salvar complementos temporarios para novos produtos
-      if (tempComplementos.length > 0) {
-        await saveTempComplementos(produtoId)
-      }
+// Salvar complementos temporarios para novos produtos
+if (tempComplementos.length > 0 && produtoId) {
+await saveTempComplementos(produtoId)
+}
       
       // Salvar sabores selecionados para novos produtos
       if (selectedSabores.length > 0) {
@@ -1134,9 +1006,9 @@ const { user, loading: authLoading } = useAuth()
                     <span className="text-sm text-[#555] mt-2">Adicionar foto</span>
                   </label>
                 )}
-              </div>
-            </div>
-            <form onSubmit={produtoForm.handleSubmit(handleSaveProduto)} className="space-y-6">
+</div>
+</div>
+<form onSubmit={(e) => { e.preventDefault(); handleSaveProduto(produtoForm.getValues()); }} className="space-y-6">
 
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Nome do Produto</label>

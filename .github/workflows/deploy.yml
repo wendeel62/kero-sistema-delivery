@@ -1,0 +1,94 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Cancela runs anteriores se novo commit for pushado
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Deploy de preview para PRs
+  preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build de preview
+        run: npm run build
+
+      # Opcional: Deploy para Vercel preview
+      # - name: Deploy preview na Vercel
+      #   uses: amondnet/vercel-action@v25
+      #   with:
+      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #     working-directory: ./
+
+  # Deploy de produção
+  production:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [preview]  # Só faz deploy se preview passar (se aplicável)
+    environment:
+      name: production
+      url: https://seu-app.vercel.app
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build de produção
+        run: npm run build
+
+      # Opcional: Deploy para Vercel production
+      # - name: Deploy production na Vercel
+      #   uses: amondnet/vercel-action@v25
+      #   with:
+      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #     working-directory: ./
+      #     vercel-args: '--prod'
+
+      # Opcional: Notificação no Slack/Teams/Discord
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Deploy de produção realizado com sucesso!"
+          echo "URL: https://seu-app.vercel.app"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Deploy de produção falhou!"
+          echo "Verifique: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

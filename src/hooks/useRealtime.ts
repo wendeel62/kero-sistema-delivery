@@ -11,7 +11,7 @@ export type Table =
 export interface UseRealtimeConfig {
   table: Table
   filter?: string
-  callback: (payload: RealtimePostgresChangesPayload<any>) => void
+  callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
 }
 
 export interface UseRealtimeOptions {
@@ -23,7 +23,7 @@ export function useRealtime(options: UseRealtimeOptions) {
   const { configs, enabled = true } = options
   const channelRef = useRef<RealtimeChannel | null>(null)
   const mountedRef = useRef(true)
-  const callbacksRef = useRef<Map<string, (payload: any) => void>>(new Map())
+  const callbacksRef = useRef<Map<string, (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void>>(new Map())
 
   // Stabilize callbacks map
   useEffect(() => {
@@ -64,17 +64,18 @@ export function useRealtime(options: UseRealtimeOptions) {
         ? { event: '*', schema: 'public', table: config.table, filter: config.filter }
         : { event: '*', schema: 'public', table: config.table }
 
-      channel = channel.on(
-        'postgres_changes',
-        filter,
-        (payload) => {
-          if (!mountedRef.current) return
-          const callback = callbacksRef.current.get(config.table)
-          if (callback) {
-            callback(payload)
-          }
-        }
-      )
+// Type assertion para contornar overload do Supabase client
+channel = channel.on(
+'postgres_changes' as any,
+filter,
+(payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+if (!mountedRef.current) return
+const callback = callbacksRef.current.get(config.table)
+if (callback) {
+callback(payload)
+}
+}
+)
     })
 
     // Subscribe with error handling
@@ -102,15 +103,15 @@ export function useRealtime(options: UseRealtimeOptions) {
 }
 
 // Simplified hook for single table (backward compatible)
-export function useRealtimeSingle<T extends Record<string, unknown>>(
+export function useRealtimeSingle(
   table: Table,
-  callback: (payload: RealtimePostgresChangesPayload<T>) => void,
+  callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
   options?: { filter?: string; enabled?: boolean }
 ) {
   const { filter, enabled = true } = options || {}
-  
+
   const stableCallback = useCallback(
-    (payload: RealtimePostgresChangesPayload<T>) => {
+    (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
       callback(payload)
     },
     [callback]

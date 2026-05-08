@@ -1,4 +1,5 @@
-import { Component, ReactNode } from 'react'
+import { Component } from 'react'
+import type { ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
@@ -34,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="text-gray-600 mb-4">
             Pedimos desculpas pelo incômodo. Tente novamente.
           </p>
-          {process.env.NODE_ENV === 'development' && this.state.error && (
+          {import.meta.env.DEV && this.state.error && (
             <pre className="text-xs bg-gray-100 p-2 overflow-auto text-left">
               {this.state.error.message}
             </pre>
@@ -48,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
         </div>
       )
     }
-    
+
     return this.props.children
   }
 }

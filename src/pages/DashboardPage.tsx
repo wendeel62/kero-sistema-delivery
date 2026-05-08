@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { BarChart, Bar, AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { getTenantIdSafe } from '../lib/getTenantId'
 
 interface TemposMedios {
   novo: number
@@ -75,22 +76,9 @@ const defaultKpis: KPIs = {
   pedidosPorHora: Array(24).fill(0)
 }
 
-function getTenantId(): string {
-  const configStr = localStorage.getItem('supabase.auth.token')
-  if (configStr) {
-    try {
-      const config = JSON.parse(configStr)
-      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
-    } catch {
-      return ''
-    }
-  }
-  return ''
-}
-
 export default function DashboardPage() {
   const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+  const tenantId = user?.user_metadata?.tenant_id || getTenantIdSafe() || '19f48a0b-3117-4d2b-856e-41673dc43275'
 
   const [linkCardapio, setLinkCardapio] = useState('')
   const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
@@ -524,12 +512,12 @@ export default function DashboardPage() {
         queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] }) 
         queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] }) 
       }},
-      { table: 'pedidos_online', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { 
-        queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] }) 
-        queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] }) 
-      }},
-      { table: 'eventos_jornada', filter: `tenant_id=eq.${safeTenantId}`, callback: () => { queryClient.invalidateQueries({ queryKey: ['funil-tempo-real', safeTenantId] }) } },
-    ]
+{ table: 'pedidos_online', filter: `tenant_id=eq.${safeTenantId}`, callback: () => {
+queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] })
+queryClient.invalidateQueries({ queryKey: ['receita-por-periodo'] })
+}},
+// Removido 'eventos_jornada' - tabela não existe mais no type Table
+]
   })
 
   if (loadingKpis || loadingPedidos || loadingProdutos || loadingFaturamento || loadingConfig) {
@@ -674,11 +662,11 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={120}>
               <BarChart data={receitaData?.receitaPorDia?.map((valor, i) => ({ dia: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][6 - i], valor })).reverse() || []}>
                 <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  formatter={(value: number) => [formatCurrency(value), 'Receita']}
-                  contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: '#9ca3af' }}
-                />
+<Tooltip
+formatter={(value: any) => [formatCurrency(Number(value)), 'Receita']}
+contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
+labelStyle={{ color: '#9ca3af' }}
+/>
                 <Bar dataKey="valor" fill="#e8391a" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -706,11 +694,11 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={120}>
             <AreaChart data={kpis.pedidosPorHora.map((count, hour) => ({ hora: `${hour}h`, pedidos: count }))}>
               <XAxis dataKey="hora" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <Tooltip 
-                formatter={(value: number) => [`${value} pedidos`, 'Qtd']}
-                contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#9ca3af' }}
-              />
+<Tooltip
+formatter={(value: any) => [`${value} pedidos`, 'Qtd']}
+contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }}
+labelStyle={{ color: '#9ca3af' }}
+/>
               <Area type="monotone" dataKey="pedidos" fill="#f57c24" fillOpacity={0.2} stroke="#f57c24" />
             </AreaChart>
           </ResponsiveContainer>
