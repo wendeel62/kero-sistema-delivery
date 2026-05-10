@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kero WhatsApp - Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    .sidebar {
+      width: 350px;
+      background: #16213e;
+      border-right: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 20px;
+      background: #0f3460;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      color: #00ff88;
+    }
+
+    .devices-panel {
+      padding: 20px;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    .device-item {
+      padding: 15px;
+      margin: 10px 0;
+      background: #0f3460;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .device-item:hover {
+      background: #1a4a7a;
+    }
+
+    .device-item.active {
+      background: #00ff88;
+      color: #1a1a2e;
+    }
+
+    .device-name {
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .device-status {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .add-device {
+      margin-top: 15px;
+    }
+
+    .add-device input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 25px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .add-device button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 25px;
+      background: #00ff88;
+      color: #1a1a2e;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .add-device button:hover {
+      transform: scale(1.02);
+    }
+
+    .qr-section {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .qr-section h3 {
+      color: #00ff88;
+      margin-bottom: 15px;
+    }
+
+    .qr-container {
+      margin: 20px 0;
+      display: inline-block;
+      padding: 20px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .qr-image {
+      width: 250px;
+      height: 250px;
+      border-radius: 10px;
+    }
+
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header {
+      padding: 20px;
+      background: #0f3460;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 15px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .message.sent {
+      background: #00ff88;
+      color: #1a1a2e;
+      align-self: flex-end;
+      border-bottom-right-radius: 5px;
+    }
+
+    .message.received {
+      background: #0f3460;
+      align-self: flex-start;
+      border-bottom-left-radius: 5px;
+    }
+
+    .message-time {
+      font-size: 10px;
+      opacity: 0.7;
+      margin-top: 5px;
+    }
+
+    .input-area {
+      padding: 15px;
+      background: #0f3460;
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 12px 15px;
+      border: none;
+      border-radius: 25px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .input-area input:focus {
+      outline: none;
+    }
+
+    .input-area button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 25px;
+      background: #00ff88;
+      color: #1a1a2e;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .input-area button:hover {
+      transform: scale(1.05);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #888;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-indicator.connected {
+      background: #00ff88;
+    }
+
+    .status-indicator.disconnected {
+      background: #ff6b6b;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px;
+      color: #888;
+    }
+
+    .empty-state h2 {
+      margin-bottom: 15px;
+      color: #00ff88;
+    }
+
+    .empty-state p {
+      margin-bottom: 20px;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar">
+      <div class="header">
+        <h1>Kero WhatsApp</h1>
+        <div style="margin-top: 10px;">
+          <span class="status-indicator connected"></span>
+          Conectado
+        </div>
+      </div>
+
+      <div id="mainContent">
+        <!-- Devices panel -->
+        <div class="devices-panel" id="devicesPanel">
+          <h3 style="margin-bottom: 15px; color: #00ff88;">📱 Dispositivos</h3>
+          <div id="devicesList"></div>
+
+          <div class="add-device">
+            <input type="text" id="deviceNameInput" placeholder="Nome do dispositivo">
+            <button onclick="createDevice()">➕ Criar Dispositivo</button>
+          </div>
+        </div>
+
+        <!-- QR Code section (hidden by default) -->
+        <div class="qr-section" id="qrSection" style="display: none;">
+          <h3>📷 Conectar WhatsApp</h3>
+          <p>Escaneie o QR code abaixo:</p>
+          <div class="qr-container">
+            <img id="qrImage" class="qr-image" src="" alt="QR Code">
+          </div>
+          <p style="font-size: 12px; margin-top: 15px;">
+            1. Abra WhatsApp no celular<br>
+            2. Toque no menu (⋮) → WhatsApp Web<br>
+            3. Escaneie o código acima
+          </p>
+          <button onclick="hideQR()" style="margin-top: 15px; background: #ff6b6b; color: white; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer;">❌ Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-header" id="chatHeader">Selecione uma conversa</div>
+      <div class="messages" id="messagesArea">
+        <div class="empty-state">
+          <h2>💬 Bem-vindo ao WhatsApp!</h2>
+          <p>Selecione um dispositivo à esquerda e comece a conversar.</p>
+        </div>
+      </div>
+      <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Digite uma mensagem..." onkeypress="handleKeyPress(event)">
+        <button onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000';
+    const tenantId = '9139ddd7-e3db-4beb-b8f9-aabc55e47b8e';
+
+    let devices = [];
+    let selectedDevice = null;
+    let selectedConversation = null;
+
+    // Socket.io connection
+    const socket = io('http://localhost:3001');
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      socket.emit('join:tenant', tenantId);
+    });
+
+    socket.on('device:created', () => loadDevices());
+    socket.on('device:status', (data) => {
+      updateDeviceStatus(data.id, data.state);
+    });
+
+    socket.on('message:new', (message) => {
+      if (selectedConversation && message.conversation_id === selectedConversation.id) {
+        addMessage(message);
+      }
+      loadDevices(); // Update conversation list
+    });
+
+    // Load initial devices
+    loadDevices();
+
+    async function loadDevices() {
+      try {
+        const response = await fetch(`${API_URL}/api/whatsapp/devices?tenant_id=${tenantId}`);
+        devices = await response.json();
+        renderDevices();
+      } catch (error) {
+        console.error('Error loading devices:', error);
+      }
+    }
+
+    function renderDevices() {
+      const devicesList = document.getElementById('devicesList');
+      devicesList.innerHTML = '';
+
+      devices.forEach(device => {
+        const deviceEl = document.createElement('div');
+        deviceEl.className = `device-item ${selectedDevice?.id === device.id ? 'active' : ''}`;
+        deviceEl.onclick = () => selectDevice(device);
+
+        deviceEl.innerHTML = `
+          <div class="device-name">${device.device_name}</div>
+          <div class="device-status">
+            ${device.state === 'open' ? '🟢 Conectado' :
+              device.state === 'connecting' ? '🟡 Conectando...' :
+              device.state === 'pending' ? '⚪ Pendente' : '🔴 Desconectado'}
+          </div>
+        `;
+
+        devicesList.appendChild(deviceEl);
+      });
+    }
+
+    function updateDeviceStatus(deviceId, status) {
+      const device = devices.find(d => d.id === deviceId);
+      if (device) {
+        device.state = status;
+        renderDevices();
+
+        // If this device was connecting and now is open, hide QR
+        if (selectedDevice?.id === deviceId && status === 'open') {
+          hideQR();
+        }
+      }
+    }
+
+    async function createDevice() {
+      const deviceName = document.getElementById('deviceNameInput').value.trim();
+      if (!deviceName) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/whatsapp/devices`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant_id: tenantId, device_name: deviceName })
+        });
+
+        const device = await response.json();
+        document.getElementById('deviceNameInput').value = '';
+
+        // Get QR code automatically
+        getQRCode(device.id);
+      } catch (error) {
+        alert('Erro ao criar dispositivo: ' + error.message);
+      }
+    }
+
+    async function getQRCode(deviceId) {
+      try {
+        const response = await fetch(`${API_URL}/api/whatsapp/devices/${deviceId}/qr?tenant_id=${tenantId}`);
+        const data = await response.json();
+
+        if (data.qr_code) {
+          document.getElementById('qrImage').src = `https://api.qrserver.com/create-qr-code/?size=300x300&data=${encodeURIComponent(data.qr_code)}`;
+          showQR();
+        } else {
+          alert('QR code não disponível. Tente novamente.');
+        }
+      } catch (error) {
+        console.error('Error getting QR:', error);
+        alert('Erro ao obter QR code');
+      }
+    }
+
+    function selectDevice(device) {
+      selectedDevice = device;
+      renderDevices();
+
+      // If device is not connected, try to get QR
+      if (device.state !== 'open') {
+        getQRCode(device.id);
+      }
+
+      document.getElementById('chatHeader').textContent = `Dispositivo: ${device.device_name}`;
+      document.getElementById('messagesArea').innerHTML = `
+        <div class="empty-state">
+          <h2>📱 ${device.device_name}</h2>
+          <p>Status: ${device.state === 'open' ? 'Conectado' : 'Aguardando conexão'}</p>
+        </div>
+      `;
+    }
+
+    async function sendMessage() {
+      if (!selectedConversation) {
+        alert('Selecione uma conversa primeiro');
+        return;
+      }
+
+      const messageText = document.getElementById('messageInput').value.trim();
+      if (!messageText) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/whatsapp/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: tenantId,
+            conversation_id: selectedConversation.id,
+            text: messageText
+          })
+        });
+
+        if (response.ok) {
+          document.getElementById('messageInput').value = '';
+          // Message will be added via socket
+        } else {
+          alert('Erro ao enviar mensagem');
+        }
+      } catch (error) {
+        alert('Erro de conexão');
+      }
+    }
+
+    function handleKeyPress(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+
+    function addMessage(message) {
+      const messagesArea = document.getElementById('messagesArea');
+      const messageEl = document.createElement('div');
+      messageEl.className = `message ${message.from_me ? 'sent' : 'received'}`;
+
+      messageEl.innerHTML = `
+        <div>${message.content}</div>
+        <div class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
+      `;
+
+      messagesArea.appendChild(messageEl);
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    function showQR() {
+      document.getElementById('devicesPanel').style.display = 'none';
+      document.getElementById('qrSection').style.display = 'block';
+    }
+
+    function hideQR() {
+      document.getElementById('qrSection').style.display = 'none';
+      document.getElementById('devicesPanel').style.display = 'block';
+    }
+
+    // Demo conversation for testing
+    function createDemoConversation() {
+      selectedConversation = {
+        id: 'demo-conversation',
+        name: 'João Silva',
+        jid: '5511999999999@s.whatsapp.net'
+      };
+      document.getElementById('chatHeader').textContent = selectedConversation.name;
+      document.getElementById('messagesArea').innerHTML = `
+        <div class="message received">
+          <div>Olá! Esta é uma demonstração do WhatsApp Kero.</div>
+          <div class="message-time">${new Date().toLocaleTimeString()}</div>
+        </div>
+      `;
+    }
+
+    // Add demo button
+    setTimeout(() => {
+      const demoBtn = document.createElement('button');
+      demoBtn.textContent = '🎯 Demo Chat';
+      demoBtn.style.cssText = 'margin: 10px; padding: 8px 16px; background: #00ff88; color: #1a1a2e; border: none; border-radius: 20px; cursor: pointer;';
+      demoBtn.onclick = createDemoConversation;
+      document.querySelector('.add-device').appendChild(demoBtn);
+    }, 1000);
+  </script>
+</body>
+</html>

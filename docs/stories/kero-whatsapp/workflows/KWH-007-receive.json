@@ -1,0 +1,131 @@
+{
+  "name": "KWH-007 - Receive WhatsApp Webhook",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Evolution Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/evolution",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "typeOptions": {}
+    },
+    {
+      "id": "parse-message",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.set",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {"id":"event","value":"={{$json.event}}"},
+            {"id":"session","value":"={{$json.session}}"},
+            {"id":"msgId","value":"={{$json.message?.id}}"},
+            {"id":"msgContent","value":"={{$json.message?.content?.text}}"},
+            {"id":"msgType","value":"={{$json.message?.type}}"},
+            {"id":"fromJid","value":"={{$json.message?.key?.remoteJid}}"},
+            {"id":"fromMe","value":"={{$json.message?.key?.fromMe}}"}
+          ]
+        },
+        "options": {}
+      },
+      "typeOptions": {}
+    },
+    {
+      "id": "get-device",
+      "name": "Get Device",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "get",
+        "table": "whatsapp_devices",
+        "filters": "instance_name='{{$json.session}}'",
+        "options": {}
+      },
+      "typeOptions": {}
+    },
+    {
+      "id": "get-or-create-conv",
+      "name": "Get/Create Conv",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "get",
+        "table": "whatsapp_conversations",
+        "filters": "device_id='{{$json[\"Get Device\"].id}}' AND jid='{{$json.fromJid}}'",
+        "options": {}
+      },
+      "typeOptions": {}
+    },
+    {
+      "id": "save-msg",
+      "name": "Save Message",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "insert",
+        "table": "whatsapp_messages",
+        "columns": ["device_id","conversation_id","message_id","direction","content","content_type","from_me","timestamp"],
+        "values": [
+          {"name":"device_id","value":"={{$json[\"Get Device\"].id}}"},
+          {"name":"conversation_id","value":"={{$json[\"Get/Create Conv\"].id}}"},
+          {"name":"message_id","value":"={{$json.msgId}}"},
+          {"name":"direction","value":"in"},
+          {"name":"content","value":"={{$json.msgContent}}"},
+          {"name":"content_type","value":"={{$json.msgType}}"},
+          {"name":"from_me","value":"={{$json.fromMe}}"},
+          {"name":"timestamp","value":"={{$now()}}"}
+        ],
+        "options": {}
+      },
+      "typeOptions": {}
+    },
+    {
+      "id": "notify-socket",
+      "name": "Notify Socket.io",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "http://socketio:3001/emit",
+        "bodyParameters": {
+          "parameters": [
+            {"name":"event","value":"message:new"},
+            {"name":"data","value":"={{$json}}"}
+          ]
+        },
+        "options": {}
+      },
+      "typeOptions": {}
+    },
+    {
+      "id": "respond",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}",
+        "options": {}
+      },
+      "typeOptions": {}
+    }
+  ],
+  "connections": {
+    "Evolution Webhook": {
+      "main": [[{"node":"Parse Message","type":"main","index":0}]]
+    },
+    "Parse Message": {
+      "main": [[{"node":"Get Device","type":"main","index":0}]]
+    },
+    "Get Device": {
+      "main": [[{"node":"Get/Create Conv","type":"main","index":0}]]
+    },
+    "Get/Create Conv": {
+      "main": [[{"node":"Save Message","type":"main","index":0}]]
+    },
+    "Save Message": {
+      "main": [[{"node":"Notify Socket.io","type":"main","index":0}]]
+    },
+    "Notify Socket.io": {
+      "main": [[{"node":"Respond 200","type":"main","index":0}]]
+    }
+  }
+}

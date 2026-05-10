@@ -1,0 +1,76 @@
+# KWH-003: Socket.io Server — Pub/Sub Real-Time Dedicado
+## Definição
+Criar um micro-serviço Node. js dedicado que encapsula o Socket.io server para pub/sub em tempo real entre o frontend e o sistema. Este servidor é o hub de eventos que recebe publishes do n8n (via REST) e emits para o frontend (via WebSocket).
+## stack
+- Node. js (sem framework web — só Socket.io + Redis)
+- Socket.io v4
+- Redis (cliente — já existente)
+- Express ou Hono (mínimo — só para health check)
+## Arquitetura
+```
+Frontend (Socket.io client) ──ws──► socket.io-server ──► Room: user:{user_ id}
+                                          ▲
+                                          │
+n8n (REST webhook) ──http──► socket.io-server (via /emit endpoint)
+                                    │
+                                    └── Redis Pub/Sub ──► Canal: whatsapp: {user_id}
+```
+## Estrutura de Pastas
+```
+apps/socket-server/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts           # entrypoint
+│   ├── socket-handler.ts  # conexão, auth, rooms
+│   ├── emit-handler.ts    # endpoint REST para n8n emitir eventos
+│   ├── redis-sub.ts       # inscrito Redis
+│   └── types.ts          # eventos TypeScript
+└── .env.example
+```
+## Eventos Socket.io
+| Evento | Direção | Payload |
+|--------|---------|--------|
+| `auth` | Client → Server | `{ user_id: uuid, token }` |
+| `auth:ok` | Server → Client | `{ ok: true }` |
+| `auth:error` | Server → Client | `{ error: string }` |
+| `message:new` | Server → Client | `Message` |
+| `message:update` | Server → Client | `Message` |
+| `conversation:update` | Server → Client | `Conversation` |
+| `typing:start` | Server → Client | `{ conversation_id, contact_jid }` |
+| `typing:stop` | Server → Client | `{ conversation_id }` |
+| `device:state` | Server → Client | `{ state, qr_code? }` |
+| `unread:update` | Server → Client | `{ conversation_id, count }` |
+| `qr:generated` | Server → Client | `{ qr_code: base64 }` |
+## Endpoint REST (n8n chama aqui)
+```
+POST /emit/{user_id}/{event}
+Body: { payload: any }
+X-API-KEY: { secret }
+```
+## Critério de Aceitação
+- [ ] Servidor sobe na porta 3001 (configurável)
+- [ ] Cliente conecta e recebe `auth:ok` após enviar `{ user_id }` + token válido
+- [ ] Cliente não autenticado não recebe eventos
+- [ ] Cada cliente entra na `Room: user:{user_id}`
+- [ ] POST `/emit/kero-user-id/message:new` emite para todos na room correta
+- [ ] Redis subscribe funciona (recebe de qualquer fonte)
+- [ ] Health check em `GET /health`
+- [ ] Graceful shutdown
+## Depende de
+- KWH-001 (tabelas existem — mas servidor é independente)
+## Checklists
+### file_list
+- `apps/socket-server/package.json`
+- `apps/socket-server/tsconfig.json`
+- `apps/socket-server/src/index.ts`
+- `apps/socket-server/src/socket-handler.ts`
+- `apps/socket-server/src/emit-handler.ts`
+- `apps/socket-server/src/redis-sub.ts`
+- `apps/socket-server/src/types.ts`
+- `apps/socket-server/.env.example`
+### quality_gate
+- `npm run lint`
+- `npm run typecheck`
+- Teste de conexão Socket.io client → server
+- Teste de emit via REST → chega no client

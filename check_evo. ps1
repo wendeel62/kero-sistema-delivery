@@ -1,0 +1,8 @@
+param([string]$baseUrl, [string]$path, [string]$apiKey)
+$ErrorActionPreference = "SilentlyContinue"
+$fullUrl = $baseUrl + $path
+$headers = @{"X-Api-Key" = $apiKey}
+$wc = New-Object System.Net.WebClient
+$wc.Headers.Add("X-Api-Key", $apiKey)
+$wc.Headers.Add("Content-Type", "application/json")
+try { $wc.DownloadString($fullUrl) } catch { $_.Exception.Message }

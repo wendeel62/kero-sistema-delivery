@@ -48,6 +48,9 @@ Thumbs.db
 .idea/
 *.swp
 
+# Vercel (local project config)
+.vercel/
+
 # AIOX Local (AIOX)
 .aiox-core/local/
 .claude/settings.local.json

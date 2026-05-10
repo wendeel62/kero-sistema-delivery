@@ -116,3 +116,56 @@ export interface Fornecedor {
   email?: string
   endereco?: string
 }
+
+// --------------------
+// CONFIGURACOES
+// --------------------
+export interface Configuracoes {
+  id: string
+  tenant_id: string
+  nome_loja: string
+  telefone?: string
+  endereco?: string
+  cidade?: string
+  estado?: string
+  logo_url?: string
+  impressao_automatica?: boolean
+  largura_papel?: 58 | 80
+}
+
+// --------------------
+// UNIFIED PEDIDO
+// --------------------
+export interface UnifiedPedido {
+  id: string
+  numero: number
+  cliente_nome: string
+  cliente_telefone: string
+  total: number
+  tipo_tabela: 'pedidos' | 'pedidos_online'
+  raw_status: string
+  status_kanban: 'novo' | 'em_preparo' | 'saiu_entrega' | 'entregue' | 'cancelado'
+  created_at: string
+  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'telefone' | 'ifood' | 'rappi' | 'whatsapp'
+  forma_pagamento: string
+  itens: any[]
+  endereco_entrega?: string
+  updated_at?: string
+  mesa_numero?: number
+}
+
+// --------------------
+// TRACKING CONFIG
+// --------------------
+export interface TrackingConfig {
+  meta_pixel_id?: string
+  ga4_measurement_id?: string
+  utmfy_token?: string
+}
+
+export type TrackingEvent =
+  | { event: 'PageView' }
+  | { event: 'ViewContent'; produto_nome: string; preco?: number; categoria?: string }
+  | { event: 'AddToCart'; produto_nome: string; preco?: number; quantidade: number }
+  | { event: 'InitiateCheckout'; valor_total: number; quantidade_itens: number }
+  | { event: 'Purchase'; valor_total: number; pedido_numero: number; forma_pagamento: string }

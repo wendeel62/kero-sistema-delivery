@@ -4,15 +4,17 @@ import { supabase } from '../lib/supabase'
 import { syncCliente } from '../lib/syncCliente'
 import NpsWidget from '../components/NpsWidget'
 import { useRealtime } from '../hooks/useRealtime'
+import { useTracking } from '../hooks/useTracking'
 import ProductCard from '../components/ProductCard'
 import CategoryFilters from '../components/CategoryFilters'
+import type { TrackingConfig } from '../types'
 
 export interface Categoria { id: string; nome: string }
 export interface Produto { id: string; categoria_id: string; nome: string; descricao: string; preco: number | undefined; disponivel: boolean; imagem_url: string }
 interface PrecoTamanho { id: string; produto_id: string; tamanho: string; preco: number }
 interface Sabor { id: string; nome: string; descricao: string; disponivel: boolean }
 interface CartItem { produto: Produto; quantidade: number; tamanho?: string; precoUnitario: number; tipoPizza?: 'inteiro' | 'meio-a-meio'; sabor1?: string; sabor2?: string }
-interface Config { taxa_entrega: number; pedido_minimo: number; loja_aberta: boolean; nome_fantasia?: string; logo_url?: string }
+interface Config { taxa_entrega: number; pedido_minimo: number; loja_aberta: boolean; nome_fantasia?: string; logo_url?: string; meta_pixel_id?: string; ga4_measurement_id?: string; utmfy_token?: string }
 interface SavedCustomer { nome: string; telefone: string; email?: string; endereco?: string; numero?: string; bairro?: string; cidade?: string }
 
 type Step = 'menu' | 'reconhecimento' | 'dados' | 'pagamento'
@@ -122,7 +124,10 @@ export default function CardapioOnlinePage() {
         pedido_minimo: configData.pedido_minimo || 0,
         loja_aberta: configData.loja_aberta ?? true,
         nome_fantasia: configData.nome_loja,
-        logo_url: configData.logo_url
+        logo_url: configData.logo_url,
+        meta_pixel_id: configData.meta_pixel_id,
+        ga4_measurement_id: configData.ga4_measurement_id,
+        utmfy_token: configData.utmfy_token
       })
 
       // Buscar categorias e produtos em paralelo
@@ -166,6 +171,21 @@ export default function CardapioOnlinePage() {
     ]
   })
 
+  // Tracking de analytics (Meta Pixel, GA4, UTMfy)
+  const trackingConfig: TrackingConfig = {
+    meta_pixel_id: config.meta_pixel_id,
+    ga4_measurement_id: config.ga4_measurement_id,
+    utmfy_token: config.utmfy_token
+  }
+  const { trackPageView, trackViewContent, trackAddToCart, trackInitiateCheckout, trackPurchase } = useTracking(trackingConfig)
+
+  // Track page view quando dados do tenant são carregados
+  useEffect(() => {
+    if (tenantId && config.nome_fantasia) {
+      trackPageView()
+    }
+  }, [tenantId, config.nome_fantasia, trackPageView])
+
   // Tracking de eventos para o funil de vendas
   const trackEvent = useCallback(async (tipo: 'visualizacao' | 'add_carrinho' | 'checkout_iniciado' | 'compra', quantidade: number = 1) => {
     try {
@@ -204,6 +224,8 @@ export default function CardapioOnlinePage() {
       setSabor1('')
       setSabor2('')
       setShowTamanhoModal(true)
+      // Track view content quando modal é aberto
+      trackViewContent(p.nome, p.preco, categorias.find(c => c.id === p.categoria_id)?.nome)
     } else {
       addToCart(p, p.preco || 0, undefined)
     }
@@ -219,6 +241,8 @@ export default function CardapioOnlinePage() {
       if (existing) return prev.map(item => item.produto.id === p.id && item.tamanho === tamanho && item.tipoPizza === tipo && item.sabor1 === s1 && item.sabor2 === s2 ? { ...item, quantidade: item.quantidade + 1 } : item)
       const newCart = [...prev, { produto: p, quantidade: 1, tamanho, precoUnitario: preco, tipoPizza: tipo, sabor1: s1, sabor2: s2 }]
       trackEvent('add_carrinho', 1)
+      // Track add to cart para analytics
+      trackAddToCart(p.nome, preco, 1)
       return newCart
     })
     setShowTamanhoModal(false)
@@ -252,6 +276,12 @@ export default function CardapioOnlinePage() {
 
   const finalizarPedido = async () => {
     if (!nome || !telefone) return
+
+    // Track initiate checkout
+    const total = cart.reduce((sum, item) => sum + item.precoUnitario * item.quantidade, 0) + config.taxa_entrega
+    const quantidadeItens = cart.reduce((sum, item) => sum + item.quantidade, 0)
+    trackInitiateCheckout(total, quantidadeItens)
+
     setLoading(true)
     const itens = cart.map(item => ({
       produto_id: item.produto.id,
@@ -298,6 +328,14 @@ export default function CardapioOnlinePage() {
       } catch {
         // localStorage indisponível, ignorar silenciosamente
       }
+    }
+
+    // Track purchase se pedido foi criado com sucesso
+    if (pedidoIdResult) {
+      const total = cart.reduce((sum, item) => sum + item.precoUnitario * item.quantidade, 0) + config.taxa_entrega
+      // Como não temos o numero do pedido aqui, vamos usar um valor genérico por enquanto
+      // Em produção, seria melhor buscar o numero do pedido criado
+      trackPurchase(total, 0, 'online') // forma_pagamento será determinado no checkout
     }
 
     setLoading(false)

@@ -362,21 +362,22 @@ export default function ConfiguracoesPage() {
           {status === 'conectada' && (
             <button
               onClick={() => {
-                // Pedido fictício para teste
-                const testPedido: any = {
+                // Pedido fictício para teste — estrutura alinhada com PedidoItem
+                const testPedido = {
                   id: 'test',
                   numero: 999,
                   cliente_nome: 'Cliente Teste',
                   cliente_telefone: '11999999999',
                   total: 25.90,
-                  canal: 'balcao',
+                  canal: 'balcao' as const,
                   forma_pagamento: 'dinheiro',
                   created_at: new Date().toISOString(),
                   itens: [
-                    { quantidade: 1, produto: { nome: 'Produto Teste' }, observacoes: 'Teste de impressão' }
+                    { qtd: 1, nome: 'Pizza Margherita', variacao: 'Grande', obs: 'Sem cebola' },
+                    { qtd: 2, nome: 'Coca-Cola 350ml' }
                   ]
                 }
-                if (config) print(testPedido, config)
+                if (config) print(testPedido as any, config)
               }}
               className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
             >

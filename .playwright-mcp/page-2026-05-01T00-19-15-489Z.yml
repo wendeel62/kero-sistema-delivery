@@ -1,0 +1,52 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - text: Gestão Inteligente
+      - heading "O CONTROLE QUE SEU DELIVERY MERECE." [level=1] [ref=e7]:
+        - text: O CONTROLE
+        - text: QUE SEU DELIVERY
+        - text: MERECE.
+    - paragraph [ref=e10]: Integre pedidos do WhatsApp, gerencie seu cardápio digital e coordene entregas em uma única plataforma de alta performance.
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: restaurant_menu
+        - generic [ref=e14]: 100%
+        - generic [ref=e15]: Cardápio Digital
+      - generic [ref=e16]:
+        - generic [ref=e17]: forum
+        - generic [ref=e18]: Auto
+        - generic [ref=e19]: Pedidos via WhatsApp
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e25]: KERO
+      - heading "Criar Conta" [level=2] [ref=e44]
+      - paragraph [ref=e27]: Novo Acesso
+    - generic [ref=e28]:
+      - generic [ref=e45]:
+        - text: Nome Completo
+        - generic [ref=e46]:
+          - generic [ref=e47]: person
+          - textbox "Nome Completo" [ref=e48]:
+            - /placeholder: Seu nome completo
+      - generic [ref=e29]:
+        - text: E-mail
+        - generic [ref=e30]:
+          - generic [ref=e31]: alternate_email
+          - textbox "E-mail" [ref=e32]:
+            - /placeholder: seu@email.com
+      - generic [ref=e33]:
+        - text: Criar Senha
+        - generic [ref=e34]:
+          - generic [ref=e35]: lock
+          - textbox "Criar Senha" [ref=e49]:
+            - /placeholder: ••••••••••••
+      - generic [ref=e50]:
+        - text: Confirmar Senha
+        - generic [ref=e51]:
+          - generic [ref=e52]: lock
+          - textbox "Confirmar Senha" [ref=e53]:
+            - /placeholder: ••••••••••••
+      - button "Criar Conta arrow_forward" [ref=e54] [cursor=pointer]:
+        - generic [ref=e40]: Criar Conta
+        - generic [ref=e41]: arrow_forward
+    - button "Já possui conta? Entrar" [active] [ref=e55]

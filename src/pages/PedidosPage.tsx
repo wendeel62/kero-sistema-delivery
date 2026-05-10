@@ -223,6 +223,70 @@ export default function PedidosPage() {
     enabled: !!tenantId
   })
 
+  /**
+   * Busca os itens do pedido na tabela itens_pedido e monta um
+   * UnifiedPedido completo para impressão. O payload do Realtime
+   * INSERT contém apenas os campos da tabela pedidos — os itens
+   * estão em tabela separada e precisam de query adicional.
+   */
+  const buildPrintablePedido = async (
+    rawPedido: any,
+    source: 'pedidos' | 'pedidos_online'
+  ): Promise<UnifiedPedido | null> => {
+    try {
+      let itens: any[] = []
+
+      if (source === 'pedidos') {
+        // Buscar itens separadamente — não vêm no Realtime INSERT
+        const { data: itensData } = await supabase
+          .from('itens_pedido')
+          .select('*')
+          .eq('pedido_id', rawPedido.id)
+        itens = (itensData || []).map((ip: any) => ({
+          nome: ip.produto_nome,
+          qtd: ip.quantidade,
+          variacao: ip.tamanho,
+          obs: ip.observacoes,
+        }))
+      } else if (source === 'pedidos_online') {
+        // pedidos_online.itens pode ser JSON string ou array
+        if (rawPedido.itens) {
+          try {
+            const parsed = typeof rawPedido.itens === 'string'
+              ? JSON.parse(rawPedido.itens)
+              : rawPedido.itens
+            itens = Array.isArray(parsed)
+              ? parsed.map((ip: any) => ({
+                  nome: ip.produto_nome || ip.nome,
+                  qtd: ip.quantidade || ip.qtd,
+                  variacao: ip.tamanho || ip.variacao,
+                  obs: ip.observacoes || ip.obs,
+                }))
+              : []
+          } catch { itens = [] }
+        }
+      }
+
+      return {
+        id: rawPedido.id,
+        numero: rawPedido.numero,
+        cliente_nome: rawPedido.cliente_nome || '',
+        cliente_telefone: rawPedido.cliente_telefone || '',
+        total: Number(rawPedido.total),
+        tipo_tabela: source,
+        raw_status: rawPedido.status,
+        status_kanban: mapKanbanStatus(rawPedido.status),
+        created_at: rawPedido.created_at,
+        canal: rawPedido.tipo || rawPedido.canal || 'balcao',
+        forma_pagamento: rawPedido.forma_pagamento || '',
+        itens,
+      }
+    } catch (err) {
+      console.error('[KeroPrint] Erro ao montar pedido para impressão:', err)
+      return null
+    }
+  }
+
   useRealtime({
     configs: [
       {
@@ -231,24 +295,22 @@ export default function PedidosPage() {
         callback: (payload: any) => {
           playAlertSound()
           queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
-          // NOVO: impressão automática
-if (payload?.eventType === 'INSERT' && isAutoEnabled) {
-// Usar async/await para evitar problemas com PromiseLike
-(async () => {
-try {
-const { data: configData } = await supabase
-.from('configuracoes')
-.select('*')
-.eq('tenant_id', tenantId)
-.single()
-if (configData) {
-print(payload.new as UnifiedPedido, configData as any)
-}
-} catch (err) {
-console.error('Erro ao buscar config para impressao:', err)
-}
-})()
-}
+          // Impressão automática — fire-and-forget via fila serializada
+          if (payload?.eventType === 'INSERT' && isAutoEnabled) {
+            (async () => {
+              try {
+                const [pedido, { data: configData }] = await Promise.all([
+                  buildPrintablePedido(payload.new, 'pedidos'),
+                  supabase.from('configuracoes').select('*').eq('tenant_id', tenantId).single(),
+                ])
+                if (pedido && configData) {
+                  print(pedido, configData as any)
+                }
+              } catch (err) {
+                console.error('[KeroPrint] Erro ao imprimir pedido automático:', err)
+              }
+            })()
+          }
         }
       },
       {
@@ -257,24 +319,22 @@ console.error('Erro ao buscar config para impressao:', err)
         callback: (payload: any) => {
           playAlertSound()
           queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
-          // NOVO: impressão automática
-if (payload?.eventType === 'INSERT' && isAutoEnabled) {
-// Usar async/await para evitar problemas com PromiseLike
-(async () => {
-try {
-const { data: configData } = await supabase
-.from('configuracoes')
-.select('*')
-.eq('tenant_id', tenantId)
-.single()
-if (configData) {
-print(payload.new as UnifiedPedido, configData as any)
-}
-} catch (err) {
-console.error('Erro ao buscar config para impressao:', err)
-}
-})()
-}
+          // Impressão automática — fire-and-forget via fila serializada
+          if (payload?.eventType === 'INSERT' && isAutoEnabled) {
+            (async () => {
+              try {
+                const [pedido, { data: configData }] = await Promise.all([
+                  buildPrintablePedido(payload.new, 'pedidos_online'),
+                  supabase.from('configuracoes').select('*').eq('tenant_id', tenantId).single(),
+                ])
+                if (pedido && configData) {
+                  print(pedido, configData as any)
+                }
+              } catch (err) {
+                console.error('[KeroPrint] Erro ao imprimir pedido online automático:', err)
+              }
+            })()
+          }
         }
       }
     ]
