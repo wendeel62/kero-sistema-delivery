@@ -1,4 +1,4 @@
-import type { Sabor } from '../../hooks/useCardapioAdmin'
+import type { Sabor } from '../../hooks/cardapio/types'
 
 interface SaborModalProps {
   editSabor: Partial<Sabor> | null

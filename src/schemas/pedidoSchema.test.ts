@@ -5,7 +5,7 @@ describe('pedidoSchema', () => {
   it('deve validar pedido completo', () => {
     const pedido = {
       cliente_nome: 'Cliente Teste',
-      cliente_telefone: '11999999999',
+      cliente_telefone: '(11) 99999-9999',
       total: 100.50,
       tenant_id: '550e8400-e29b-41d4-a716-446655440000'
     }

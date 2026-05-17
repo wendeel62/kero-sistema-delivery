@@ -1,4 +1,4 @@
-import type { Categoria } from '../../hooks/useCardapioAdmin'
+import type { Categoria } from '../../hooks/cardapio/types'
 
 interface CategoriaModalProps {
   editCategoria: Partial<Categoria> | null

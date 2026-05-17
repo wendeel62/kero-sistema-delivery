@@ -1,4 +1,4 @@
-import type { KPIs, FunilRealtimeData } from '../../hooks/useDashboardKpis'
+import type { KPIs, FunnelRealtimeData } from '../../hooks/useDashboardKpis'
 
 interface FunilVendasProps {
   kpis: KPIs

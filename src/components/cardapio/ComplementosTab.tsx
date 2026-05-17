@@ -1,4 +1,4 @@
-import type { Produto, Sabor, PrecoTamanho } from '../../hooks/useCardapioAdmin'
+import type { Produto, Sabor, PrecoTamanho } from '../../hooks/cardapio/types'
 
 interface ComplementosTabProps {
   sabores: Sabor[]

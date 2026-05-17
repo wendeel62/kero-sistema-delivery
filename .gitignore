@@ -55,3 +55,8 @@ Thumbs.db
 .aiox-core/local/
 .claude/settings.local.json
 .aiox/install-log.txt
+
+# Backup & Temp files
+*.backup
+*.tsbuildinfo
+temp_*

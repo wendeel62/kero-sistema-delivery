@@ -2,11 +2,72 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
+import path from 'path'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@hooks': path.resolve(__dirname, './src/hooks'),
+      '@pages': path.resolve(__dirname, './src/pages'),
+      '@contexts': path.resolve(__dirname, './src/contexts'),
+      '@utils': path.resolve(__dirname, './src/utils'),
+      '@schemas': path.resolve(__dirname, './src/schemas'),
+      '@types': path.resolve(__dirname, './src/types'),
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
+    ViteImageOptimizer({
+      // PNG optimization
+      png: {
+        quality: 80,
+        compressionLevel: 9,
+      },
+      // JPEG optimization
+      jpeg: {
+        quality: 80,
+        progressive: true,
+      },
+      // JPG optimization
+      jpg: {
+        quality: 80,
+        progressive: true,
+      },
+      // WebP optimization
+      webp: {
+        quality: 80,
+        lossless: false,
+        effort: 4,
+      },
+      // AVIF optimization
+      avif: {
+        quality: 70,
+        effort: 4,
+      },
+      // SVG optimization
+      svg: {
+        multipass: true,
+        plugins: [
+          {
+            name: 'preset-default',
+            params: {
+              overrides: {
+                removeViewBox: false,
+              },
+            },
+          },
+        ],
+      },
+      // Cache directory
+      cache: true,
+      cacheLocation: './node_modules/.cache/vite-plugin-image-optimizer',
+      // Log level
+      logStats: true,
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'icons/*.png'],
@@ -213,5 +274,31 @@ export default defineConfig({
     commonjsOptions: {
       exclude: ['date-fns', 'framer-motion'],
     },
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-router')) {
+              return 'vendor'
+            }
+            if (id.includes('recharts')) {
+              return 'charts'
+            }
+            if (id.includes('leaflet') || id.includes('react-leaflet')) {
+              return 'maps'
+            }
+            if (id.includes('react-hook-form') || id.includes('zod')) {
+              return 'forms'
+            }
+            if (id.includes('framer-motion')) {
+              return 'ui'
+            }
+            return 'vendor'
+          }
+        },
+      },
+    },
+    // Divisão de chunks por tamanho
+    chunkSizeWarningLimit: 500,
   },
 })

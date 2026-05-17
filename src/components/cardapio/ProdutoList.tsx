@@ -1,4 +1,4 @@
-import type { Produto, Categoria, PrecoTamanho } from '../../hooks/useCardapioAdmin'
+import type { Produto, Categoria, PrecoTamanho } from '../../hooks/cardapio/types'
 
 interface ProdutoListProps {
   produtos: Produto[]

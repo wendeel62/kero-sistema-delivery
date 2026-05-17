@@ -10,6 +10,11 @@ interface ReceitaChartProps {
   onSelectDias: (dias: number) => void
 }
 
+interface ChartData {
+  dia: string
+  valor: number
+}
+
 export default function ReceitaChart({
   receitaData,
   receitaDias,
@@ -18,6 +23,11 @@ export default function ReceitaChart({
   onToggleDropdown,
   onSelectDias
 }: ReceitaChartProps) {
+  const chartData: ChartData[] = receitaData?.receitaPorDia?.map((valor: number, i: number) => ({
+    dia: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][6 - i],
+    valor
+  })).reverse() || []
+
   return (
     <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up">
       <div className="flex items-center justify-between mb-6">
@@ -46,7 +56,7 @@ export default function ReceitaChart({
       </div>
       <div className="flex items-end justify-between gap-1 h-32">
         <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={receitaData?.receitaPorDia?.map((valor, i) => ({ dia: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][6 - i], valor })).reverse() || []}>
+          <BarChart data={chartData}>
             <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
             <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), 'Receita']} contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#9ca3af' }} />
             <Bar dataKey="valor" fill="#e8391a" radius={[4, 4, 0, 0]} />

@@ -1,4 +1,4 @@
-import type { Categoria, Produto, Sabor, PrecoTamanho, ComplementoTemp } from '../../hooks/useCardapioAdmin'
+import type { Categoria, Produto, Sabor, PrecoTamanho, ComplementoTemp } from '../../hooks/cardapio/types'
 import type { UseFormReturn } from 'react-hook-form'
 
 interface ProdutoFormSidebarProps {
