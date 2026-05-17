@@ -7,54 +7,60 @@ import App from './App'
 // ============================================
 // Sentry Initialization
 // ============================================
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  
-  // Performance Monitoring
-  tracesSampleRate: 1.0,
-  
-  // Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-  
-  // Environment
-  environment: import.meta.env.MODE || 'development',
-  
-  // Integrations
-  integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-    Sentry.captureConsoleIntegration({
-      levels: ['error', 'warn'],
-    }),
-  ],
-  
-  // Before Send Hook - Add additional context
-  beforeSend(event, hint) {
-    // Don't send events in development mode
-    if (import.meta.env.DEV) {
-      console.log('[Sentry] Event captured (not sent in dev):', event)
-      return null
-    }
-    return event
-  },
-  
-  // Ignore specific errors
-  ignoreErrors: [
-    // Browser extensions
-    'top.GLOBALS',
-    'canvas.contentDocument',
-    // Network errors
-    'NetworkError',
-    'Network request failed',
-    // Random plugins/extensions
-    'atomicFindClose',
-    'fb_random_ride',
-  ],
-})
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+
+    // Performance Monitoring
+    tracesSampleRate: 1.0,
+
+    // Session Replay
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+
+    // Environment
+    environment: import.meta.env.MODE || 'development',
+
+    // Integrations
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      }),
+      Sentry.captureConsoleIntegration({
+        levels: ['error', 'warn'],
+      }),
+    ],
+
+    // Before Send Hook - Add additional context
+    beforeSend(event, hint) {
+      // Don't send events in development mode
+      if (import.meta.env.DEV) {
+        console.log('[Sentry] Event captured (not sent in dev):', event)
+        return null
+      }
+      return event
+    },
+
+    // Ignore specific errors
+    ignoreErrors: [
+      // Browser extensions
+      'top.GLOBALS',
+      'canvas.contentDocument',
+      // Network errors
+      'NetworkError',
+      'Network request failed',
+      // Random plugins/extensions
+      'atomicFindClose',
+      'fb_random_ride',
+    ],
+  })
+} else {
+  console.log('[Sentry] DSN not configured, skipping initialization')
+}
 
 // ============================================
 // Error Boundary Component

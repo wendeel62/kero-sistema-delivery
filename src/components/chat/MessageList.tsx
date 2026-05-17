@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useEffect, useRef, useMemo, useCallback } from 'react'
 import type { ChatMessage } from '../../types'
 import AgentAvatar from '../AgentAvatar'
 

@@ -1,19 +1,8 @@
-import { useMemo, useCallback, useRef, useEffect } from 'react'
+import { useMemo, useCallback, useRef } from 'react'
 import { Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
-import { useMemoComparator } from 'react-leaflet'
 import type { MotoboyPosicao, EntregaAtiva } from '../../types'
 import { EntregaPopupContent } from './EntregaPopup'
-
-// Import do plugin de clustering do Leaflet (opcional)
-// Se não estiver instalado, o clustering não será aplicado
-let MarkerClusterer: any
-try {
-  // Tenta importar o markercluster se disponível
-  MarkerClusterer = require('leaflet.markercluster')
-} catch {
-  MarkerClusterer = null
-}
 
 interface EntregaMarkersProps {
   motoboys: MotoboyPosicao[]

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react'
-import { useMap } from 'react-leaflet'
+import { useMap, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import type { MotoboyPosicao } from '../../types'
 
@@ -172,8 +172,6 @@ export const EstabelecimentoMarker: React.FC<EstabelecimentoMarkerProps> = ({ po
     </Marker>
   )
 }
-
-import { Marker, Popup } from 'react-leaflet'
 
 const styles: Record<string, React.CSSProperties> = {
   popup: {
