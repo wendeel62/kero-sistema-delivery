@@ -1,0 +1,79 @@
+rules:
+  - id: supabase-missing-error-handling
+    patterns:
+      - pattern-inside: |
+          const { data: $DATA, error: $ERR } = await $DB.from($TABLE).$METHOD($...ARGS)
+      - pattern-not-inside: |
+          if ($ERR) { ... }
+    message: |
+      Chamada ao Supabase sem tratamento de erro adequado!
+      Acessar `data` sem verificar `error` pode causar crashes se a query falhar.
+      ✅ Correto:
+          const { data, error } = await supabase.from('table').select('*');
+          if (error) { console.error(error); throw error; }
+          // use data apenas após verificar error
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: error-handling
+      cwe: "CWE-755: Improper Handling of Exceptional Conditions"
+      confidence: HIGH
+
+  - id: supabase-unsafe-data-access
+    patterns:
+      - pattern-either:
+          - pattern: (await $DB.$METHOD($...ARGS)).data
+          - pattern: |
+              const $VAR = (await $DB.$METHOD($...ARGS)).data
+          - pattern: |
+              const $VAR = await $DB.$METHOD($...ARGS).then($RES => $RES.data)
+    message: |
+      Acesso inseguro a `data` sem verificar `error` primeiro!
+      Isso retorna undefined/null silenciosamente se houver erro.
+      ✅ Correto:
+          const { data, error } = await supabase.from('users').select('*');
+          if (error) throw error;
+          if (!data) throw new Error('No data found');
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: null-dereference
+
+  - id: supabase-missing-auth-check
+    patterns:
+      - pattern-inside: |
+          async function $FUNC(...) {
+            ...
+            await $DB.$METHOD($...ARGS)
+            ...
+          }
+      - pattern-not-inside: |
+          async function $FUNC(...) {
+            ...
+            await supabase.auth.getUser()
+            ...
+          }
+      - pattern-not-inside: |
+          async function $FUNC(...) {
+            ...
+            await supabase.auth.getSession()
+            ...
+          }
+    message: |
+      Função assíncrona com chamada ao Supabase sem verificação de autenticação!
+      Considere verificar se o usuário está autenticado antes:
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) { throw new Error('Unauthorized'); }
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: authentication

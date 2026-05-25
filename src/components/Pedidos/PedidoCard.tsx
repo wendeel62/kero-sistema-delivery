@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 interface PedidoCardProps {
   id: string;

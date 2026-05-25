@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { pedidoTipoSchema, pedidoPagamentoSchema } from './pedidoSchema'
-import { produtoItemSchema } from './produtoSchema'
 
 // ============================================
 // SCHEMA BASE - PEDIDO MANUAL (Formulário rápido)

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { withTenantFilter, TenantAccessDeniedError } from './tenant-utils'
 
 // Mock do Supabase antes de importar o módulo
@@ -18,7 +18,7 @@ describe('withTenantFilter', () => {
       eq: vi.fn().mockReturnThis()
     }
     
-    const result = withTenantFilter(mockQuery, 'tenant-123')
+    withTenantFilter(mockQuery, 'tenant-123')
     
     expect(mockQuery.eq).toHaveBeenCalledWith('tenant_id', 'tenant-123')
   })

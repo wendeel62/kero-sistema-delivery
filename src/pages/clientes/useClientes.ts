@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { handleSupabaseError } from '../../lib/supabaseErrorHandler'
+import { logger } from '../../utils/logger'
 import type { Cliente, ClienteFilters, ClienteStats } from './types'
 
 export interface UseClientesReturn {
@@ -23,7 +25,7 @@ export function useClientes(tenantId: string | undefined): UseClientesReturn {
 
   const fetchClientes = useCallback(async () => {
     if (!tenantId) return
-    
+
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -32,12 +34,8 @@ export function useClientes(tenantId: string | undefined): UseClientesReturn {
         .eq('tenant_id', tenantId)
         .order('nome', { ascending: true })
 
-      if (error) {
-        console.error('Erro ao buscar clientes:', error)
-        return
-      }
+      if (handleSupabaseError(error, 'useClientes.fetchClientes')) return
 
-      // Atualiza perfil baseado em regras de negócio
       const updated = data?.map(c => {
         let perfil = c.perfil
         if (c.total_pedidos >= 10 || c.total_gasto >= 500) perfil = 'vip'
@@ -47,8 +45,9 @@ export function useClientes(tenantId: string | undefined): UseClientesReturn {
       })
 
       setClientes(updated || [])
-    } catch (error) {
-      console.error('Erro:', error)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      logger.error('[useClientes] Unexpected error', { message })
     } finally {
       setLoading(false)
     }

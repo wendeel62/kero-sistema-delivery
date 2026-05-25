@@ -14,8 +14,7 @@ export default function CozinhaPage() {
     pedidosNovos, 
     pedidosEmPreparo, 
     iniciarPreparo, 
-    marcarPronto,
-    refetch 
+    marcarPronto
   } = useCozinha({ tenantId })
 
   useEffect(() => {

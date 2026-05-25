@@ -17,7 +17,7 @@ interface PedidoCartProps {
   salvando: boolean
   sucesso: boolean
   pedidoMesaSalvo: boolean
-  mesaDosPedido: any
+  mesaDosPedido: Record<string, unknown> | null
   filteredProdutos: Produto[]
   categorias: { id: string; nome: string }[]
   precosTamanho: Record<string, { id: string; produto_id: string; tamanho: string; preco: number }[]>
@@ -78,7 +78,6 @@ export default function PedidoCart({
   onScrollToCart,
   onFecharMesa
 }: PedidoCartProps) {
-  const mesasOcupadasCount = 0 // This is just for the button badge, handled by parent
 
   return (
     <div className="animate-fade-in flex flex-col lg:flex-row gap-3 lg:gap-6 min-h-[calc(100vh-6rem)] p-2 sm:p-3 lg:p-6">
@@ -109,17 +108,27 @@ export default function PedidoCart({
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start overflow-y-auto flex-1 pb-4 custom-scrollbar pr-2 pt-1">
-          {filteredProdutos.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              <span className="material-symbols-outlined text-4xl mb-2 block">inventory_2</span>
-              <p className="text-sm">Nenhum produto encontrado</p>
-              <p className="text-xs mt-1">Cadastre produtos no Cardápio Admin</p>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start overflow-y-auto flex-1 pb-4 custom-scrollbar pr-2 pt-1">
+        {filteredProdutos.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-gray-500">
+            <span className="material-symbols-outlined text-4xl mb-2 block">inventory_2</span>
+            <p className="text-sm">Nenhum produto encontrado</p>
+            <p className="text-xs mt-1">Cadastre produtos no Cardápio Admin</p>
+          </div>
+        ) : filteredProdutos.map(p => {
+          const preco = precosTamanho[p.id]?.length ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco))) : Number(p.preco)
+          const indisponivel = p.disponivel === false
+          return (
+            <div key={p.id} className={indisponivel ? 'opacity-50 pointer-events-none relative' : ''}>
+              {indisponivel && (
+                <div className="absolute top-2 left-2 z-10 bg-red-500/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Indisponível
+                </div>
+              )}
+              <ProductCard produto={p} preco={preco} onAddToCart={() => onAddItem(p)} />
             </div>
-          ) : filteredProdutos.map(p => {
-            const preco = precosTamanho[p.id]?.length ? Math.min(...precosTamanho[p.id].map(t => Number(t.preco))) : Number(p.preco)
-            return <ProductCard key={p.id} produto={p} preco={preco} onAddToCart={() => onAddItem(p)} />
-          })}
+          )
+        })}
         </div>
       </div>
 
@@ -205,7 +214,7 @@ export default function PedidoCart({
           {pedidoMesaSalvo && mesaDosPedido && (
             <button onClick={onFecharMesa} className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-yellow-500 text-black animate-in fade-in zoom-in duration-300">
               <span className="material-symbols-outlined text-sm">receipt_long</span>
-              Fechar Mesa {mesaDosPedido.numero}
+              Fechar Mesa {mesaDosPedido.numero as ReactNode}
             </button>
           )}
         </div>

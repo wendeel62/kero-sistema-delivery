@@ -5,33 +5,32 @@
 // Ex: import { DashboardPage, PedidosPage } from '@/pages'
 
 // Main Pages
-export { DashboardPage } from './DashboardPage'
-export { PedidosPage } from './PedidosPage'
-export { PdvPage } from './PdvPage'
-export { CozinhaPage } from './CozinhaPage'
-export { CardapioAdminPage } from './CardapioAdminPage'
-export { CardapioOnlinePage } from './CardapioOnlinePage'
-export { ClientesPage } from './ClientesPage'
-export { EstoquePage } from './EstoquePage'
-export { FinanceiroPage } from './FinanceiroPage'
-export { EntregasPage } from './EntregasPage'
-export { MesaPage } from './MesaPage'
-export { MotoboyApp } from './MotoboyApp'
+export { default as DashboardPage } from './DashboardPage'
+export { default as PedidosPage } from './PedidosPage'
+export { default as PdvPage } from './PdvPage'
+export { default as CozinhaPage } from './CozinhaPage'
+export { default as CardapioAdminPage } from './CardapioAdminPage'
+export { default as CardapioOnlinePage } from './CardapioOnlinePage'
+export { default as ClientesPage } from './ClientesPage'
+export { default as EstoquePage } from './EstoquePage'
+export { default as FinanceiroPage } from './FinanceiroPage'
+export { default as EntregasPage } from './EntregasPage'
+export { default as MesaPage } from './MesaPage'
+export { default as MotoboyApp } from './MotoboyApp'
 
 // Auth Pages
-export { LoginPage } from './LoginPage'
-export { MfaPage } from './MfaPage'
-export { MfaSetupPage } from './MfaSetupPage'
-export { AdminLogin } from './admin/AdminLogin'
-export { AdminDashboard } from './admin/AdminDashboard'
+export { default as LoginPage } from './LoginPage'
+
+export { default as AdminLogin } from './admin/AdminLogin'
+export { default as AdminDashboard } from './admin/AdminDashboard'
 
 // Config Pages
-export { ConfiguracoesPage } from './ConfiguracoesPage'
-export { FixRLSPage } from './FixRLSPage'
-export { WhatsappInboxPage } from './WhatsappInboxPage'
+export { default as ConfiguracoesPage } from './ConfiguracoesPage'
+export { default as FixRLSPage } from './FixRLSPage'
+export { default as WhatsappInboxPage } from './WhatsappInboxPage'
 
 // Pedido Status Page
-export { PedidoStatusPage } from './PedidoStatusPage'
+export { default as PedidoStatusPage } from './PedidoStatusPage'
 
 // Cardápio Sub-components (páginas internas)
 export { BuscaProdutos } from './cardapio/BuscaProdutos'
@@ -45,9 +44,8 @@ export { CatalogoProdutos } from './cardapio/CatalogoProdutos'
 export { PedidoFilters } from './pedidos/PedidoFilters'
 export { PedidosList } from './pedidos/PedidosList'
 export { PedidoModal } from './pedidos/PedidoModal'
-export { PedidosEmptyState } from './pedidos/PedidosEmptyState'
-export { PedidoActions } from './pedidos/PedidoActions'
-export { PedidoStatusBadge } from './pedidos/PedidoStatusBadge'
+export { LoadingState as PedidosEmptyState } from './pedidos/PedidosEmptyState'
+export { PedidoActionsModal as PedidoActions } from './pedidos/PedidoActions'
 
 // Clientes Sub-components
 export { ClientesTable } from './clientes/ClientesTable'
@@ -62,4 +60,3 @@ export { EstoqueAlertas } from './estoque/EstoqueAlertas'
 
 // Financeiro Sub-components
 export { RelatoriosFinanceiros } from './financeiro/RelatoriosFinanceiros'
-export { FluxoCaixa } from './financeiro/FluxoCaixa'

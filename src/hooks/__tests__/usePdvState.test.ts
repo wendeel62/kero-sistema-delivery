@@ -77,7 +77,9 @@ describe('usePdvState', () => {
       nome: 'Pizza Margherita',
       preco: 50,
       disponivel: true,
-      tenant_id: 'tenant-1',
+      categoria_id: '1',
+      descricao: '',
+      imagem_url: '',
     }
 
     act(() => {
@@ -97,7 +99,9 @@ describe('usePdvState', () => {
       nome: 'Pizza Margherita',
       preco: 50,
       disponivel: true,
-      tenant_id: 'tenant-1',
+      categoria_id: '1',
+      descricao: '',
+      imagem_url: '',
     }
 
     act(() => {
@@ -117,7 +121,9 @@ describe('usePdvState', () => {
       nome: 'Pizza Margherita',
       preco: 50,
       disponivel: true,
-      tenant_id: 'tenant-1',
+      categoria_id: '1',
+      descricao: '',
+      imagem_url: '',
     }
 
     act(() => {
@@ -147,7 +153,9 @@ describe('usePdvState', () => {
       nome: 'Pizza Margherita',
       preco: 50,
       disponivel: true,
-      tenant_id: 'tenant-1',
+      categoria_id: '1',
+      descricao: '',
+      imagem_url: '',
     }
 
     act(() => {
@@ -169,13 +177,15 @@ describe('usePdvState', () => {
       nome: 'Pizza Margherita',
       preco: 50,
       disponivel: true,
-      tenant_id: 'tenant-1',
+      categoria_id: '1',
+      descricao: '',
+      imagem_url: '',
     }
 
     const precosTamanho: Record<string, PrecoTamanho[]> = {
       '1': [
-        { id: '1', produto_id: '1', tamanho: 'P', preco: 40, tenant_id: 'tenant-1' },
-        { id: '2', produto_id: '1', tamanho: 'G', preco: 60, tenant_id: 'tenant-1' },
+        { id: '1', produto_id: '1', tamanho: 'P', preco: 40 },
+        { id: '2', produto_id: '1', tamanho: 'G', preco: 60 },
       ],
     }
 
@@ -255,7 +265,9 @@ describe('usePdvState', () => {
       nome: 'Pizza Margherita',
       preco: 50,
       disponivel: true,
-      tenant_id: 'tenant-1',
+      categoria_id: '1',
+      descricao: '',
+      imagem_url: '',
     }
 
     act(() => {

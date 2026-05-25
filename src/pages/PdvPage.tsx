@@ -1,4 +1,5 @@
 import { usePdv } from '../hooks/usePdv'
+import type { Produto } from '../hooks/usePdv'
 import MesasGrid from '../components/pdv/MesasGrid'
 import MesasPanel from '../components/pdv/MesasPanel'
 import OcuparMesaModal from '../components/pdv/OcuparMesaModal'
@@ -25,7 +26,7 @@ export default function PdvPage() {
         salvando={h.salvando}
         sucesso={h.sucesso}
         pedidoMesaSalvo={h.pedidoMesaSalvo}
-        mesaDosPedido={h.mesaDosPedido}
+        mesaDosPedido={h.mesaDosPedido as any}
         filteredProdutos={h.filteredProdutos}
         categorias={h.categorias}
         precosTamanho={h.precosTamanho}
@@ -48,7 +49,7 @@ export default function PdvPage() {
         onEnderecoEntregaChange={h.setEnderecoEntrega}
         onFormaPagamentoChange={h.setFormaPagamento}
         onDescontoChange={h.setDesconto}
-        onAddItem={h.addItem}
+        onAddItem={(p: Produto) => h.addItem(p, h.precosTamanho)}
         onRemoveItem={h.removeItem}
         onSalvarPedido={h.salvarPedido}
         onBuscaChange={h.setBusca}
@@ -62,13 +63,13 @@ export default function PdvPage() {
       <MesasPanel
         showMesasPanel={h.showMesasPanel}
         mesas={h.mesas}
-        mesasComItens={h.mesasComItens}
+        mesasComItens={h.mesasComItens as any}
         mesaExpandida={h.mesaExpandida}
         getTempoOcupada={h.getTempoOcupada}
         onClose={() => h.setShowMesasPanel(false)}
         onExpandMesa={h.setMesaExpandida}
         onFecharMesa={(mesa, itens) => {
-          h.setItensMesa(itens)
+          h.setItensMesa(itens as any)
           h.setMesaFechar(mesa)
           h.setShowMesasPanel(false)
           h.setShowDivisaoConta(true)

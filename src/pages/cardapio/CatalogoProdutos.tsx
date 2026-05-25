@@ -4,7 +4,7 @@ import { ProdutoCard } from './ProdutoCard'
 
 export interface CatalogoProdutosProps {
   produtos: Produto[]
-  precosTamanho: Record<string, any[]>
+  precosTamanho: Record<string, Array<Record<string, unknown>>>
   onAddToCart: (produto: Produto) => void
   onImageClick?: (url: string) => void
   className?: string

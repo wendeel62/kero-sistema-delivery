@@ -3,22 +3,33 @@
 // ==========================================
 
 // --------------------
-// ROLES
+// ROLES — Single Source of Truth
+// Must match database enum in user_roles.role
 // --------------------
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
   GERENTE: 'gerente',
   ATENDENTE: 'atendente',
+  CAIXA: 'caixa',
+  COZINHEIRO: 'cozinheiro',
+  ENTREGADOR: 'entregador',
+  MOTOBOY: 'motoboy',
+  CLIENTE: 'cliente',
 } as const;
 
 export type Role = typeof ROLES[keyof typeof ROLES];
 
-export const ROLE_HIERARCHY = {
-  [ROLES.SUPER_ADMIN]: 4,
-  [ROLES.ADMIN]: 3,
-  [ROLES.GERENTE]: 2,
-  [ROLES.ATENDENTE]: 1,
+export const ROLE_HIERARCHY: Record<Role, number> = {
+  [ROLES.SUPER_ADMIN]: 9,
+  [ROLES.ADMIN]: 8,
+  [ROLES.GERENTE]: 7,
+  [ROLES.ATENDENTE]: 5,
+  [ROLES.CAIXA]: 5,
+  [ROLES.COZINHEIRO]: 4,
+  [ROLES.ENTREGADOR]: 3,
+  [ROLES.MOTOBOY]: 3,
+  [ROLES.CLIENTE]: 1,
 } as const;
 
 // --------------------
@@ -26,16 +37,19 @@ export const ROLE_HIERARCHY = {
 // --------------------
 export const PEDIDO_STATUS = {
   NOVO: 'novo',
+  CONFIRMADO: 'confirmado',
   EM_PREPARO: 'em_preparo',
   PRONTO: 'pronto',
   SAIU_ENTREGA: 'saiu_entrega',
   ENTREGUE: 'entregue',
   CANCELADO: 'cancelado',
+  AGUARDANDO_PAGAMENTO: 'aguardando_pagamento',
 } as const;
 
 export const PEDIDO_STATUS_KANBAN = {
   NOVO: 'novo',
   EM_PREPARO: 'em_preparo',
+  PRONTO: 'pronto',
   SAIU_ENTREGA: 'saiu_entrega',
   ENTREGUE: 'entregue',
   CANCELADO: 'cancelado',
@@ -49,6 +63,15 @@ export const STATUS = {
   INATIVO: 'inativo',
   PENDENTE: 'pendente',
   CANCELADO: 'cancelado',
+} as const;
+
+// --------------------
+// STATUS DE MESA
+// --------------------
+export const MESA_STATUS = {
+  LIVRE: 'livre',
+  OCUPADA: 'ocupada',
+  AGUARDANDO_PAGAMENTO: 'aguardando_pagamento',
 } as const;
 
 // --------------------
@@ -71,7 +94,6 @@ export const CANAL = {
   APP: 'app',
   IFOOD: 'ifood',
   RAPPI: 'rappi',
-  WHATSAPP: 'whatsapp',
 } as const;
 
 // --------------------
@@ -82,8 +104,6 @@ export const FORMA_PAGAMENTO = {
   DEBITO: 'debito',
   CREDITO: 'credito',
   PIX: 'pix',
-  IFOOD: 'ifood',
-  RAPPI: 'rappi',
 } as const;
 
 // --------------------
@@ -152,4 +172,20 @@ export const TAMANHO_PIZZA = {
   MEDIA: 'média',
   GRANDE: 'grande',
   GIGANTE: 'gigante',
+} as const;
+
+// --------------------
+// LOCAL STORAGE KEYS
+// --------------------
+export const STORAGE_KEYS = {
+  THEME: 'kero_theme',
+  CART: 'kero_cart',
+  SIDEBAR_COLLAPSED: 'kero_sidebar_collapsed',
+} as const;
+
+// --------------------
+// ALERTAS DE ESTOQUE
+// --------------------
+export const ESTOQUE_CONFIG = {
+  ALERTA_VENCIMENTO_DIAS: 7,
 } as const;

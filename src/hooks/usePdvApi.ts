@@ -16,6 +16,18 @@ export interface FetchDataResult {
   sabores: Sabor[]
 }
 
+export interface ItemPedidoRow {
+  id: string
+  tenant_id: string
+  pedido_id: string
+  produto_id: string
+  produto_nome: string
+  quantidade: number
+  preco_unitario: number
+  total: number
+  observacoes: string | null
+}
+
 export interface UsePdvApiReturn {
   // Data fetching
   fetchData: () => Promise<FetchDataResult | undefined>
@@ -31,8 +43,8 @@ export interface UsePdvApiReturn {
   isSalvandoPedido: boolean
 
   // Mesa items loading
-  loadMesaItens: (mesa: Mesa) => Promise<any[]>
-  loadMesasComItens: (mesas: Mesa[]) => Promise<Record<string, any[]>>
+  loadMesaItens: (mesa: Mesa) => Promise<ItemPedidoRow[]>
+  loadMesasComItens: (mesas: Mesa[]) => Promise<Record<string, ItemPedidoRow[]>>
 }
 
 export interface CreatePedidoData {
@@ -61,7 +73,7 @@ export interface CreatePedidoData {
 // HOOK
 // ============================================
 
-export function usePdvApi(tenantId: string) {
+export function usePdvApi(tenantId: string | null) {
   const queryClient = useQueryClient()
 
   // ----- Data Fetching -----
@@ -168,6 +180,7 @@ export function usePdvApi(tenantId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pdv-data', tenantId] })
+      queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
     }
   })
 
@@ -175,13 +188,14 @@ export function usePdvApi(tenantId: string) {
     try {
       await salvarPedidoAsync(pedidoData)
       return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err))
+      return { success: false, error: error.message }
     }
   }, [salvarPedidoAsync])
 
   // ----- Mesa Items Loading -----
-  const loadMesaItens = useCallback(async (mesa: Mesa): Promise<any[]> => {
+  const loadMesaItens = useCallback(async (mesa: Mesa): Promise<ItemPedidoRow[]> => {
     const { data: pedidos } = await supabase
       .from('pedidos')
       .select('*')
@@ -199,14 +213,14 @@ export function usePdvApi(tenantId: string) {
         .eq('tenant_id', tenantId)
         .eq('pedido_id', ultimoPedido.id)
 
-      return itensPedido || []
+      return (itensPedido as ItemPedidoRow[]) || []
     }
     return []
   }, [tenantId])
 
-  const loadMesasComItens = useCallback(async (mesas: Mesa[]): Promise<Record<string, any[]>> => {
+  const loadMesasComItens = useCallback(async (mesas: Mesa[]): Promise<Record<string, ItemPedidoRow[]>> => {
     const mesasOcupadas = mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento')
-    const dados: Record<string, any[]> = {}
+    const dados: Record<string, ItemPedidoRow[]> = {}
 
     await Promise.all(mesasOcupadas.map(async (mesa) => {
       const { data: pedidos } = await supabase

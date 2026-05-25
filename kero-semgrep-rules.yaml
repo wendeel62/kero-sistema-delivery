@@ -1,0 +1,357 @@
+rules:
+  - id: kero-missing-tenant-filter
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: |
+                  supabase.from($TABLE).select($ARGS)
+              - metavariable-regex:
+                  metavariable: $TABLE
+                  regex: .*(orders|products|tenants|mp_credentials|posicoes_motoboy).*
+              - pattern-not: |
+                  supabase.from($TABLE).select($ARGS).eq("tenant_id", $TENANT)
+          - pattern: |
+              supabase.from($TABLE).update($DATA).eq($COL, $VAL)
+          - pattern: |
+              supabase.from($TABLE).delete().eq($COL, $VAL)
+    message: |
+      CRITICO: Query sem filtro tenant_id detectada!
+      Isso permite que um tenant veja dados de OUTRO tenant.
+      Correto: .from("orders").select("*").eq("tenant_id", tenantId)
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-200: Information Exposure"
+
+  - id: kero-service-role-in-frontend
+    patterns:
+      - pattern-either:
+          - pattern: |
+              createClient($URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+          - pattern: |
+              createClient($URL, import.meta.env.SUPABASE_SERVICE_ROLE_KEY)
+          - pattern: |
+              const $X = supabaseServiceRole
+    message: |
+      CRITICO: Service Role Key exposta no frontend!
+      A service_role key ignora RLS. Use ANON_KEY no frontend.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+
+  - id: kero-mp-missing-token-validation
+    patterns:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  await fetch("https://api.mercadopago.com/$MP_PATH", { headers: { "Authorization": `Bearer $TOKEN` } })
+              - pattern: |
+                  await fetch("https://api.mercadopago.com/$MP_PATH", { headers: { "Authorization": `Bearer $ACCESS_TOKEN` } })
+          - pattern-not: |
+              if (!$TOKEN) { ... }
+          - pattern-not: |
+              if (!$ACCESS_TOKEN) { ... }
+          - pattern-not: |
+              if (!accessToken) { ... }
+          - pattern-not: |
+              if (!access_token) { ... }
+    message: |
+      Chamada ao Mercado Pago sem validar se o token existe!
+      Se access_token for null, a requisicao falha com 401.
+      Valide com: if (!access_token) throw new Error("MP nao conectado")
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: correctness
+      cwe: "CWE-755: Improper Handling of Exceptional Conditions"
+
+  - id: kero-whatsapp-invalid-number-format
+    patterns:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  fetch($EVOLUTION_URL + "/message/sendText", { body: JSON.stringify({ number: $NUMBER }) })
+              - pattern: |
+                  sendPresence({ number: $NUMBER })
+          - pattern-not: |
+              const $X = $NUMBER.replace(/\D/g, "")
+          - pattern-not: |
+              $NUMBER.length >= 10
+    message: |
+      Numero de WhatsApp sem validacao de formato!
+      Números invalidos quebram a Evolution API e gastam tokens da IA.
+      Valide com: /^55\d{10,11}$/.test(phone.replace(/\D/g, ""))
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: input-validation
+
+  - id: kero-ai-missing-provider-validation
+    patterns:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  fetch("https://api.cerebras.ai/$CEREBRAS_PATH", { headers: { "Authorization": `Bearer $KEY` } })
+              - pattern: |
+                  fetch("https://api.groq.com/openai/v1/$GROQ_PATH", { headers: { "Authorization": `Bearer $KEY` } })
+          - pattern-not: |
+              if (!$KEY || $KEY === "") { ... }
+    message: |
+      Chamada de IA sem validar se a API KEY existe!
+      Se a env var nao estiver configurada, falha com 401.
+      Valide no startup: if (!process.env.KEY) throw new Error("Missing KEY")
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: reliability
+      subcategory: configuration
+
+  - id: kero-redis-missing-null-check
+    patterns:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  const $VAR = await upstash.get($KEY)
+              - pattern: |
+                  const $VAR = await redis.get($KEY)
+          - pattern-inside: |
+              const $VAR = await $STORE.get($KEY)
+              ...
+              $VAR.$PROP
+          - pattern-not: |
+              if (!$VAR) { ... }
+    message: |
+      Acesso a propriedade sem verificar se Redis retornou null!
+      Upstash/Redis retorna null se a chave nao existir (TTL expirado).
+      Acessar property de null causa crash.
+      Sempre valide: if (!historico) return []
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: correctness
+      cwe: "CWE-476: NULL Pointer Dereference"
+
+  - id: kero-sql-injection-risk
+    patterns:
+      - pattern-either:
+          - pattern: |
+              supabase.rpc($FUNC, { $PARAM: $USER_INPUT })
+          - pattern: |
+              `SELECT * FROM ${$TABLE}`
+          - pattern: |
+              `WHERE name = ${$USER_INPUT}`
+          - pattern: |
+              `WHERE $COL = $VAL`
+    message: |
+      Risco de SQL Injection detectado!
+      Nunca concatene input do usuario em queries SQL.
+      Use parametros parametrizados ou stored procedures.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-89: SQL Injection"
+
+  - id: kero-webhook-missing-signature-validation
+    patterns:
+      - patterns:
+          - pattern: |
+              app.post("/api/webhooks/clerk", async (req, res) => {
+                ...
+              })
+          - pattern-not: |
+              await Webhook.verify($BODY, $SECRET)
+          - pattern-not: |
+              verifyWebhookSignature
+    message: |
+      Webhook do Clerk sem validacao de assinatura!
+      Qualquer pessoa pode enviar POST falso.
+      Valide com: const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-345: Insufficient Verification of Data Authenticity"
+
+  - id: kero-payment-frontend-price-trust
+    patterns:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  const { total, items } = req.body
+                  createPayment({ total, items })
+              - pattern: |
+                  const { total } = req.body
+                  createPayment({ total })
+          - pattern-not: |
+              select("price")
+    message: |
+      Criando pagamento com valores vindos do frontend!
+      Cliente malicioso pode enviar { total: 0.01 }.
+      SEMPRE recalcule no backend: busque precos no banco.
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: "CWE-807: Reliance on Untrusted Inputs in a Security Decision"
+
+  - id: kero-file-upload-missing-validation
+    patterns:
+      - patterns:
+          - pattern: |
+              await r2.put($KEY, $FILE)
+          - pattern-not: |
+              if (!$FILE.type.startsWith("image/")) { ... }
+          - pattern-not: |
+              if ($FILE.size > $MAX_SIZE) { ... }
+    message: |
+      Upload de arquivo sem validacao de tipo/tamanho!
+      Risco de scripts maliciosos, DoS via imagens gigantes.
+      Valide: ALLOWED_TYPES.includes(file.type) && file.size < MAX_SIZE
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: file-upload
+
+  - id: kero-missing-error-handling-external-api
+    patterns:
+      - patterns:
+          - pattern: |
+              await fetch($URL, $OPTIONS)
+          - pattern-not: |
+              try { await fetch($API, $OPTS) } catch ($E) { ... }
+          - metavariable-regex:
+              metavariable: $URL
+              regex: .*mercadopago\.com.*|.*cerebras\.ai.*|.*groq\.com.*|.*cloudflare\.com.*
+    message: |
+      Chamada de API externa sem try/catch!
+      APIs externas podem falhar por timeout, rate limit, ou servico fora do ar.
+      SEMPRE envolva em try/catch com fallback apropriado.
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: reliability
+      subcategory: error-handling
+
+  - id: kero-webhook-missing-rate-limit
+    patterns:
+      - patterns:
+          - pattern: |
+              app.post("/webhook/:event", async (req, res) => {
+                ...
+              })
+          - pattern-not: |
+              rateLimit($CONFIG)
+          - pattern-not: |
+              await checkRateLimit($IP)
+    message: |
+      Webhook sem rate limiting!
+      Atacante pode enviar milhares de requisicoes e esgotar tokens da IA.
+      Implemente: rateLimiter.consume(ip) com RateLimiterRedis.
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: rate-limiting
+
+  - id: kero-whatsapp-missing-delay-anti-ban
+    patterns:
+      - patterns:
+          - pattern: |
+              await evolutionAPI.sendPresence({ number: $NUM, ... })
+              await evolutionAPI.sendMessage($NUM, $TEXT)
+          - pattern-not: |
+              await sleep($DELAY)
+          - pattern-not: |
+              await new Promise(r => setTimeout(r, $MS))
+          - pattern-not: |
+              await delay($MS)
+    message: |
+      Enviando mensagem WhatsApp sem delay anti-ban!
+      Respostas instantaneas (< 4s) sao sinal de bot. WhatsApp pode banir.
+      SEMPRE use delay humanizado: await new Promise(r => setTimeout(r, delay))
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: reliability
+      subcategory: anti-ban
+
+  - id: kero-realtime-missing-cleanup
+    patterns:
+      - patterns:
+          - pattern-inside: |
+              useEffect(() => {
+                ...
+                supabase.channel($NAME).on(...).subscribe()
+                ...
+              }, [$DEPS])
+          - pattern-not: |
+              return () => { channel.unsubscribe() }
+          - pattern-not: |
+              return () => supabase.removeChannel
+    message: |
+      Subscription Realtime sem cleanup no unmount!
+      Causa memory leak e subscriptions duplicadas.
+      SEMPRE retorne cleanup: return () => { channel.unsubscribe() }
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    metadata:
+      category: performance
+      subcategory: memory-leak
+
+  - id: kero-missing-env-validation
+    patterns:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  import.meta.env.$VAR
+              - pattern: |
+                  process.env.$VAR
+          - pattern-not: |
+              if (!process.env.$VAR) { throw new Error(...) }
+          - pattern-not: |
+              if (!import.meta.env.$VAR) { throw new Error(...) }
+    message: |
+      Variavel de ambiente critica sem validacao no startup!
+      Se uma env var essencial estiver faltando, falha em runtime.
+      Valide no startup: if (!key) throw new Error("Missing env var")
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    metadata:
+      category: reliability
+      subcategory: configuration

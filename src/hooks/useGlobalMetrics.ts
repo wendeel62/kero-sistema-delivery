@@ -42,15 +42,17 @@ export function useGlobalMetrics() {
         tenants_new_this_month: acc.tenants_new_this_month + d.tenants.new_this_month,
         tenants_total: acc.tenants_total + d.tenants.total,
         tenants_active: acc.tenants_active + d.tenants.active,
-        ai_error_rate: acc.ai_error_rate + (d.ai_usage.groq_error_rate_percent + d.ai_usage.gemini_error_rate_percent) / 2,
+        ai_error_rate_sum: acc.ai_error_rate_sum + d.ai_usage.groq_error_rate_percent,
+        ai_error_rate: acc.ai_error_rate,
       }
     },
-    { mrr: 0, tenants_new_this_month: 0, tenants_total: 0, tenants_active: 0, ai_error_rate: 0 }
+    { mrr: 0, tenants_new_this_month: 0, tenants_total: 0, tenants_active: 0, ai_error_rate_sum: 0, ai_error_rate: 0 }
   )
 
   // Average AI error rate across projects
-  if (results.filter(r => r.data).length > 0) {
-    globalMetrics.ai_error_rate = globalMetrics.ai_error_rate / results.filter(r => r.data).length
+  const projectsWithData = results.filter(r => r.data).length
+  if (projectsWithData > 0) {
+    globalMetrics.ai_error_rate = globalMetrics.ai_error_rate_sum / projectsWithData
   }
 
   return { globalMetrics, isLoading }

@@ -65,12 +65,14 @@ export default function AdminLogin() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label
+              htmlFor="admin-email"
               className="block mb-1.5"
               style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#6b7280' }}
             >
               E-mail
             </label>
             <input
+              id="admin-email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -92,12 +94,14 @@ export default function AdminLogin() {
 
           <div>
             <label
+              htmlFor="admin-password"
               className="block mb-1.5"
               style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#6b7280' }}
             >
               Senha
             </label>
             <input
+              id="admin-password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -134,6 +138,8 @@ export default function AdminLogin() {
             }}
             onMouseOver={(e) => !loading && (e.currentTarget.style.background = '#c62d14')}
             onMouseOut={(e) => !loading && (e.currentTarget.style.background = '#e8391a')}
+            onFocus={(e) => !loading && (e.currentTarget.style.background = '#c62d14')}
+            onBlur={(e) => !loading && (e.currentTarget.style.background = '#e8391a')}
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>

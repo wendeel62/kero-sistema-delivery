@@ -134,6 +134,17 @@ export interface Configuracoes {
 }
 
 // --------------------
+// ITEM PEDIDO (for UnifiedPedido)
+// --------------------
+export interface PedidoItemDisplay {
+  qtd: number
+  nome: string
+  preco?: number
+  observacoes?: string
+  tamanho?: string
+}
+
+// --------------------
 // UNIFIED PEDIDO
 // --------------------
 export interface UnifiedPedido {
@@ -146,9 +157,9 @@ export interface UnifiedPedido {
   raw_status: string
   status_kanban: 'novo' | 'em_preparo' | 'saiu_entrega' | 'entregue' | 'cancelado'
   created_at: string
-  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'telefone' | 'ifood' | 'rappi' | 'whatsapp'
+  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'telefone' | 'ifood' | 'rappi'
   forma_pagamento: string
-  itens: any[]
+  itens: PedidoItemDisplay[]
   endereco_entrega?: string
   updated_at?: string
   mesa_numero?: number

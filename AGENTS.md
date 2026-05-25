@@ -1,155 +1,53 @@
-# Kero Project - Agent Configuration
+# Kero Delivery - Instrucoes para Agentes
 
-This file defines the agents available in the Kero project for the Kilo CLI.
+## Dev Commands
+- `npm run dev` — Vite dev server (porta 5173)
+- `npm run build` — `tsc -b && vite build`
+- `npm run lint` — ESLint (inclui jsx-a11y, security, react-hooks)
+- `npm run typecheck` — `tsc --noEmit`
+- `npm test` — Vitest (unit, jsdom)
+- `npm run test:run` — Vitest modo CI
+- `npm run test:e2e` — Playwright
+- `npm run test:coverage` — Vitest com coverage v8
+- `npm run deploy` — Vercel producao
 
-## Orchestration Mode - ATIVADO
+## Quality Gate Order (CI pipeline)
+lint -> typecheck -> build -> test (audit paralelo)
 
-This project has **orchestration mode activated**. Use these commands:
+## Stack
+- **Frontend**: React 19, Vite 8, TailwindCSS v4 via `@tailwindcss/vite` (sem PostCSS)
+- **Backend**: Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
+- **Servidor local**: Express em `server/` apenas para impressao termica
+- **Auth**: Supabase Auth JWT + multi-tenant RBAC (`tenant_id` em `user_metadata`)
+- **State**: TanStack React Query (staleTime: volateis 1min, intermediario 10min, estatico 24h)
+- **Forms**: Zod (schemas em `src/schemas/`) + react-hook-form
+- **PWA**: `vite-plugin-pwa` com service worker
+- **Erros**: Sentry (via `VITE_SENTRY_DSN`)
 
-### Build Commands
-- `*build {story-id}` - Execute full autonomous build cycle
-- `*build-autonomous` - Start autonomous build loop
-- `*build-resume` - Resume from last checkpoint
+## Path Aliases
+`@/` -> `src/`, `@components/`, `@hooks/`, `@pages/`, `@contexts/`, `@utils/`, `@schemas/`, `@types/`
 
-### Development Modes
-- `*develop-yolo` - Autonomous development (no confirmation)
-- `*develop-interactive` - Interactive development (default)
-- `*execute-subtask` - Execute single subtask
+## Multi-tenant (obrigatorio)
+Toda query RLS e consulta DEVE filtrar por `tenant_id`. Helpers em `src/lib/tenant-utils.ts`:
+- `getCurrentTenantId()` — extrai de `user_metadata.tenant_id`
+- `withTenantFilter()`, `secureMutationData()`, `canAccessResource()`
 
-### Execution Modes
-- **ask** (default) - Confirm each step
-- **auto** - Execute without confirmation  
-- **explore** - Exploration mode without execution
+## Testes
+- Unitarios: `src/**/*.test.{ts,tsx}`, jsdom, setup `src/test/setup.ts`
+- Mock Supabase: `src/test/mocks/supabase.ts`
+- E2E: Playwright (`npm run test:e2e:a11y` para acessibilidade)
 
-Use `--auto` flag or `*yolo` prefix for autonomous execution.
+## Supabase MCP
+Ativo via `opencode.json` — projeto `kmtjfapbooqzhysllrbe`. Se expirar, rode `opencode mcp auth supabase`.
 
-## COMPORTAMENTOS DO AGENTE
+## Orchestration (AIOX / Kilo)
+- `*build {story-id}` — ciclo autonomo completo
+- `*develop-yolo` — modo auto sem confirmacao
+- Trabalhe por stories em `docs/stories/`
 
-The following agents are available and **ACTIVATED** for this project:
-
-### 1. Architect Agent
-- **Path**: .aiox-core/development/agents/architect.md
-- **Fallback**: .codex/agents/architect.md
-- **Purpose**: Software architecture and system design
-- **Shortcut**: /architect, @architect
-- **Expertise**: Hexagonal architecture, DDD, Clean Architecture, system design
-
-### 2. Dev Agent  
-- **Path**: .aiox-core/development/agents/dev.md
-- **Fallback**: .codex/agents/dev.md
-- **Purpose**: Full-stack development implementation
-- **Shortcut**: /dev, @dev
-- **Expertise**: React, TypeScript, Node.js, Supabase, testing
-
-### 3. QA Agent
-- **Path**: .aiox-core/development/agents/qa.md
-- **Fallback**: .codex/agents/qa.md
-- **Purpose**: Testing, quality assurance, and test coverage
-- **Shortcut**: /qa, @qa
-- **Expertise**: Vitest, React Testing Library, e2e testing, accessibility
-
-### 4. PM Agent
-- **Path**: .aiox-core/development/agents/pm.md
-- **Fallback**: .codex/agents/pm.md
-- **Purpose**: Project management and coordination
-- **Shortcut**: /pm, @pm
-- **Expertise**: Agile/Scrum, sprint planning, risk management
-
-### 5. PO Agent
-- **Path**: .aiox-core/development/agents/po.md
-- **Fallback**: .codex/agents/po.md
-- **Purpose**: Product ownership and backlog management
-- **Shortcut**: /po, @po
-- **Expertise**: Product management, user stories, prioritization
-
-### 6. SM Agent
-- **Path**: .aiox-core/development/agents/sm.md
-- **Fallback**: .codex/agents/sm.md
-- **Purpose**: Scrum mastery and team facilitation
-- **Shortcut**: /sm, @sm
-- **Expertise**: Scrum ceremonies, impediment removal, coaching
-
-### 7. Analyst Agent
-- **Path**: .aiox-core/development/agents/analyst.md
-- **Fallback**: .codex/agents/analyst.md
-- **Purpose**: Business and technical analysis
-- **Shortcut**: /analyst, @analyst
-- **Expertise**: Requirements gathering, process modeling, specifications
-
-### 8. DevOps Agent
-- **Path**: .aiox-core/development/agents/devops.md
-- **Fallback**: .codex/agents/devops.md
-- **Purpose**: Infrastructure, CI/CD, and deployment
-- **Shortcut**: /devops, @devops
-- **Expertise**: CI/CD pipelines, cloud infrastructure, monitoring
-
-### 9. UX Design Expert Agent
-- **Path**: .aiox-core/development/agents/ux-design-expert.md
-- **Fallback**: .codex/agents/ux-design-expert.md
-- **Purpose**: User experience design and accessibility
-- **Shortcut**: /ux-design-expert, @ux-design-expert
-- **Expertise**: UX research, wireframing, WCAG accessibility
-
-### 10. Squad Creator Agent
-- **Path**: .aiox-core/development/agents/squad-creator.md
-- **Fallback**: .codex/agents/squad-creator.md
-- **Purpose**: Multi-agent squad design and orchestration
-- **Shortcut**: /squad-creator, @squad-creator
-- **Expertise**: Multi-agent systems, team composition, workflows
-
-### 11. Data Engineer Agent
-- **Path**: .aiox-core/development/agents/data-engineer.md
-- **Fallback**: .codex/agents/data-engineer.md
-- **Purpose**: Database architecture and data modeling
-- **Shortcut**: /data-engineer, @data-engineer
-- **Expertise**: PostgreSQL, Supabase, schema design, query optimization
-
----
-
-## Quality Gates
-
-Run these commands before concluding any task:
-- 
-pm run lint - ESLint validation
-- 
-pm run typecheck - TypeScript check
-- 
-pm run build - Production build
-
----
-
-## Skills Available
-
-The following skills are also available:
-- .kilo/skills/frontend-design/ - Production-grade frontend interfaces
-- .kilo/skills/web-design-guidelines/ - Web UI best practices
-- .kilo/skills/angular-component/ - Angular component patterns
-- .kilo/skills/angular-di/ - Angular dependency injection
-- .kilo/skills/create-pull-request/ - GitHub PR creation
-- .kilo/skills/file-organizer/ - File organization
-- .kilo/skills/skill-creator/ - Skill development guide
-
----
-
-## Activation
-
-To activate an agent, use the shortcut or type the agent name in the CLI.
-All agents above are **ACTIVATED** and ready to use.
-
-## Activation
-
-To activate an agent, use the shortcut or type the agent name in the CLI.
-All agents above are **ACTIVATED** and ready to use.
-
-## Workflow Example
-
-1. **Analyst** - Gather and analyze requirements
-2. **Architect** - Design the solution
-3. **UX Design Expert** - Design the interface
-4. **Dev** - Implement the features
-5. **QA** - Test and ensure quality
-6. **DevOps** - Deploy to production
-
+## Skills (`.kilo/skills/`)
+- `frontend-design/`, `web-design-guidelines/`, `angular-component/`, `angular-di/`
+- `create-pull-request/`, `file-organizer/`, `skill-creator/`
 
 ---
 

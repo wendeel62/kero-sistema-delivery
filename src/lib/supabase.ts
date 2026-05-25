@@ -4,11 +4,13 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Erro: VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY sao obrigatorias.")
-  console.error("Configure-as no arquivo .env na raiz do projeto.")
+  throw new Error(
+    "Kero: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required. " +
+    "Configure them in your .env.local file. See .env.example for reference."
+  )
 }
 
-export const supabase = createClient(supabaseUrl || "https://placeholder.supabase.co", supabaseAnonKey || "placeholder", {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

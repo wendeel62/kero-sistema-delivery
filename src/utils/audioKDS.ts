@@ -1,4 +1,4 @@
-const audioContext = typeof window !== 'undefined' ? new (window.AudioContext || (window as any).webkitAudioContext)() : null
+const audioContext = typeof window !== 'undefined' ? new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)() : null
 
 const playTone = (frequency: number, duration: number, type: OscillatorType = 'sine') => {
   if (!audioContext) return

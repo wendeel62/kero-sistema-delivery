@@ -1,5 +1,4 @@
 import { memo, useMemo } from 'react'
-import type { Produto } from './types'
 import type { CartItem } from './useCarrinho'
 
 export interface CarrinhoSidebarProps {
@@ -41,6 +40,9 @@ export const CarrinhoSidebar = memo(function CarrinhoSidebar({
       <div
         className="fixed inset-0 bg-black/60 z-40"
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        role="button"
+        tabIndex={0}
       />
 
       {/* Sidebar */}

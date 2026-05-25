@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { syncCliente } from '../lib/syncCliente'
 
 // ============================================
 // TYPES
@@ -28,6 +29,7 @@ export interface OfflinePedido {
     total: number
     observacoes: string | null
   }>
+  synced?: boolean
 }
 
 export interface SyncStatus {
@@ -58,7 +60,8 @@ export interface UsePdvOfflineReturn {
 
 const DB_NAME = 'pdv-offline-db'
 const PEDIDOS_STORE = 'pedidos'
-const SYNC_QUEUE_KEY = 'pdv-sync-queue'
+// SYNC_QUEUE_KEY unused - kept for future sync queue implementation
+// const SYNC_QUEUE_KEY = 'pdv-sync-queue'
 
 // ============================================
 // UTILS
@@ -75,8 +78,8 @@ const openDB = (): Promise<IDBDatabase> => {
     request.onerror = () => reject(request.error)
     request.onsuccess = () => resolve(request.result)
 
-    request.onupgradeneeded = (event: any) => {
-      const db = event.target.result
+    request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+      const db = (event.target as IDBOpenDBRequest).result
       if (!db.objectStoreNames.contains(PEDIDOS_STORE)) {
         const store = db.createObjectStore(PEDIDOS_STORE, { keyPath: 'id' })
         store.createIndex('tenant_id', 'tenant_id', { unique: false })
@@ -111,8 +114,12 @@ const getPendingPedidosFromDB = async (): Promise<OfflinePedido[]> => {
     const index = store.index('synced')
 
     return new Promise((resolve, reject) => {
-      const request = index.getAll(IDBKeyRange.only(false))
-      request.onsuccess = () => resolve(request.result as OfflinePedido[])
+      const request = index.getAll()
+      request.onsuccess = () => {
+        const allPedidos = request.result as OfflinePedido[]
+        const pending = allPedidos.filter(p => !p.synced)
+        resolve(pending)
+      }
       request.onerror = () => reject(request.error)
     })
   } catch (error) {
@@ -218,7 +225,7 @@ export function usePdvOffline() {
       for (const pedido of pendingPedidos) {
         try {
           // Insert pedido
-          const { error: pedidoError } = await supabase
+          const { data: insertedPedido, error: pedidoError } = await supabase
             .from('pedidos')
             .insert({
               tenant_id: pedido.tenant_id,
@@ -234,14 +241,49 @@ export function usePdvOffline() {
               observacoes: pedido.observacoes,
               endereco_entrega: pedido.endereco_entrega,
             })
+            .select()
+            .single()
 
           if (pedidoError) {
             console.error('Erro ao sincronizar pedido:', pedidoError)
             continue
           }
 
+          // Insert itens do pedido
+          if (pedido.itens && pedido.itens.length > 0 && insertedPedido) {
+            const itensToInsert = pedido.itens.map(item => ({
+              pedido_id: insertedPedido.id,
+              tenant_id: pedido.tenant_id,
+              produto_id: item.produto_id,
+              produto_nome: item.produto_nome,
+              quantidade: item.quantidade,
+              preco_unitario: item.preco_unitario,
+              total: item.total,
+              observacoes: item.observacoes,
+            }))
+
+            const { error: itensError } = await supabase
+              .from('itens_pedido')
+              .insert(itensToInsert)
+
+            if (itensError) {
+              console.error('Erro ao sincronizar itens do pedido:', itensError)
+            }
+          }
+
           // Mark as synced
           await markAsSynced(pedido.id)
+
+          // Sync client data
+          if (pedido.cliente_nome || pedido.cliente_telefone) {
+            await syncCliente(
+              pedido.cliente_nome || '',
+              pedido.cliente_telefone || '',
+              pedido.total,
+              pedido.tenant_id,
+              pedido.endereco_entrega || undefined,
+            )
+          }
         } catch (error) {
           console.error('Erro ao sincronizar pedido:', error)
         }
@@ -249,8 +291,8 @@ export function usePdvOffline() {
 
       setLastSync(new Date())
       setPendingCount(0)
-    } catch (error: any) {
-      setSyncError(error.message || 'Erro na sincronização')
+    } catch (error: unknown) {
+      setSyncError((error as Error)?.message || 'Erro na sincronização')
     } finally {
       setIsSyncing(false)
     }

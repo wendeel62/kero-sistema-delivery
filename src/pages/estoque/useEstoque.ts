@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { handleSupabaseError } from '../../lib/supabaseErrorHandler'
+import { logger } from '../../utils/logger'
+import { ESTOQUE_CONFIG } from '../../constants'
 import type { Ingrediente, EstoqueStats, FiltroEstoque, MovimentacaoEstoque } from './types'
 
 export interface UseEstoqueReturn {
@@ -8,13 +11,13 @@ export interface UseEstoqueReturn {
   loading: boolean
   stats: EstoqueStats
   filters: FiltroEstoque
-  setFilter: (key: keyof FiltroEstoque, value: any) => void
+  setFilter: <K extends keyof FiltroEstoque>(key: K, value: FiltroEstoque[K]) => void
   refresh: () => Promise<void>
-  addIngrediente: (data: Partial<Ingrediente>) => Promise<void>
-  updateIngrediente: (id: string, data: Partial<Ingrediente>) => Promise<void>
-  deleteIngrediente: (id: string) => Promise<void>
-  registrarEntrada: (data: Partial<MovimentacaoEstoque>) => Promise<void>
-  registrarSaida: (data: Partial<MovimentacaoEstoque>) => Promise<void>
+  addIngrediente: (data: Partial<Ingrediente>) => Promise<boolean>
+  updateIngrediente: (id: string, data: Partial<Ingrediente>) => Promise<boolean>
+  deleteIngrediente: (id: string) => Promise<boolean>
+  registrarEntrada: (data: Partial<MovimentacaoEstoque>) => Promise<boolean>
+  registrarSaida: (data: Partial<MovimentacaoEstoque>) => Promise<boolean>
 }
 
 export function useEstoque(tenantId: string | undefined): UseEstoqueReturn {
@@ -30,7 +33,7 @@ export function useEstoque(tenantId: string | undefined): UseEstoqueReturn {
 
   const fetchIngredientes = useCallback(async () => {
     if (!tenantId) return
-    
+
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -39,14 +42,12 @@ export function useEstoque(tenantId: string | undefined): UseEstoqueReturn {
         .eq('tenant_id', tenantId)
         .order('nome', { ascending: true })
 
-      if (error) {
-        console.error('Erro ao buscar ingredientes:', error)
-        return
-      }
+      if (handleSupabaseError(error, 'useEstoque.fetchIngredientes')) return
 
       setIngredientes(data || [])
-    } catch (error) {
-      console.error('Erro:', error)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      logger.error('[useEstoque] Unexpected error', { message })
     } finally {
       setLoading(false)
     }
@@ -58,23 +59,19 @@ export function useEstoque(tenantId: string | undefined): UseEstoqueReturn {
 
   const filteredIngredientes = useMemo(() => {
     return ingredientes.filter(i => {
-      // Filtro de busca
       const matchesSearch = i.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         i.categoria.toLowerCase().includes(filters.searchTerm.toLowerCase())
-      
-      // Filtro de categoria
+
       const matchesCategoria = !filters.categoria || i.categoria === filters.categoria
-      
-      // Filtro de estoque baixo
+
       const matchesBaixo = !filters.apenasBaixo || i.estoque_atual <= i.estoque_minimo
-      
-      // Filtro de vencimento próximo
+
       let matchesVencimento = true
       if (filters.apenasVencimento && i.validade) {
         const now = new Date()
         const validade = new Date(i.validade)
         const diffDays = (validade.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        matchesVencimento = diffDays <= 7 // Vencimento em 7 dias
+        matchesVencimento = diffDays <= ESTOQUE_CONFIG.ALERTA_VENCIMENTO_DIAS
       }
 
       return matchesSearch && matchesCategoria && matchesBaixo && matchesVencimento
@@ -91,38 +88,48 @@ export function useEstoque(tenantId: string | undefined): UseEstoqueReturn {
       const now = new Date()
       const validade = new Date(i.validade)
       const diffDays = (validade.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-      return diffDays <= 7
+      return diffDays <= ESTOQUE_CONFIG.ALERTA_VENCIMENTO_DIAS
     }).length
   }), [ingredientes])
 
-  const addIngrediente = async (data: Partial<Ingrediente>) => {
-    if (!tenantId) return
-    await supabase.from('ingredientes').insert([{ ...data, tenant_id: tenantId }])
-    await fetchIngredientes()
+  const addIngrediente = async (data: Partial<Ingrediente>): Promise<boolean> => {
+    if (!tenantId) return true
+    return handleSupabaseError(
+      (await supabase.from('ingredientes').insert([{ ...data, tenant_id: tenantId }])).error,
+      'useEstoque.addIngrediente'
+    ) || (await fetchIngredientes(), false)
   }
 
-  const updateIngrediente = async (id: string, data: Partial<Ingrediente>) => {
-    if (!tenantId) return
-    await supabase.from('ingredientes').update(data).eq('id', id).eq('tenant_id', tenantId)
-    await fetchIngredientes()
+  const updateIngrediente = async (id: string, data: Partial<Ingrediente>): Promise<boolean> => {
+    if (!tenantId) return true
+    return handleSupabaseError(
+      (await supabase.from('ingredientes').update(data).eq('id', id).eq('tenant_id', tenantId)).error,
+      'useEstoque.updateIngrediente'
+    ) || (await fetchIngredientes(), false)
   }
 
-  const deleteIngrediente = async (id: string) => {
-    if (!tenantId) return
-    await supabase.from('ingredientes').delete().eq('id', id).eq('tenant_id', tenantId)
-    await fetchIngredientes()
+  const deleteIngrediente = async (id: string): Promise<boolean> => {
+    if (!tenantId) return true
+    return handleSupabaseError(
+      (await supabase.from('ingredientes').delete().eq('id', id).eq('tenant_id', tenantId)).error,
+      'useEstoque.deleteIngrediente'
+    ) || (await fetchIngredientes(), false)
   }
 
-  const registrarEntrada = async (data: Partial<MovimentacaoEstoque>) => {
-    if (!tenantId) return
-    await supabase.from('entradas_estoque').insert([{ ...data, tenant_id: tenantId }])
-    await fetchIngredientes()
+  const registrarEntrada = async (data: Partial<MovimentacaoEstoque>): Promise<boolean> => {
+    if (!tenantId) return true
+    return handleSupabaseError(
+      (await supabase.from('entradas_estoque').insert([{ ...data, tenant_id: tenantId }])).error,
+      'useEstoque.registrarEntrada'
+    ) || (await fetchIngredientes(), false)
   }
 
-  const registrarSaida = async (data: Partial<MovimentacaoEstoque>) => {
-    if (!tenantId) return
-    await supabase.from('saidas_estoque').insert([{ ...data, tenant_id: tenantId }])
-    await fetchIngredientes()
+  const registrarSaida = async (data: Partial<MovimentacaoEstoque>): Promise<boolean> => {
+    if (!tenantId) return true
+    return handleSupabaseError(
+      (await supabase.from('saidas_estoque').insert([{ ...data, tenant_id: tenantId }])).error,
+      'useEstoque.registrarSaida'
+    ) || (await fetchIngredientes(), false)
   }
 
   return {

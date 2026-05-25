@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { useGlobalMetrics } from '../../hooks/useGlobalMetrics'
 import { useAdminMetrics } from '../../hooks/useAdminMetrics'
 import { ADMIN_PROJECTS, type AdminProject } from '../../config/adminProjects'
@@ -211,7 +210,7 @@ function RevenueByPlanChart({ byPlan }: { byPlan: Record<string, number> }) {
 
 // ─── AiUsagePanel ───────────────────────────────────────────────────────────
 
-function AiUsagePanel({ aiUsage }: { aiUsage: any }) {
+function AiUsagePanel({ aiUsage }: { aiUsage: Record<string, unknown> }) {
   const providers = [
     { 
       key: 'groq', 
@@ -237,7 +236,7 @@ function AiUsagePanel({ aiUsage }: { aiUsage: any }) {
         const calls = aiUsage[`${p.key}_calls_month`]
         const callsToday = aiUsage[`${p.key}_calls_today`]
         const tokens = aiUsage[`${p.key}_tokens_month`]
-        const errorRate = aiUsage[`${p.key}_error_rate_percent`] || 0
+        const errorRate = (aiUsage[`${p.key}_error_rate_percent`] as number) || 0
         const isCritical = errorRate > 15
         const isWarning = errorRate > 5
 
@@ -296,9 +295,9 @@ function AiUsagePanel({ aiUsage }: { aiUsage: any }) {
 
             <div className="flex flex-col gap-0.5">
               {[
-                { k: 'Chamadas hoje', v: num(callsToday) },
-                { k: 'Chamadas no mês', v: num(calls) },
-                { k: 'Tokens no mês', v: num(tokens) },
+                { k: 'Chamadas hoje', v: num(Number(callsToday)) },
+                { k: 'Chamadas no mês', v: num(Number(calls)) },
+                { k: 'Tokens no mês', v: num(Number(tokens)) },
               ].map((row, idx) => (
                 <div 
                   key={idx} 
@@ -357,8 +356,8 @@ function AiUsagePanel({ aiUsage }: { aiUsage: any }) {
 
 // ─── ErrorLogPanel ──────────────────────────────────────────────────────────
 
-function ErrorLogPanel({ errors }: { errors: any[] }) {
-  const [selectedError, setSelectedError] = useState<any>(null)
+function ErrorLogPanel({ errors }: { errors: Array<Record<string, unknown>> }) {
+  const [selectedError, setSelectedError] = useState<Record<string, unknown> | null>(null)
 
   if (!errors.length) {
     return (
@@ -401,15 +400,15 @@ function ErrorLogPanel({ errors }: { errors: any[] }) {
           </thead>
           <tbody>
             {errors.map((err, i) => (
-              <tr key={err.id}>
+              <tr key={err.id as string}>
                 <td style={{ borderBottom: i < errors.length - 1 ? '1px solid #1e2028' : 'none', padding: '12px 0', fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#6b7280' }}>
-                  {new Date(err.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(err.created_at as string).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </td>
                 <td style={{ borderBottom: i < errors.length - 1 ? '1px solid #1e2028' : 'none', padding: '12px 0', fontFamily: 'monospace', fontSize: '12px', color: '#9ca3af' }}>
-                  {err.tenant_id?.slice(0, 8) || '—'}
+                  {(err.tenant_id as string)?.slice(0, 8) || '—'}
                 </td>
                 <td style={{ borderBottom: i < errors.length - 1 ? '1px solid #1e2028' : 'none', padding: '12px 0', fontFamily: 'DM Sans, sans-serif', fontSize: '12px', color: '#e2e8f0', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {err.message}
+                  {err.message as string}
                 </td>
                 <td style={{ borderBottom: i < errors.length - 1 ? '1px solid #1e2028' : 'none', padding: '12px 0' }}>
                   <button
@@ -430,11 +429,15 @@ function ErrorLogPanel({ errors }: { errors: any[] }) {
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{ background: 'rgba(0,0,0,0.7)' }}
           onClick={() => setSelectedError(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setSelectedError(null) }}
+          role="button"
+          tabIndex={0}
         >
           <div
             className="w-full max-w-2xl max-h-[80vh] overflow-y-auto"
             style={{ background: '#0a0b0f', borderRadius: '8px', padding: '16px' }}
             onClick={e => e.stopPropagation()}
+            role="presentation"
           >
             <div className="flex justify-between items-center mb-4">
               <h3 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '14px', fontWeight: 600, color: '#e2e8f0' }}>Contexto Interno</h3>

@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '../contexts/AuthContext'
-import { getTenantId } from '../lib/getTenantId'
+
 import { produtoFormSchema } from '../schemas/produtoSchema'
 
 import { useCardapioProducts } from './cardapio/useCardapioProducts'
@@ -39,11 +39,7 @@ export function useCardapioAdmin() {
     if (!user) return null
     const meta = user.user_metadata?.tenant_id
     if (meta && typeof meta === 'string' && meta.trim()) return meta.trim()
-    try {
-      const stored = getTenantId()
-      if (stored?.trim()) return stored.trim()
-    } catch { /* fallback abaixo */ }
-    return user.id || null
+    return null
   }, [user, authLoading])
 
   const shouldRedirect = !tenantId && !authLoading && !user
@@ -56,7 +52,7 @@ export function useCardapioAdmin() {
     tenantId,
     fetchProdutos: products.fetchProdutos,
   })
-  const upload = useCardapioUpload({ user })
+  const upload = useCardapioUpload({ tenantId })
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [tab, setTab] = useState<'categorias' | 'produtos' | 'complementos'>('produtos')
@@ -106,22 +102,29 @@ export function useCardapioAdmin() {
         categoria_id: editProduto.categoria_id || '',
         imagem_url: editProduto.imagem_url || '',
       })
-      upload.setImagePreview(editProduto.imagem_url || null)
     } else {
       produtoForm.reset({
         nome: '', descricao: '', preco: 0,
         disponivel: true, destaque: false,
         tempo_preparo: 30, categoria_id: '', imagem_url: '',
       })
-      upload.setImagePreview(null)
     }
   }, [editProduto, produtoForm])
+
+  // Sync image preview when editing
+  useEffect(() => {
+    if (editProduto?.id) {
+      upload.setImagePreview(editProduto.imagem_url || null)
+    } else if (editProduto) {
+      upload.setImagePreview(null)
+    }
+  }, [editProduto, upload])
 
   // ── Initial data load ──────────────────────────────────────────────
   useEffect(() => {
     if (!tenantId) return
     Promise.all([categories.fetchCategorias(), products.fetchProdutos(), promotions.fetchSabores()])
-  }, [tenantId, categories.fetchCategorias, products.fetchProdutos, promotions.fetchSabores])
+  }, [tenantId, categories, products, promotions])
 
   // ── Redirect if no tenant ──────────────────────────────────────────
   useEffect(() => {
@@ -299,6 +302,7 @@ export function useCardapioAdmin() {
 
   const closeProdutoModal = useCallback(() => {
     setShowProdutoModal(false)
+    setEditProduto(null)
     upload.setSelectedFile(null)
     upload.setImagePreview(null)
     promotions.setSelectedSabores([])

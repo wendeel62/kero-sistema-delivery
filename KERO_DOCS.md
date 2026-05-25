@@ -244,8 +244,6 @@ O arquivo `src/lib/supabase.ts` inclui validação que会在缺少环境变量�
 | Rota | Acesso | Descrição |
 |------|--------|-----------|
 | `/login` | Público | Login/Cadastro |
-| `/mfa-verify` | Público | Verificação MFA |
-| `/mfa-setup` | Auth | Configuração MFA |
 | `/dashboard` | Auth | Dashboard KPIs |
 | `/pedidos` | Auth | Kanban de pedidos |
 | `/pdv` | Auth | Ponto de venda |

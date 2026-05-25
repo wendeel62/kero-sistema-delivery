@@ -3,9 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { initializeDatabase } from './database/postgres.js';
-import { initializeRedis } from './database/redis.js';
-import syncRoutes from './routes/sync.js';
+
 
 dotenv.config();
 
@@ -13,7 +11,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Custom WAF Middleware
-const wafMiddleware = (req: any, res: any, next: any) => {
+import type { Request, Response, NextFunction } from 'express';
+
+// ...
+
+const wafMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const patterns = [
     /<script/i,
     /drop\s+table/i,
@@ -24,7 +26,7 @@ const wafMiddleware = (req: any, res: any, next: any) => {
     /xp_cmdshell/i
   ];
 
-  const checkValue = (val: any): boolean => {
+  const checkValue = (val: unknown): boolean => {
     if (typeof val === 'string') {
       return patterns.some(pattern => pattern.test(val));
     }
@@ -97,11 +99,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes (Evolution removido)
-app.use('/api/sync', syncRoutes);
-
 // Error handling
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
@@ -114,11 +113,8 @@ app.use('*', (req, res) => {
 // Initialize services
 async function start() {
   try {
-    await initializeDatabase();
-    await initializeRedis();
-
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.warn(`Server running on port ${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

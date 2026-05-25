@@ -73,7 +73,7 @@ export default function MesaPage() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [tenantId])
 
   const handleAddToCart = (p: Produto) => {
     const precosProduto = precosTamanho[p.id]
@@ -274,8 +274,8 @@ export default function MesaPage() {
       </div>
 
       {showTamanhoModal && produtoSelecionado && precosTamanho[produtoSelecionado.id] && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setShowTamanhoModal(false)}>
-          <div className="bg-surface-container-high rounded-3xl p-8 w-full max-w-md border border-outline-variant shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setShowTamanhoModal(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowTamanhoModal(false) }} role="button" tabIndex={0}>
+          <div className="bg-surface-container-high rounded-3xl p-8 w-full max-w-md border border-outline-variant shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} role="presentation">
             <h3 className="font-[Outfit] text-2xl font-bold mb-2 text-on-surface">{produtoSelecionado.nome}</h3>
             <p className="text-sm text-on-surface-variant mb-4">Selecione o tamanho:</p>
             
@@ -310,15 +310,15 @@ export default function MesaPage() {
             {tipoPizza === 'meio-a-meio' && (
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="text-xs font-bold text-on-surface-variant mb-2 block">1º Sabor</label>
-                  <select value={sabor1} onChange={(e) => setSabor1(e.target.value)} className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface">
+                  <label htmlFor="sabor1" className="text-xs font-bold text-on-surface-variant mb-2 block">1º Sabor</label>
+                  <select id="sabor1" value={sabor1} onChange={(e) => setSabor1(e.target.value)} className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface">
                     <option value="">Selecione</option>
                     {sabores.filter(s => s.disponivel).map(s => (<option key={s.id} value={s.nome}>{s.nome}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-on-surface-variant mb-2 block">2º Sabor</label>
-                  <select value={sabor2} onChange={(e) => setSabor2(e.target.value)} className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface">
+                  <label htmlFor="sabor2" className="text-xs font-bold text-on-surface-variant mb-2 block">2º Sabor</label>
+                  <select id="sabor2" value={sabor2} onChange={(e) => setSabor2(e.target.value)} className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface">
                     <option value="">Selecione</option>
                     {sabores.filter(s => s.disponivel).map(s => (<option key={s.id} value={s.nome}>{s.nome}</option>))}
                   </select>
@@ -328,8 +328,8 @@ export default function MesaPage() {
 
             {tipoPizza === 'inteiro' && sabores.length > 0 && (
               <div className="mb-6">
-                <label className="text-xs font-bold text-on-surface-variant mb-2 block">Sabor</label>
-                <select value={sabor1} onChange={(e) => setSabor1(e.target.value)} className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface">
+                <label htmlFor="sabor-inteiro" className="text-xs font-bold text-on-surface-variant mb-2 block">Sabor</label>
+                <select id="sabor-inteiro" value={sabor1} onChange={(e) => setSabor1(e.target.value)} className="w-full bg-background border-none focus:ring-1 focus:ring-primary-container rounded-xl py-3 px-4 text-sm text-on-surface">
                   <option value="">Selecione</option>
                   {sabores.filter(s => s.disponivel).map(s => (<option key={s.id} value={s.nome}>{s.nome}</option>))}
                 </select>

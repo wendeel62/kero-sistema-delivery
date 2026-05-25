@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { handleSupabaseError } from '../../lib/supabaseErrorHandler'
 import type { RelatorioFinanceiro, FluxoCaixaItem } from './types'
 
 export interface UseRelatoriosReturn {
@@ -12,26 +13,25 @@ export interface UseRelatoriosReturn {
   }
   setPeriodo: (inicio: string, fim: string) => void
   refresh: () => Promise<void>
-  gerarRelatorio: (periodo: { inicio: string; fim: string }) => Promise<RelatorioFinanceiro>
+  gerarRelatorio: (periodo: { inicio: string; fim: string }) => Promise<RelatorioFinanceiro | null>
   gerarFluxoCaixa: (dias?: number) => Promise<FluxoCaixaItem[]>
 }
 
 export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn {
   const [relatorio, setRelatorio] = useState<RelatorioFinanceiro | null>(null)
   const [fluxoCaixa, setFluxoCaixa] = useState<FluxoCaixaItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const [_loading, _setLoading] = useState(false)
   const [periodo, setPeriodo] = useState({
     inicio: new Date().toISOString().split('T')[0].slice(0, -3) + '-01',
     fim: new Date().toISOString().split('T')[0]
   })
 
   const gerarRelatorio = useCallback(async (periodoInfo: { inicio: string; fim: string }) => {
-    if (!tenantId) return null as any
+    if (!tenantId) return null
 
     const { inicio, fim } = periodoInfo
 
-    // Receitas
-    const { data: pedidos } = await supabase
+    const { data: pedidos, error: errPedidos } = await supabase
       .from('pedidos')
       .select('total, forma_pagamento, created_at')
       .eq('tenant_id', tenantId)
@@ -39,7 +39,9 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
       .gte('created_at', inicio)
       .lte('created_at', fim)
 
-    const { data: pedidosOnline } = await supabase
+    if (handleSupabaseError(errPedidos, 'useRelatorios.gerarRelatorio.pedidos')) return null
+
+    const { data: pedidosOnline, error: errPedidosOnline } = await supabase
       .from('pedidos_online')
       .select('total, forma_pagamento, created_at')
       .eq('tenant_id', tenantId)
@@ -47,21 +49,23 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
       .gte('created_at', inicio)
       .lte('created_at', fim)
 
+    if (handleSupabaseError(errPedidosOnline, 'useRelatorios.gerarRelatorio.pedidosOnline')) return null
+
     const todasReceitas = [...(pedidos || []), ...(pedidosOnline || [])]
     const totalReceitas = todasReceitas.reduce((acc, p) => acc + Number(p.total), 0)
 
-    // Despesas
-    const { data: despesas } = await supabase
+    const { data: despesas, error: errDespesas } = await supabase
       .from('contas_pagar')
       .select('valor, categoria, data_vencimento')
       .eq('tenant_id', tenantId)
       .gte('data_vencimento', inicio)
       .lte('data_vencimento', fim)
 
+    if (handleSupabaseError(errDespesas, 'useRelatorios.gerarRelatorio.despesas')) return null
+
     const totalDespesas = (despesas || []).reduce((acc, d) => acc + Number(d.valor), 0)
 
-    // Previsões
-    const { data: contasReceber } = await supabase
+    const { data: contasReceber, error: errReceber } = await supabase
       .from('contas_receber')
       .select('valor, data_vencimento')
       .eq('tenant_id', tenantId)
@@ -69,7 +73,9 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
       .lte('data_vencimento', fim)
       .eq('status', 'pendente')
 
-    const { data: contasPagar } = await supabase
+    if (handleSupabaseError(errReceber, 'useRelatorios.gerarRelatorio.contasReceber')) return null
+
+    const { data: contasPagar, error: errPagar } = await supabase
       .from('contas_pagar')
       .select('valor, data_vencimento')
       .eq('tenant_id', tenantId)
@@ -77,10 +83,11 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
       .lte('data_vencimento', fim)
       .eq('status', 'pendente')
 
+    if (handleSupabaseError(errPagar, 'useRelatorios.gerarRelatorio.contasPagar')) return null
+
     const totalReceber = (contasReceber || []).reduce((acc, c) => acc + Number(c.valor), 0)
     const totalPagar = (contasPagar || []).reduce((acc, c) => acc + Number(c.valor), 0)
 
-    // Por categoria
     const receitasPorCategoria = todasReceitas.reduce((acc, r) => {
       const cat = r.forma_pagamento || 'outros'
       acc[cat] = (acc[cat] || 0) + Number(r.total)
@@ -93,7 +100,6 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
       return acc
     }, {} as Record<string, number>)
 
-    // Por forma de pagamento
     const receitasPorForma = todasReceitas.reduce((acc, r) => {
       const forma = r.forma_pagamento || 'outros'
       acc[forma] = (acc[forma] || 0) + Number(r.total)
@@ -134,21 +140,23 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
     const dataFim = new Date(hoje)
     dataFim.setDate(dataFim.getDate() + dias)
 
-    // Entradas previstas
-    const { data: entradas } = await supabase
+    const { data: entradas, error: errEntradas } = await supabase
       .from('contas_receber')
       .select('*')
       .eq('tenant_id', tenantId)
       .gte('data_vencimento', hoje.toISOString())
       .lte('data_vencimento', dataFim.toISOString())
 
-    // Saídas previstas
-    const { data: saidas } = await supabase
+    if (handleSupabaseError(errEntradas, 'useRelatorios.gerarFluxoCaixa.entradas')) return []
+
+    const { data: saidas, error: errSaidas } = await supabase
       .from('contas_pagar')
       .select('*')
       .eq('tenant_id', tenantId)
       .gte('data_vencimento', hoje.toISOString())
       .lte('data_vencimento', dataFim.toISOString())
+
+    if (handleSupabaseError(errSaidas, 'useRelatorios.gerarFluxoCaixa.saidas')) return []
 
     const fluxo: FluxoCaixaItem[] = []
 
@@ -179,19 +187,19 @@ export function useRelatorios(tenantId: string | undefined): UseRelatoriosReturn
     return fluxo
   }, [tenantId])
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     await gerarRelatorio(periodo)
     await gerarFluxoCaixa()
-  }
+  }, [gerarRelatorio, gerarFluxoCaixa, periodo])
 
   useEffect(() => {
     refresh()
-  }, [periodo])
+  }, [refresh])
 
   return {
     relatorio,
     fluxoCaixa,
-    loading,
+    loading: _loading,
     periodo,
     setPeriodo: (inicio, fim) => setPeriodo({ inicio, fim }),
     refresh,

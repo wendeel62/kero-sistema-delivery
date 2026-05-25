@@ -47,10 +47,27 @@ export function useThermalPrinter() {
   const printerRef = useRef<WebUSBReceiptPrinter | null>(null)
   const tenantId = user?.user_metadata?.tenant_id as string
 
-  // ---- Print queue (serialized, fire-and-forget) -------------------------
+  // ---- Print queue refs ---------------------------------------------------
 
   const queueRef = useRef<PrintJob[]>([])
   const processingRef = useRef(false)
+
+  // ---- Core print execution -----------------------------------------------
+
+  const executePrint = async (pedido: UnifiedPedido, configData: Configuracoes): Promise<void> => {
+    const printer = printerRef.current
+    if (!printer) throw new Error('[KeroPrint] Impressora não inicializada')
+
+    const larguraPapel = (configData.largura_papel ?? 80) as 58 | 80
+
+    const receiptData = buildReceipt(pedido, configData, larguraPapel)
+    if (!receiptData) throw new Error('[KeroPrint] Falha ao gerar dados do cupom')
+
+    // Race between print and timeout
+    await withTimeout(printer.print(receiptData), PRINT_TIMEOUT_MS, 'Timeout ao imprimir — impressora não respondeu')
+  }
+
+  // ---- Print queue (serialized, fire-and-forget) -------------------------
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return
@@ -108,21 +125,6 @@ export function useThermalPrinter() {
     [processQueue]
   )
 
-  // ---- Core print execution -----------------------------------------------
-
-  const executePrint = async (pedido: UnifiedPedido, configData: Configuracoes): Promise<void> => {
-    const printer = printerRef.current
-    if (!printer) throw new Error('[KeroPrint] Impressora não inicializada')
-
-    const larguraPapel = (configData.largura_papel ?? 80) as 58 | 80
-
-    const receiptData = buildReceipt(pedido, configData, larguraPapel)
-    if (!receiptData) throw new Error('[KeroPrint] Falha ao gerar dados do cupom')
-
-    // Race between print and timeout
-    await withTimeout(printer.print(receiptData), PRINT_TIMEOUT_MS, 'Timeout ao imprimir — impressora não respondeu')
-  }
-
   // ---- Configuration query ------------------------------------------------
 
   const { data: config } = useQuery({
@@ -176,7 +178,7 @@ export function useThermalPrinter() {
       try {
         const instance = new WebUSBReceiptPrinter()
 
-        instance.addEventListener('connected', (evt: any) => {
+        instance.addEventListener('connected', (evt: { detail?: PrinterDeviceInfo }) => {
           if (cancelled) return
           printerRef.current = instance
           setStatus('conectada')
@@ -191,7 +193,7 @@ export function useThermalPrinter() {
         })
 
         await instance.reconnect(identity)
-      } catch (err) {
+      } catch {
         // Silent — reconnect failure is expected when no device is available
         // or the page hasn't received a user gesture yet.
         if (!cancelled) {
@@ -238,7 +240,7 @@ export function useThermalPrinter() {
       const instance = new WebUSBReceiptPrinter()
 
       // Wire up events BEFORE connect so we don't miss the 'connected' event
-      instance.addEventListener('connected', (evt: any) => {
+      instance.addEventListener('connected', (evt: { detail?: PrinterDeviceInfo }) => {
         const info = evt.detail as PrinterDeviceInfo | undefined
         printerRef.current = instance
         setStatus('conectada')
@@ -274,12 +276,12 @@ export function useThermalPrinter() {
       // hasn't fired yet (edge case), set a fallback status
       setStatus(prev => (prev === 'conectando' ? 'conectada' : prev))
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       printerRef.current = null
       setStatus('erro')
 
       // Provide user-friendly messages for common failure modes
-      const msg = error?.message || String(error)
+      const msg = (error as { message?: string })?.message || String(error)
 
       if (msg.includes('No device selected') || msg.includes('user denied')) {
         toast.error('Seleção de impressora cancelada pelo usuário')

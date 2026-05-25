@@ -36,10 +36,10 @@ if (sentryDsn) {
     ],
 
     // Before Send Hook - Add additional context
-    beforeSend(event, hint) {
+    beforeSend(event, _hint) {
       // Don't send events in development mode
       if (import.meta.env.DEV) {
-        console.log('[Sentry] Event captured (not sent in dev):', event)
+        console.warn('[Sentry] Event captured (not sent in dev):', event)
         return null
       }
       return event
@@ -59,7 +59,7 @@ if (sentryDsn) {
     ],
   })
 } else {
-  console.log('[Sentry] DSN not configured, skipping initialization')
+  console.warn('[Sentry] DSN not configured, skipping initialization')
 }
 
 // ============================================
@@ -127,9 +127,11 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError?: () =>
 function AppWithErrorBoundary() {
   return (
     <Sentry.ErrorBoundary
-      fallback={(error, { resetError }) => (
-        <ErrorFallback error={error} resetError={resetError} />
-      )}
+      fallback={(fallbackProps) => {
+        const error = (fallbackProps as any).error
+        const resetError = (fallbackProps as any).resetError
+        return <ErrorFallback error={error} resetError={resetError} />
+      }}
       beforeCapture={(scope) => {
         scope.setLevel('error')
         scope.setTag('component', 'App')
@@ -146,7 +148,7 @@ function AppWithErrorBoundary() {
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.ready.then((registration) => {
-      console.log('[PWA] Service Worker ativo, scope:', registration.scope)
+      console.warn('[PWA] Service Worker ativo, scope:', registration.scope)
 
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing
@@ -170,7 +172,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     })
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('[PWA] Controller do Service Worker atualizado.')
+      console.warn('[PWA] Controller do Service Worker atualizado.')
     })
   })
 }

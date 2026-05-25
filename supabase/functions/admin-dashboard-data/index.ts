@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || 'http://localhost:5173',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -35,13 +35,17 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 2. Validar e-mail admin
-    const adminEmail = Deno.env.get('ADMIN_EMAIL')
-    console.log(`[AdminMetrics] User logado: ${user.email}, Admin esperado: ${adminEmail}`)
-    
-    if (user.email !== adminEmail) {
-      console.warn('[AdminMetrics] Acesso negado: Mismatch de e-mail')
-      return new Response(JSON.stringify({ error: 'Acesso negado' }), {
+    // 2. Verificar role super_admin via RBAC
+    const { data: userRole, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'super_admin')
+      .maybeSingle()
+
+    if (roleError || !userRole) {
+      console.warn('[AdminMetrics] Acesso negado: usuario sem role super_admin')
+      return new Response(JSON.stringify({ error: 'Acesso negado: requer role super_admin' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -55,7 +59,6 @@ Deno.serve(async (req) => {
     // Validar tenant_id se fornecido
     let validTenantId: string | null = null
     if (tenantIdFilter) {
-      // Verificar se o tenant existe e pertence ao admin
       const { data: tenantConfig, error: tenantError } = await supabaseAdmin
         .from('configuracoes')
         .select('id')
@@ -69,32 +72,6 @@ Deno.serve(async (req) => {
       }
       validTenantId = tenantIdFilter
       console.log(`[AdminMetrics] Filtrando por tenant_id: ${validTenantId}`)
-    }
-
-    // 4. Garantir tabelas auxiliares existam
-    try {
-      await supabaseAdmin.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            tenant_id uuid,
-            provider text,
-            model text,
-            tokens_used int,
-            status text,
-            created_at timestamptz DEFAULT now()
-          );
-          CREATE TABLE IF NOT EXISTS public.error_logs (
-            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            tenant_id uuid,
-            message text,
-            context jsonb,
-            created_at timestamptz DEFAULT now()
-          );
-        `
-      })
-    } catch (e) {
-      console.warn('[AdminMetrics] Falha ao executar exec_sql (não crítico se tabelas já existirem):', e.message)
     }
 
     const now = new Date()

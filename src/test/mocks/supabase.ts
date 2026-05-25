@@ -16,7 +16,7 @@ export const mockProdutos = [
 ]
 
 export const createMockSupabase = () => ({
-  from: vi.fn((table: string) => ({
+  from: vi.fn((_table: string) => ({
     select: vi.fn().mockResolvedValue({ data: [], error: null }),
     insert: vi.fn().mockResolvedValue({ data: [], error: null }),
     update: vi.fn().mockResolvedValue({ data: [], error: null }),

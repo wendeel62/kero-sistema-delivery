@@ -1,7 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import type { Cliente } from './types'
 
 export interface ClienteDetailsProps {
@@ -32,7 +30,7 @@ export function ClienteDetails({ cliente, onClose, onUpdate, tenantId }: Cliente
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="button" tabIndex={0} />
       <div className="relative w-full max-w-lg bg-[#16181f] h-full shadow-2xl animate-slide-in-right overflow-y-auto no-scrollbar border-l border-[#252830]">
         <div className="p-10">
           {/* Header */}

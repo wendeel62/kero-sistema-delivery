@@ -93,10 +93,14 @@ export const PedidoFilters = memo(function PedidoFilters({
         <div
           className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => onSetShowFiltroPersonalizado(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') onSetShowFiltroPersonalizado(false) }}
+          role="button"
+          tabIndex={0}
         >
           <div
             className="bg-surface-container p-5 sm:p-6 rounded-2xl w-full max-w-md border border-outline flex flex-col gap-5 sm:gap-6 animate-fade-in-up shadow-2xl"
             onClick={(e) => e.stopPropagation()}
+            role="presentation"
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg sm:text-xl font-bold text-on-background flex items-center gap-2">
@@ -113,10 +117,11 @@ export const PedidoFilters = memo(function PedidoFilters({
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                <label htmlFor="filtro-data-inicio" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                   Data Início
                 </label>
                 <input
+                  id="filtro-data-inicio"
                   type="date"
                   value={dataInicio}
                   onChange={(e) => onSetDataInicio(e.target.value)}
@@ -124,10 +129,11 @@ export const PedidoFilters = memo(function PedidoFilters({
                 />
               </div>
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                <label htmlFor="filtro-data-fim" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                   Data Fim
                 </label>
                 <input
+                  id="filtro-data-fim"
                   type="date"
                   value={dataFim}
                   onChange={(e) => onSetDataFim(e.target.value)}

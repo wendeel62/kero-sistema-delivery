@@ -39,7 +39,7 @@ export default function EstoquePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false)
-  const [editingIngrediente, setEditingIngrediente] = useState<any>(null)
+  const [editingIngrediente, setEditingIngrediente] = useState<Partial<Ingrediente> | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -89,7 +89,7 @@ export default function EstoquePage() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'movimentacao' | 'ficha_tecnica' | 'fornecedores')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeTab === tab.id 
                 ? 'bg-primary text-on-primary shadow-lg' 
@@ -226,9 +226,9 @@ export default function EstoquePage() {
   )
 }
 
-function FornecedoresContent({ fornecedores, onUpdate }: any) {
+function FornecedoresContent({ fornecedores, onUpdate }: { fornecedores: Fornecedor[]; onUpdate: () => void }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
+  const [editing, setEditing] = useState<Partial<Fornecedor> | null>(null)
 
   return (
     <div className="animate-fade-in">
@@ -240,7 +240,7 @@ function FornecedoresContent({ fornecedores, onUpdate }: any) {
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {fornecedores.map((f: any) => (
+           {fornecedores.map((f) => (
              <div key={f.id} className="bg-[#16181f] rounded-3xl p-6 border border-[#252830] shadow-lg">
                 <div className="flex justify-between items-start mb-4">
                    <div className="w-12 h-12 rounded-2xl bg-[#e8391a]/10 flex items-center justify-center text-[#e8391a] font-bold text-xl">{f.nome_fantasia[0]}</div>
@@ -259,7 +259,7 @@ function FornecedoresContent({ fornecedores, onUpdate }: any) {
              </div>
           ))}
        </div>
-       {isModalOpen && <FornecedorModal data={editing} onClose={() => setIsModalOpen(false)} onSave={onUpdate} />}
+       {isModalOpen && <FornecedorModal data={editing ?? {} as Partial<Fornecedor>} onClose={() => setIsModalOpen(false)} onSave={onUpdate} />}
     </div>
   )
 }
@@ -267,12 +267,12 @@ function FornecedoresContent({ fornecedores, onUpdate }: any) {
 function FichaTecnicaContent() {
   const { user } = useAuth()
   const tenantId = user?.id
-  const [produtos, setProdutos] = useState<any[]>([])
-  const [ingredientesList, setIngredientesList] = useState<any[]>([])
+  const [produtos, setProdutos] = useState<Array<{ id: string; nome: string }>>([])
+  const [ingredientesList, setIngredientesList] = useState<Array<{ id: string; nome: string; unidade: string }>>([])
   const [selectedProduto, setSelectedProduto] = useState('')
   const [selectedTamanho, setSelectedTamanho] = useState('')
   const [tamanhos, setTamanhos] = useState<string[]>([])
-  const [fichaItens, setFichaItens] = useState<any[]>([])
+  const [fichaItens, setFichaItens] = useState<Array<{ id?: string; ingrediente_id: string; ingrediente_nome: string; ingrediente_unidade: string; quantidade: number; isNew?: boolean }>>([])
   const [novoIngrediente, setNovoIngrediente] = useState('')
   const [novaQuantidade, setNovaQuantidade] = useState('')
   const [saving, setSaving] = useState(false)
@@ -300,12 +300,12 @@ function FichaTecnicaContent() {
         return
       }
       const { data } = await supabase.from('precos_tamanho').select('tamanho').eq('tenant_id', tenantId).eq('produto_id', selectedProduto)
-      const uniqueTamanhos = data?.map(t => t.tamanho).filter((v, i, a) => a.indexOf(v) === i) || []
+      const uniqueTamanhos = data?.map((t: { tamanho: string }) => t.tamanho).filter((v, i, a) => a.indexOf(v) === i) || []
       setTamanhos(uniqueTamanhos)
       setSelectedTamanho('')
     }
     fetchTamanhos()
-  }, [selectedProduto])
+  }, [selectedProduto, tenantId])
 
   useEffect(() => {
     async function fetchFicha() {
@@ -430,8 +430,9 @@ function FichaTecnicaContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1 block mb-2">Produto</label>
+          <label htmlFor="ficha-produto" className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1 block mb-2">Produto</label>
           <select 
+            id="ficha-produto"
             value={selectedProduto} 
             onChange={(e) => { setSelectedProduto(e.target.value); setSelectedTamanho(''); }}
             className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 outline-none text-white focus:border-[#e8391a]"
@@ -443,8 +444,9 @@ function FichaTecnicaContent() {
         
         {tamanhos.length > 0 && (
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1 block mb-2">Tamanho</label>
+            <label htmlFor="ficha-tamanho" className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1 block mb-2">Tamanho</label>
             <select 
+              id="ficha-tamanho"
               value={selectedTamanho} 
               onChange={(e) => setSelectedTamanho(e.target.value)}
               className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 outline-none text-white focus:border-[#e8391a]"
@@ -548,7 +550,7 @@ function FichaTecnicaContent() {
   )
 }
 
-function InsumoModal({ data, onClose, onSave }: any) {
+function InsumoModal({ data, onClose, onSave }: { data: Partial<Ingrediente> | null; onClose: () => void; onSave: () => void }) {
    const { user } = useAuth()
    const tenantId = user?.id
    const [saving, setSaving] = useState(false)
@@ -565,14 +567,14 @@ const { register, handleSubmit, formState: { errors } } = useForm({
       }
     })
 
-const onSubmit = async (formData: any) => {
+const onSubmit = async (formData: Record<string, unknown>) => {
       setSaving(true)
       const payload = {
         nome: formData.nome,
         unidade: formData.unidade,
         estoque_atual: formData.estoque_atual,
         estoque_minimo: formData.estoque_minimo,
-        estoque_critico: Math.floor(formData.estoque_minimo * 0.5),
+        estoque_critico: Math.floor((formData.estoque_minimo as number) * 0.5),
         custo_medio: formData.custo_medio,
         categoria: formData.categoria,
         tenant_id: tenantId
@@ -635,7 +637,7 @@ const onSubmit = async (formData: any) => {
    )
 }
 
-function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
+function EntradaEstoqueModal({ ingredientes, onClose, onSave }: { ingredientes: Ingrediente[]; onClose: () => void; onSave: () => void }) {
    const { user } = useAuth()
    const tenantId = user?.id
    const [form, setForm] = useState({ ingrediente_id: '', quantidade: 0, valor_total: 0 })
@@ -652,7 +654,8 @@ function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
       }])
 
       if (!errEnt) {
-         const ing = ingredientes.find((i: any) => i.id === form.ingrediente_id)
+          const ing = ingredientes.find((i) => i.id === form.ingrediente_id)
+          if (!ing) return
          const novoEstoque = ing.estoque_atual + form.quantidade
          const novoCusto = novoEstoque > 0 ? ((ing.estoque_atual * ing.custo_medio) + Number(form.valor_total)) / novoEstoque : 0
 
@@ -679,7 +682,7 @@ function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/50 ml-1">Selecionar Insumo</span>
                   <select value={form.ingrediente_id} onChange={e => setForm({...form, ingrediente_id: e.target.value})} className="w-full bg-[#0c0e15] border border-[#252830] rounded-2xl p-4 mt-2 outline-none text-white">
                      <option value="">Selecione...</option>
-                     {ingredientes.map((i: any) => <option key={i.id} value={i.id}>{i.nome} ({i.unidade})</option>)}
+                      {ingredientes.map((i) => <option key={i.id} value={i.id}>{i.nome} ({i.unidade})</option>)}
                   </select>
                </label>
                <div className="grid grid-cols-2 gap-4">
@@ -702,7 +705,7 @@ function EntradaEstoqueModal({ ingredientes, onClose, onSave }: any) {
    )
 }
 
-function FornecedorModal({ data, onClose, onSave }: any) {
+function FornecedorModal({ data, onClose, onSave }: { data: Partial<Fornecedor>; onClose: () => void; onSave: () => void }) {
    const { user } = useAuth()
    const tenantId = user?.id
    const [form, setForm] = useState(data)

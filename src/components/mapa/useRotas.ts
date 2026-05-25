@@ -55,7 +55,7 @@ export function useRotas() {
         const leg = route.legs[0]
         
         // Extrair polyline da rota
-        const points = decodePolyline(route.overview_polyline?.points || '')
+        decodePolyline(route.overview_polyline?.points || '')
         
         return {
           origem: { lat: origem[0], lng: origem[1] },
@@ -111,7 +111,7 @@ export function useRotas() {
 
       if (data.features?.[0]) {
         const feature = data.features[0]
-        const coordinates = feature.geometry?.coordinates || []
+        feature.geometry?.coordinates || []
         
         return {
           origem: { lat: origem[0], lng: origem[1] },

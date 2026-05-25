@@ -1,6 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { isMfaRequired } from '../schemas/auth'
 
 type UserRole = 'super_admin' | 'admin' | 'editor' | 'user' | 'consultor' | 'motoboy' | 'cozinha' | null
 
@@ -21,23 +20,15 @@ export function hasAccess(currentPath: string, role: UserRole): boolean {
 
   const allowedRoles = ROLE_ROUTES[currentPath]
   if (allowedRoles) {
-    return allowedRoles.includes(role as any)
+    return allowedRoles.includes(role)
   }
 
   // For other internal routes, allow super_admin, admin, editor
-  return DEFAULT_INTERNAL_ROUTES.includes(role as any)
+  return DEFAULT_INTERNAL_ROUTES.includes(role)
 }
 
-/**
- * ProtectedRoute - Componente de proteção de rotas
- * 
- * - Verifica se usuário está autenticado
- * - Para roles 'admin' e 'super_admin', exige MFA obrigatório
- * - Se MFA não estiver configurado, redireciona para /mfa-setup
- */
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, role, mfaConfig, requiresMfaRedirect } = useAuth()
-  const location = useLocation()
+  const { user, loading } = useAuth()
 
   if (loading) {
     return (
@@ -48,15 +39,6 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   if (!user) return <Navigate to="/login" replace />
-
-  // Check if MFA is required for this role
-  const needsMfa = role && isMfaRequired(role)
-  const mfaNotConfigured = !mfaConfig?.enabled || !mfaConfig?.verified
-  
-  if (needsMfa && mfaNotConfigured) {
-    // Redirect to MFA setup page
-    return <Navigate to="/mfa-setup" replace state={{ from: location }} />
-  }
 
   return <>{children}</>
 }
@@ -69,8 +51,7 @@ export function RoleRoute({
   children: React.ReactNode
   requiredRoles: UserRole[]
 }) {
-  const { user, loading, role, mfaConfig } = useAuth()
-  const location = useLocation()
+  const { user, loading, role } = useAuth()
 
   if (loading) {
     return (
@@ -82,16 +63,8 @@ export function RoleRoute({
 
   if (!user) return <Navigate to="/login" replace />
 
-  // Check if MFA is required for this role
-  const needsMfa = role && isMfaRequired(role)
-  const mfaNotConfigured = !mfaConfig?.enabled || !mfaConfig?.verified
-  
-  if (needsMfa && mfaNotConfigured) {
-    return <Navigate to="/mfa-setup" replace state={{ from: location }} />
-  }
-
   // Check if user has required role
-  if (role && !requiredRoles.includes(role as any)) {
+  if (role && !requiredRoles.includes(role as UserRole)) {
     return <Navigate to="/dashboard" replace />
   }
 

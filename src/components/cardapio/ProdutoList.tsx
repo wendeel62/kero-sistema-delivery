@@ -61,7 +61,7 @@ export default function ProdutoList({
 
               {produtoPrecos[p.id]?.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {produtoPrecos[p.id].map((pt: any) => (
+                  {produtoPrecos[p.id].map((pt: PrecoTamanho) => (
                     <span key={pt.id} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-[#252830] text-gray-300">
                       {pt.tamanho} - R$ {Number(pt.preco).toFixed(2)}
                     </span>

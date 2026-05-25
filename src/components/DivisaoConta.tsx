@@ -136,12 +136,9 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
         {/* Configuração de Pessoas (para divisão igualitária) */}
         {tipoDivisao === 'igualitaria' && (
           <div className="mb-6">
-            <label className="text-sm font-bold text-on-surface-variant mb-2 block">Número de pessoas</label>
+            <label htmlFor="num-pessoas" className="text-sm font-bold text-on-surface-variant mb-2 block">Número de pessoas</label>
             <div className="flex items-center gap-4">
-              <button onClick={() => setNumPessoas(Math.max(2, numPessoas - 1))} className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center">
-                <span className="material-symbols-outlined">remove</span>
-              </button>
-              <span className="text-2xl font-bold text-on-surface w-12 text-center">{numPessoas}</span>
+              <span id="num-pessoas" className="text-2xl font-bold text-on-surface w-12 text-center">{numPessoas}</span>
               <button onClick={() => setNumPessoas(Math.min(20, numPessoas + 1))} className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center">
                 <span className="material-symbols-outlined">add</span>
               </button>

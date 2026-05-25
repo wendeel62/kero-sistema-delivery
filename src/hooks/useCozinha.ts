@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useQuery } from '@tanstack/react-query'
+import { useRealtime } from './useRealtime'
 import { playNovoPedidoSound } from '../utils/audioKDS'
+import { handleSupabaseError } from '../lib/supabaseErrorHandler'
 
 interface PedidoKDS {
   id: string
@@ -38,15 +40,12 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true })
 
-    if (error) {
-      console.error('Erro ao buscar pedidos:', error)
-      return
-    }
+    if (handleSupabaseError(error, 'useCozinha.fetchPedidos')) return
 
     const novos: PedidoKDS[] = []
     const emPreparo: PedidoKDS[] = []
 
-    ;(pedidos || []).forEach((p: any) => {
+    ;(pedidos || []).forEach((p) => {
       const pedido: PedidoKDS = {
         id: p.id,
         numero: p.numero,
@@ -56,13 +55,13 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
         tipo: p.tipo,
         cliente_nome: p.cliente_nome,
         observacoes: p.observacoes,
-        itens: (p.itens_pedido || []).map((ip: any) => ({
-          id: ip.id,
-          produto_nome: ip.produto_nome,
-          quantidade: ip.quantidade,
-          tamanho: ip.tamanho,
-          adicionais: ip.adicionais,
-          observacoes: ip.observacoes,
+        itens: ((p.itens_pedido || []) as Array<Record<string, unknown>>).map((ip: Record<string, unknown>) => ({
+          id: ip.id as string,
+          produto_nome: ip.produto_nome as string,
+          quantidade: ip.quantidade as number,
+          tamanho: ip.tamanho as string | undefined,
+          adicionais: ip.adicionais as string | undefined,
+          observacoes: ip.observacoes as string | undefined,
         })),
       }
 
@@ -84,60 +83,30 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
     refetchInterval: 5000,
   })
 
-  useEffect(() => {
-    if (!tenantId) return
-
-    const channel = supabase
-      .channel('cozinha-pedidos')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'pedidos',
-          filter: `tenant_id=eq.${tenantId}`,
-        },
-        (payload) => {
-          const novo = payload.new as any
-          if (['novo', 'pendente', 'aberto'].includes(novo.status)) {
-            playNovoPedidoSound()
-            refetch()
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'pedidos',
-          filter: `tenant_id=eq.${tenantId}`,
-        },
-        (payload) => {
-          const atualizado = payload.new as any
+  // Use useRealtime instead of manual channel management
+  useRealtime({
+    configs: [
+      {
+        table: 'pedidos',
+        filter: `tenant_id=eq.${tenantId}`,
+        callback: () => {
+          playNovoPedidoSound()
           refetch()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [tenantId, refetch])
+        },
+      },
+    ],
+    enabled: !!tenantId,
+  })
 
   const iniciarPreparo = useCallback(
     async (pedidoId: string) => {
-      // Atualizar para 'preparando' (status correto do fluxo)
       const { error } = await supabase
         .from('pedidos')
         .update({ status: 'preparando', updated_at: new Date().toISOString() })
         .eq('id', pedidoId)
         .eq('tenant_id', tenantId)
 
-      if (error) {
-        console.error('Erro ao iniciar preparo:', error)
-        return false
-      }
+      if (handleSupabaseError(error, 'useCozinha.iniciarPreparo')) return false
 
       await supabase.from('historico_status').insert({
         pedido_id: pedidoId,
@@ -147,9 +116,7 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
         tenant_id: tenantId,
       })
 
-      // Refetch para atualizar a lista
       refetch()
-
       return true
     },
     [tenantId, refetch]
@@ -163,10 +130,7 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
         .eq('id', pedidoId)
         .eq('tenant_id', tenantId)
 
-      if (error) {
-        console.error('Erro ao marcar pronto:', error)
-        return false
-      }
+      if (handleSupabaseError(error, 'useCozinha.marcarPronto')) return false
 
       await supabase.from('historico_status').insert({
         pedido_id: pedidoId,
@@ -176,9 +140,7 @@ export function useCozinha({ tenantId }: UseCozinhaOptions) {
         tenant_id: tenantId,
       })
 
-      // Refetch para atualizar a lista
       refetch()
-
       return true
     },
     [tenantId, refetch]

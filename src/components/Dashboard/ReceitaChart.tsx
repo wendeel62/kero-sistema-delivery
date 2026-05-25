@@ -58,7 +58,7 @@ export default function ReceitaChart({
         <ResponsiveContainer width="100%" height={120}>
           <BarChart data={chartData}>
             <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), 'Receita']} contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#9ca3af' }} />
+            <Tooltip formatter={(value: any, _name: any) => [formatCurrency(Number(value)), 'Receita']} contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#9ca3af' }} />
             <Bar dataKey="valor" fill="#e8391a" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

@@ -4,7 +4,7 @@
  * Este arquivo foi mantido para compatibilidade
  */
 import { MapaContainer } from './mapa/MapaContainer'
-import type { EntregaAtiva } from '../../types'
+import type { EntregaAtiva } from '../types'
 
 interface MapaEntregasProps {
   entregasAtivas: EntregaAtiva[]

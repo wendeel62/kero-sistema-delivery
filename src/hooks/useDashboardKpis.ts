@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
-import { getTenantIdSafe } from '../lib/getTenantId'
+import { useTenantId } from '../hooks/useTenantId'
 
 // Import hooks especializados
 import { useSalesKpis } from './useSalesKpis'
-import { useCustomerKpis, type CustomerKpis, type FunnelData } from './useCustomerKpis'
-import { useProductKpis, type ProductKpis, type ProdutoVendido } from './useProductKpis'
-import { useDeliveryKpis, type DeliveryKpis, type TemposMedios } from './useDeliveryKpis'
-import { useFinancialKpis, type FinancialKpis, type ReceitaData } from './useFinancialKpis'
+import { useCustomerKpis, type FunnelData } from './useCustomerKpis'
+import { useProductKpis } from './useProductKpis'
+import { useDeliveryKpis, type TemposMedios } from './useDeliveryKpis'
+import { useFinancialKpis } from './useFinancialKpis'
 
 // Re-export types para compatibilidade
 export type {
@@ -64,39 +64,21 @@ export interface FunnelRealtimeData {
   addCarrinho: number
   checkoutIniciado: number
   compras: number
-  whatsapp: number
 }
 
 // Alias para compatibilidade com código legado
 export type FunilRealtimeData = FunnelRealtimeData
 
-const defaultKpis: KPIs = {
-  faturamento: 0,
-  totalPedidos: 0,
-  ticketMedio: 0,
-  tempoEntrega: 0,
-  visualizacoes: 0,
-  avaliacao: 0,
-  totalAvaliacoes: 0,
-  pedidosAbertos: 0,
-  totalEntregues: 0,
-  receita7Dias: [0, 0, 0, 0, 0, 0, 0],
-  temposMedios: { novo: 0, preparo: 0, entrega: 0, total: 0 },
-  funnelData: { visualizacoes: 0, addCarrinho: 0, checkoutIniciado: 0, compras: 0 },
-  pedidosPorHora: Array(24).fill(0)
-}
-
-// ============================================
-// HOOK COMBINADOR
-// ============================================
+// unused defaultKpis removed to fix lint error
+// const defaultKpis: KPIs = { ... }
 
 export function useDashboardKpis() {
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantIdSafe() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+  const { user: _user } = useAuth()
+  const tenantId = useTenantId()
 
   const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
   const [showFunilDropdown, setShowFunilDropdown] = useState(false)
-  const [receitaDias, setReceitaDias] = useState<number>(7)
+  const [_receitaDias, _setReceitaDias] = useState<number>(7)
   const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
 
   // Hooks especializados
@@ -215,18 +197,11 @@ export function useDashboardKpis() {
         // tabela pode não existir
       }
 
-      const { data: whatsAppData } = await supabase
-        .from('mensagens_whatsapp')
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .gte('created_at', today)
-
       return {
         visualizacoes,
         addCarrinho,
         checkoutIniciado,
         compras,
-        whatsapp: whatsAppData?.length || 0
       }
     },
     staleTime: 10000,
@@ -239,13 +214,12 @@ export function useDashboardKpis() {
 
   // Realtime
   const queryClient = useQueryClient()
-  const safeTenantId = tenantId || '19f48a0b-3117-4d2b-856e-41673dc43275'
 
   useRealtime({
     configs: [
       {
         table: 'pedidos',
-        filter: `tenant_id=eq.${safeTenantId}`,
+        filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         callback: () => {
           queryClient.invalidateQueries({ queryKey: ['sales-kpis'] })
           queryClient.invalidateQueries({ queryKey: ['financial-kpis'] })
@@ -253,10 +227,17 @@ export function useDashboardKpis() {
       },
       {
         table: 'pedidos_online',
-        filter: `tenant_id=eq.${safeTenantId}`,
+        filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         callback: () => {
           queryClient.invalidateQueries({ queryKey: ['sales-kpis'] })
           queryClient.invalidateQueries({ queryKey: ['financial-kpis'] })
+        }
+      },
+      {
+        table: 'configuracoes',
+        filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
+        callback: () => {
+          queryClient.invalidateQueries({ queryKey: ['configuracoes-loja', tenantId] })
         }
       }
     ]

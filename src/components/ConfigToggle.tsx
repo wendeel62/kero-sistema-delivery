@@ -12,6 +12,9 @@ export const ConfigToggle: React.FC<ConfigToggleProps> = ({ label, checked, onCh
     <div 
       className={`w-12 h-7 rounded-full transition-all relative ${checked ? 'bg-[#e8391a]' : 'bg-[#1a1a1a]'}`} 
       onClick={() => onChange(!checked)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(!checked) } }}
+      role="button"
+      tabIndex={0}
     >
       <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${checked ? 'left-6' : 'left-1'}`} />
     </div>

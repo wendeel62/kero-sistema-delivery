@@ -18,13 +18,14 @@ export default function SaborModal({
   if (!showSaborModal) return null
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="button" tabIndex={0}>
+      <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role="presentation">
         <h3 className="text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editSabor?.id ? 'Editar' : 'Novo'} Sabor</h3>
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Nome do Sabor</label>
+            <label htmlFor="sabor-nome" className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Nome do Sabor</label>
             <input
+              id="sabor-nome"
               value={editSabor?.nome || ''}
               onChange={e => onEditChange({ nome: e.target.value })}
               placeholder="Ex: Margherita"
@@ -32,8 +33,9 @@ export default function SaborModal({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Descricao</label>
+            <label htmlFor="sabor-descricao" className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Descricao</label>
             <textarea
+              id="sabor-descricao"
               value={editSabor?.descricao || ''}
               onChange={e => onEditChange({ descricao: e.target.value })}
               placeholder="Ex: Molho de tomate, mussarela, manjericao fresco"

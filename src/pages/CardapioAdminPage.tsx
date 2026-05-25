@@ -1,4 +1,5 @@
 import { useCardapioAdmin } from '../hooks/useCardapioAdmin'
+import type { UseFormReturn } from 'react-hook-form'
 import CategoriaList from '../components/cardapio/CategoriaList'
 import ProdutoList from '../components/cardapio/ProdutoList'
 import ComplementosTab from '../components/cardapio/ComplementosTab'
@@ -107,7 +108,7 @@ export default function CardapioAdminPage() {
         showProdutoModal={h.showProdutoModal}
         uploading={h.uploading}
         imagePreview={h.imagePreview}
-        produtoForm={h.produtoForm}
+        produtoForm={h.produtoForm as unknown as UseFormReturn<Record<string, unknown>>}
         categorias={h.categorias}
         sabores={h.sabores}
         precos={h.precos}

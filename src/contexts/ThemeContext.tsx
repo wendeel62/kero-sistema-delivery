@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
+import { STORAGE_KEYS } from '../constants'
 
 interface ThemeContextType {
   theme: 'dark' | 'light'
@@ -10,23 +11,19 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.THEME)
+    if (saved === 'light' || saved === 'dark') return saved
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
 
   useEffect(() => {
-    // Sempre aplicar dark theme como padrão
-    document.documentElement.classList.add('dark')
-    localStorage.setItem('theme', 'dark')
-    setTheme('dark')
-  }, [])
-
-  useEffect(() => {
-    // Aplicar tema ao document quando mudar
     if (theme === 'dark') {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
-    localStorage.setItem('theme', theme)
+    localStorage.setItem(STORAGE_KEYS.THEME, theme)
   }, [theme])
 
   const toggleTheme = useCallback(() => {
@@ -53,4 +50,3 @@ export function useTheme() {
   }
   return context
 }
-

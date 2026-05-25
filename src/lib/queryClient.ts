@@ -119,10 +119,6 @@ export const queryKeys = {
   // Metas
   metas: (tenantId: string) => ['metas', tenantId] as const,
   
-  // WhatsApp
-  whatsappConversas: (tenantId: string) => ['whatsapp-conversas', tenantId] as const,
-  whatsappMensagens: (tenantId: string, contatoId: string) => ['whatsapp-mensagens', tenantId, contatoId] as const,
-  
   // Entregas/Motoboys
   motoboys: (tenantId: string) => ['motoboys', tenantId] as const,
   entregas: (tenantId: string) => ['entregas', tenantId] as const,

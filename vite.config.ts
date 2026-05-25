@@ -59,7 +59,7 @@ export default defineConfig({
                 removeViewBox: false,
               },
             },
-          },
+          } as any,
           'removeViewBox',
         ],
       },
@@ -75,7 +75,7 @@ export default defineConfig({
       manifest: {
         name: 'Kero Delivery',
         short_name: 'Kero',
-        description: 'Sistema de gestão de delivery, cardápio digital e WhatsApp',
+        description: 'Sistema de gestão de delivery e cardápio digital',
         theme_color: '#e8391a',
         background_color: '#16181f',
         display: 'standalone',
@@ -176,7 +176,7 @@ export default defineConfig({
       workbox: {
         // Estratégia de cache para navegação (SPA fallback)
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/admin/, /\/socket\.io/],
+        navigateFallbackDenylist: [/^\/api/, /^\/admin/],
 
         // Limite de arquivo para precaching (bundle JS é ~2.8 MiB)
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB

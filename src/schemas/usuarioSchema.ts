@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ROLES, STATUS } from '../constants'
 
 // ============================================
 // SCHEMA BASE - USUÁRIO
@@ -9,14 +10,13 @@ export const usuarioSchema = z.object({
   tenant_id: z.string().uuid('ID do tenant inválido'),
   nome: z.string().min(2, 'Nome deve ter ao menos 2 caracteres'),
   email: z.string().email('Email inválido'),
-  telefone: z.string().regex(/^\(\d{2}\)\s9?\d{4}-\d{4}$/, 'Telefone inválido').optional().or(z.literal('')),
-  role: z.enum(['admin', 'gerente', 'caixa', 'cozinheiro', 'entregador', 'motoboy']).default('caixa'),
-  status: z.enum(['ativo', 'inativo', 'pendente', 'bloqueado']).default('pendente'),
+  telefone: z.string().regex(/^\+?\d{10,15}$/, 'Telefone inválido').optional().or(z.literal('')),
+  role: z.enum(Object.values(ROLES) as [string, ...string[]]).default(ROLES.CAIXA),
+  status: z.enum(Object.values(STATUS) as [string, ...string[]]).default(STATUS.PENDENTE),
   password_hash: z.string().optional(),
   avatar_url: z.string().url('URL inválida').optional().or(z.literal('')),
   permissoes: z.array(z.string()).optional(),
   ultimo_acesso: z.string().datetime().optional(),
-  mfa_enabled: z.boolean().default(false),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional()
 })
@@ -35,8 +35,7 @@ export const usuarioUpdateSchema = usuarioSchema.omit({ tenant_id: true, created
 export const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(1, 'Senha é obrigatória'),
-  tenant_id: z.string().uuid('ID do tenant inválido').optional(),
-  codigo_mfa: z.string().length(6, 'Código MFA deve ter 6 dígitos').optional()
+  tenant_id: z.string().uuid('ID do tenant inválido').optional()
 })
 
 export type Usuario = z.infer<typeof usuarioSchema>

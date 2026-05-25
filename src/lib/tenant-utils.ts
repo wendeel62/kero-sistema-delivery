@@ -51,11 +51,11 @@ export async function getCurrentTenantIdSafe(): Promise<string | null> {
  * @param tenantId - ID do tenant (opcional, busca automaticamente se não informado)
  * @returns Query com filtro aplicado
  */
-export function withTenantFilter<T>(
-  query: any,
+export function withTenantFilter(
+  query: { eq: (field: string, value: string) => unknown },
   tenantId?: string
-): any {
-  return query.eq("tenant_id", tenantId)
+): { eq: (field: string, value: string) => unknown } {
+  return query.eq("tenant_id", tenantId ?? '') as { eq: (field: string, value: string) => unknown }
 }
 
 /**

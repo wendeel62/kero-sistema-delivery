@@ -34,7 +34,7 @@ export const ClientesFilters = memo(function ClientesFilters({
         {['todos', 'novo', 'recorrente', 'vip'].map((p) => (
           <button
             key={p}
-            onClick={() => onFilterChange(p as any)}
+            onClick={() => onFilterChange(p as 'todos' | 'novo' | 'recorrente' | 'vip')}
             className={`w-full md:w-auto px-1 sm:px-4 py-2 rounded-lg text-[9px] sm:text-xs font-bold uppercase tracking-tighter transition-all border whitespace-nowrap ${
               filterPerfil === p
                 ? 'bg-primary/20 border-primary/30 text-primary'

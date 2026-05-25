@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo } from 'react'
 import { useAgentContext } from '../../hooks/useAgentContext'
 import { ChatButton } from './ChatButton'
 import { ChatWindow } from './ChatWindow'
@@ -17,7 +17,7 @@ const SUPABASE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1
  * FloatingAgentChat - Componente principal do chat
  * Gerencia estado global e integra todos os subcomponentes
  */
-export function FloatingAgentChat({ userId, tenantId, autoOpenOnLogin = false }: ChatProps) {
+export const FloatingAgentChat = memo(function FloatingAgentChat({ userId, tenantId, autoOpenOnLogin = false }: ChatProps) {
   const context = useAgentContext(tenantId)
 
   // Estado local
@@ -36,7 +36,7 @@ export function FloatingAgentChat({ userId, tenantId, autoOpenOnLogin = false }:
     userId,
     tenantId,
     apiEndpoint: SUPABASE_FUNCTION_URL,
-    context,
+    context: context as any,
     onTypingStart: () => {},
     onTypingEnd: () => {},
     onActionReceived: (action) => {
@@ -183,6 +183,4 @@ export function FloatingAgentChat({ userId, tenantId, autoOpenOnLogin = false }:
       />
     </>
   )
-}
-
-export default FloatingAgentChat
+})

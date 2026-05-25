@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -11,7 +11,6 @@ const navItems = [
   { path: '/estoque', icon: 'inventory_2', label: 'Estoque' },
   { path: '/financeiro', icon: 'payments', label: 'Financeiro' },
   { path: '/entregas', icon: 'local_shipping', label: 'Entrega' },
-  { path: '/whatsapp', icon: 'chat', label: 'WhatsApp' },
   { path: '/configuracoes', icon: 'settings', label: 'Configurações' },
 ]
 
@@ -22,12 +21,12 @@ interface SidebarProps {
   onClose?: () => void
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default memo(function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, signOut } = useAuth()
   const [isHovered, setIsHovered] = useState(false)
 
   // No mobile usamos a prop isOpen, no desktop usamos hover ou fallback para 16px
-  const isDesktop = window.innerWidth >= 768
+  const isDesktop = useMemo(() => window.innerWidth >= 768, [])
   const expanded = isDesktop ? isHovered : true
 
   return (
@@ -37,6 +36,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div 
           className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
           onClick={onClose}
+          onKeyDown={(e) => { if (e.key === 'Escape') onClose?.() }}
+          role="button"
+          tabIndex={0}
         />
       )}
       
@@ -46,8 +48,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         className={`
           fixed left-0 top-0 h-screen bg-surface-container-lowest flex flex-col py-3 md:py-4 lg:py-6 z-50
           border-r border-outline shadow-2xl backdrop-blur-xl
-          transition-all duration-300 ease-out
-          ${expanded ? 'w-64 animate-slide-in-left' : 'w-16 lg:w-20'}
+          transition-[width] duration-300 ease-out will-change-transform transform-gpu
+          ${expanded ? 'w-64' : 'w-16 lg:w-20'}
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
@@ -157,4 +159,4 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </aside>
     </>
   )
-}
+})

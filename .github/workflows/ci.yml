@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop, 'imaginary-amaryllis']
+    branches: [main, master, develop]
   pull_request:
     branches: [main, master, develop]
 
@@ -17,7 +17,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -35,14 +35,13 @@ jobs:
 
       - name: Rodar ESLint
         run: npm run lint
-        continue-on-error: true  # Não falha o build, apenas alerta
 
   # Job de type checking
   typecheck:
     name: TypeScript Check
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -58,7 +57,6 @@ jobs:
 
       - name: Rodar TypeScript compiler
         run: npm run typecheck
-        continue-on-error: true  # Ainda há erros TS para corrigir
 
   # Job de build
   build:
@@ -66,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [lint, typecheck]
-    
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -83,7 +81,7 @@ jobs:
       - name: Rodar build de produção
         run: npm run build
 
-      # Opcional: Upload do build artifact
+      # Upload do build artifact
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -97,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [lint]
-    
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -113,9 +111,8 @@ jobs:
 
       - name: Rodar testes
         run: npm run test:run
-        continue-on-error: true  # Ainda há poucos testes
 
-      # Opcional: Upload de coverage report
+      # Upload de coverage report
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -129,7 +126,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -145,7 +142,6 @@ jobs:
 
       - name: Rodar npm audit
         run: npm audit --audit-level=high
-        continue-on-error: true  # Ainda há vulnerabilidades conhecidas
 
   # Job de resumo (opcional - para badge/status)
   summary:
@@ -153,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, typecheck, build, test, audit]
     if: always()
-    
+
     steps:
       - name: Check workflow status
         run: |

@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useDashboardKpis } from '../useDashboardKpis'
-import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -136,11 +135,11 @@ describe('useDashboardKpis', () => {
       wrapper: createWrapper(),
     })
 
-    expect(result.current.funnelData).toBeDefined()
-    expect(result.current.funnelData.visualizacoes).toBe(0)
-    expect(result.current.funnelData.addCarrinho).toBe(0)
-    expect(result.current.funnelData.checkoutIniciado).toBe(0)
-    expect(result.current.funnelData.compras).toBe(0)
+    expect(result.current.funilData!).toBeDefined()
+    expect(result.current.funilData!.visualizacoes).toBe(0)
+    expect(result.current.funilData!.addCarrinho).toBe(0)
+    expect(result.current.funilData!.checkoutIniciado).toBe(0)
+    expect(result.current.funilData!.compras).toBe(0)
   })
 
   it('deve retornar receitaData', () => {

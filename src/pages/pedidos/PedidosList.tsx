@@ -1,6 +1,6 @@
-import { memo, useMemo, useRef, useEffect } from 'react'
+import { memo, useMemo, useRef } from 'react'
 import type { UnifiedPedido } from '../PedidosPage'
-import { PedidoStatusBadge, type StatusKanban } from './PedidoStatusBadge'
+import { type StatusKanban } from './PedidoStatusBadge'
 
 export interface PedidosListProps {
   pedidos: UnifiedPedido[]
@@ -136,7 +136,7 @@ const PedidoCard = memo(function PedidoCard({
   onAdvance,
   onCancel,
   onView,
-  onPrint
+  onPrint: _onPrint
 }: PedidoCardProps) {
   const minutesElapsed = useMemo(() => {
     const now = new Date()
@@ -181,7 +181,7 @@ const PedidoCard = memo(function PedidoCard({
 
       {/* Itens */}
       <div className="flex flex-col gap-0.5">
-        {pedido.itens.slice(0, 3).map((it: any, i: number) => (
+        {pedido.itens.slice(0, 3).map((it, i) => (
           <p key={i} className="text-xs text-gray-400 truncate">
             {it.qtd}x {it.nome}
           </p>

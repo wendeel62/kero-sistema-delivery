@@ -9,8 +9,35 @@ const DebitarEstoqueInputSchema = z.object({
 type DebitarEstoqueInput = z.infer<typeof DebitarEstoqueInputSchema>
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || 'http://localhost:5173',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+async function verifyJwt(req: Request): Promise<{ valid: boolean; userId: string; tenantId: string; error: string }> {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { valid: false, userId: '', tenantId: '', error: 'Missing or invalid authorization header' }
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { valid: false, userId: '', tenantId: '', error: 'Server misconfiguration' }
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  const { data, error } = await supabase.auth.getUser(token)
+
+  if (error || !data.user) {
+    return { valid: false, userId: '', tenantId: '', error: 'Invalid or expired token' }
+  }
+
+  const userId = data.user.id
+  const tenantId = data.user.user_metadata?.tenant_id || userId
+
+  return { valid: true, userId, tenantId, error: '' }
 }
 
 Deno.serve(async (req) => {
@@ -19,6 +46,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await verifyJwt(req)
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized', details: auth.error }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const body = await req.json()
     const parsedInput = DebitarEstoqueInputSchema.safeParse(body)
     
@@ -31,12 +66,18 @@ Deno.serve(async (req) => {
 
     const { pedido_id, tenant_id } = parsedInput.data
 
+    if (tenant_id !== auth.tenantId) {
+      return new Response(JSON.stringify({ success: false, error: 'Forbidden: tenant mismatch' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Buscar itens do pedido
     const { data: itensPedido, error: erroItens } = await supabaseAdmin
       .from('itens_pedido')
       .select('id, produto_id, quantidade, tamanho')
@@ -50,18 +91,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Mapear ingredientes por ficha tecnica
     const consumoPorIngrediente: Record<string, number> = {}
 
     for (const item of itensPedido) {
-      // Buscar ficha tecnica do produto
       let query = supabaseAdmin
         .from('ficha_tecnica')
         .select('ingrediente_id, quantidade')
         .eq('produto_id', item.produto_id)
         .eq('tenant_id', tenant_id)
 
-      // Se item tiver tamanho, filtrar por tamanho
       if (item.tamanho) {
         query = query.eq('tamanho', item.tamanho)
       }
@@ -80,7 +118,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Executar updates em ingredientes
     for (const [ingrediente_id, quantidadeCalc] of Object.entries(consumoPorIngrediente)) {
       const { data: resultado } = await supabaseAdmin.rpc('decrementar_estoque', {
         ingrediente_id: ingrediente_id,
@@ -92,12 +129,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Verificar estoque critico
     const { data: ingredientesAtualizados, error: erroConsulta } = await supabaseAdmin
       .from('ingredientes')
-      .select('id, nome, quantidade_atual, quantidade_minima')
+      .select('id, nome, estoque_atual, estoque_minimo')
       .eq('tenant_id', tenant_id)
-      .lt('quantidade_atual', 'quantidade_minima')
+      .lt('estoque_atual', 'estoque_minimo')
 
     const alertas: string[] = []
 
@@ -105,7 +141,6 @@ Deno.serve(async (req) => {
       for (const ing of ingredientesAtualizados) {
         alertas.push(ing.nome)
         
-        // Inserir notificacao
         const { error: erroNotif } = await supabaseAdmin
           .from('notificacoes')
           .insert({
@@ -130,11 +165,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-  } catch (err: any) {
-    console.error('[debitar-estoque] ERRO:', err.message)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[debitar-estoque] ERRO:', message)
     return new Response(JSON.stringify({ 
       success: false, 
-      error: err.message 
+      error: 'Internal server error'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

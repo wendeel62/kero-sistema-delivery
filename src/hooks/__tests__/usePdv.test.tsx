@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePdv } from '../usePdv'
-import { supabase } from '../../lib/supabase'
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -126,6 +125,9 @@ describe('usePdv', () => {
       preco: 50,
       disponivel: true,
       tenant_id: 'tenant-1',
+      categoria_id: '',
+      descricao: '',
+      imagem_url: '',
     }
 
     act(() => {

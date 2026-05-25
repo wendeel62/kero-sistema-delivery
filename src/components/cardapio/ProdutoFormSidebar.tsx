@@ -6,7 +6,7 @@ interface ProdutoFormSidebarProps {
   showProdutoModal: boolean
   uploading: boolean
   imagePreview: string | null
-  produtoForm: UseFormReturn<any>
+  produtoForm: UseFormReturn<Record<string, unknown>>
   categorias: Categoria[]
   sabores: Sabor[]
   precos: PrecoTamanho[]
@@ -23,7 +23,7 @@ interface ProdutoFormSidebarProps {
   newSaborNome: string
   newSaborDescricao: string
   savingSabor: boolean
-  onSave: (data: any) => void
+  onSave: (data: Record<string, unknown>) => void
   onClose: () => void
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onRemovePhoto: () => void
@@ -102,21 +102,24 @@ export default function ProdutoFormSidebar({
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[998] animate-fade-in"
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        role="button"
+        tabIndex={0}
       />
       {/* Sidebar */}
-      <div className="fixed right-0 top-0 h-auto z-[999] bg-[#16181f] shadow-2xl animate-slide-in-from-right w-full max-w-[600px] min-h-screen">
+      <div className="fixed right-0 top-0 z-[999] bg-[#16181f] shadow-2xl animate-slide-in-from-right w-full max-w-[600px] h-screen overflow-y-auto no-scrollbar">
         <div className="flex items-center justify-between p-5 sm:p-8 border-b border-[#252830] sticky top-0 bg-[#16181f] z-10">
           <h3 className="font-headline text-xl sm:text-3xl font-bold text-white tracking-tight">{editProduto?.id ? 'Editar' : 'Novo'} Produto</h3>
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#252830] text-gray-400 hover:text-white hover:bg-[#333] transition-all">
             <span className="material-symbols-outlined text-2xl">close</span>
           </button>
         </div>
-        <div className="p-5 sm:p-8 no-scrollbar">
+        <div className="p-5 sm:p-8">
           {/* Photo */}
           <div className="mb-2">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Foto do Produto</label>
+            <label htmlFor="produto-foto" className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Foto do Produto</label>
             <div className="relative w-full max-w-[200px] aspect-[4/5] my-4">
-              <input type="file" accept="image/*" onChange={onFileChange} className="hidden" id="photo-input" disabled={uploading} />
+              <input type="file" accept="image/*" onChange={onFileChange} className="hidden" id="produto-foto" disabled={uploading} />
               {(imagePreview || editProduto?.imagem_url) ? (
                 <div className="relative w-full h-full rounded-xl overflow-hidden">
                   <img src={imagePreview || editProduto?.imagem_url} alt="Preview" className="w-full h-full object-cover" />
@@ -125,7 +128,7 @@ export default function ProdutoFormSidebar({
                   </button>
                 </div>
               ) : (
-                <label htmlFor="photo-input" className="flex flex-col items-center justify-center w-full h-full bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-xl cursor-pointer hover:border-[#555] transition-all">
+                <label htmlFor="produto-foto" className="flex flex-col items-center justify-center w-full h-full bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-xl cursor-pointer hover:border-[#555] transition-all">
                   <span className="material-symbols-outlined text-4xl text-[#555]">photo_camera</span>
                   <span className="text-sm text-[#555] mt-2">Adicionar foto</span>
                 </label>
@@ -133,42 +136,42 @@ export default function ProdutoFormSidebar({
             </div>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); onSave(produtoForm.getValues()); }} className="space-y-6">
+          <form onSubmit={produtoForm.handleSubmit((data) => onSave(data))} className="space-y-6">
             {/* Nome */}
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Nome do Produto</label>
-              <input {...produtoForm.register('nome')} placeholder="Ex: Pizza Calabresa Especial" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+              <label htmlFor="produto-nome" className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Nome do Produto</label>
+              <input id="produto-nome" {...produtoForm.register('nome')} placeholder="Ex: Pizza Calabresa Especial" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
               {produtoForm.formState.errors.nome && <span className="text-red-400 text-xs">{produtoForm.formState.errors.nome.message as string}</span>}
             </div>
 
             {/* Descricao */}
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Descricao Detalhada</label>
-              <textarea {...produtoForm.register('descricao')} placeholder="Descreva os ingredientes e detalhes" rows={3} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white resize-none" />
+              <label htmlFor="produto-descricao" className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Descricao Detalhada</label>
+              <textarea id="produto-descricao" {...produtoForm.register('descricao')} placeholder="Descreva os ingredientes e detalhes" rows={3} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white resize-none" />
             </div>
 
             {/* Preco & Tempo */}
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Preco Base (R$) <span className="text-[10px] normal-case text-[#666]">- Opcional</span></label>
-                <input type="number" step="0.01" {...produtoForm.register('preco', { valueAsNumber: true })} placeholder="Ex: 25.00" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+                <label htmlFor="produto-preco" className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Preco Base (R$) <span className="text-[10px] normal-case text-[#666]">- Opcional</span></label>
+                <input id="produto-preco" type="number" step="0.01" {...produtoForm.register('preco', { valueAsNumber: true })} placeholder="Ex: 25.00" className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Tempo (Min)</label>
-                <input type="number" {...produtoForm.register('tempo_preparo', { valueAsNumber: true })} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
+                <label htmlFor="produto-tempo" className="text-[10px] uppercase tracking-widest font-bold text-[#888] ml-1">Tempo (Min)</label>
+                <input id="produto-tempo" type="number" {...produtoForm.register('tempo_preparo', { valueAsNumber: true })} className="w-full bg-[#1a1a1a] border-none focus:ring-1 focus:ring-[#ff5722] rounded-xl py-4 px-5 text-sm text-white" />
               </div>
             </div>
 
             {/* Categoria */}
             <div className="space-y-3">
-              <label className="text-[10px] uppercase tracking-widest font-bold text-[#ff5722] ml-1 flex items-center gap-2">
+              <label htmlFor="produto-categoria" className="text-[10px] uppercase tracking-widest font-bold text-[#ff5722] ml-1 flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm">category</span>
                 Categoria
               </label>
               {!showInlineCategoria ? (
                 <div className="flex gap-3">
                   <div className="relative flex-1">
-                    <select {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border-2 border-[#ff5722]/30 focus:border-[#ff5722] rounded-xl py-4 px-5 text-sm text-white cursor-pointer appearance-none">
+                    <select id="produto-categoria" {...produtoForm.register('categoria_id')} className="w-full bg-[#1a1a1a] border-2 border-[#ff5722]/30 focus:border-[#ff5722] rounded-xl py-4 px-5 text-sm text-white cursor-pointer appearance-none">
                       <option value="">Selecione uma categoria</option>
                       {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
@@ -180,7 +183,7 @@ export default function ProdutoFormSidebar({
                 </div>
               ) : (
                 <div className="bg-[#1a1a1a] border border-[#ff5722]/30 rounded-xl p-4 space-y-3">
-                  <input value={newCategoriaNome} onChange={e => onNewCategoriaNomeChange(e.target.value)} placeholder="Nome da categoria" className="w-full bg-[#252830] border border-[#333] rounded-lg py-3 px-4 text-sm text-white placeholder:text-gray-500" autoFocus />
+                  <input value={newCategoriaNome} onChange={e => onNewCategoriaNomeChange(e.target.value)} placeholder="Nome da categoria" className="w-full bg-[#252830] border border-[#333] rounded-lg py-3 px-4 text-sm text-white placeholder:text-gray-500" />
                   <input value={newCategoriaDescricao} onChange={e => onNewCategoriaDescricaoChange(e.target.value)} placeholder="Descricao (opcional)" className="w-full bg-[#252830] border border-[#333] rounded-lg py-3 px-4 text-sm text-white placeholder:text-gray-500" />
                   <div className="flex gap-2">
                     <button type="button" onClick={onCancelInlineCategoria} className="flex-1 py-2.5 rounded-lg border border-[#333] text-gray-400 text-xs font-bold uppercase hover:bg-[#252830] transition-all">Cancelar</button>
@@ -188,7 +191,7 @@ export default function ProdutoFormSidebar({
                   </div>
                 </div>
               )}
-              {produtoForm.watch('categoria_id') && !showInlineCategoria && (
+              {produtoForm.watch('categoria_id') as string && !showInlineCategoria && (
                 <div className="mt-2 px-3 py-2 bg-[#ff5722]/10 rounded-lg flex items-center gap-2">
                   <span className="text-[10px] text-[#ff5722] uppercase tracking-widest font-bold">Categoria selecionada:</span>
                   <span className="text-sm text-white font-medium">{categorias.find(c => c.id === produtoForm.watch('categoria_id'))?.nome}</span>
@@ -201,14 +204,14 @@ export default function ProdutoFormSidebar({
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" {...produtoForm.register('disponivel')} className="hidden" />
                 <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${produtoForm.watch('disponivel') ? 'bg-[#ff5722] border-[#ff5722]' : 'border-[#444]'}`}>
-                  {produtoForm.watch('disponivel') && <span className="material-symbols-outlined text-white text-base">check</span>}
+                  {produtoForm.watch('disponivel') as boolean && <span className="material-symbols-outlined text-white text-base">check</span>}
                 </div>
                 <span className="text-sm font-headline font-bold uppercase tracking-widest opacity-80 group-hover:opacity-100 text-white">Disponivel</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" {...produtoForm.register('destaque')} className="hidden" />
                 <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${produtoForm.watch('destaque') ? 'bg-[#ffc107] border-[#ffc107]' : 'border-[#444]'}`}>
-                  {produtoForm.watch('destaque') && <span className="material-symbols-outlined text-black text-base">star</span>}
+                  {produtoForm.watch('destaque') as boolean && <span className="material-symbols-outlined text-black text-base">star</span>}
                 </div>
                 <span className="text-sm font-headline font-bold uppercase tracking-widest opacity-80 group-hover:opacity-100 text-[#ffc107]">Destaque</span>
               </label>
@@ -308,7 +311,7 @@ export default function ProdutoFormSidebar({
                 </div>
               ) : (
                 <div className="bg-[#1a1a1a] border border-[#8b5cf6]/30 rounded-xl p-4 space-y-3 mt-4">
-                  <input value={newSaborNome} onChange={e => onNewSaborNomeChange(e.target.value)} placeholder="Nome do sabor" className="w-full bg-[#252830] border border-[#333] rounded-lg py-3 px-4 text-sm text-white placeholder:text-gray-500" autoFocus />
+                  <input value={newSaborNome} onChange={e => onNewSaborNomeChange(e.target.value)} placeholder="Nome do sabor" className="w-full bg-[#252830] border border-[#333] rounded-lg py-3 px-4 text-sm text-white placeholder:text-gray-500" />
                   <input value={newSaborDescricao} onChange={e => onNewSaborDescricaoChange(e.target.value)} placeholder="Descricao (opcional)" className="w-full bg-[#252830] border border-[#333] rounded-lg py-3 px-4 text-sm text-white placeholder:text-gray-500" />
                   <div className="flex gap-2">
                     <button type="button" onClick={onCancelInlineSabor} className="flex-1 py-2.5 rounded-lg border border-[#333] text-gray-400 text-xs font-bold uppercase hover:bg-[#252830] transition-all">Cancelar</button>
@@ -319,7 +322,7 @@ export default function ProdutoFormSidebar({
             </div>
 
             {/* Submit */}
-            <div className="p-5 sm:p-8 border-t border-[#252830]">
+            <div className="pt-4">
               <div className="flex gap-4">
                 <button type="button" onClick={onClose} className="flex-1 py-4 rounded-xl border border-[#333] text-[#888] font-headline font-bold text-xs uppercase tracking-widest hover:bg-[#1a1a1a] transition-all" disabled={uploading}>Cancelar</button>
                 <button type="submit" disabled={uploading} className="flex-1 py-4 rounded-xl bg-[#ff5722] text-white font-headline font-bold text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(255,86,55,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">{uploading ? 'Salvando...' : 'Salvar'}</button>

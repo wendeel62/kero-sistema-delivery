@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { useAuth } from '../contexts/AuthContext'
-import { format } from 'date-fns'
+import { format, differenceInDays, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 function getTenantId(): string {
@@ -21,6 +21,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { clienteSchema } from '../schemas/clienteSchema'
 import { cupomSchema } from '../schemas/cupomSchema'
+import { ClienteHistorico } from './clientes/ClienteHistorico'
 
 interface Endereco {
   cep: string
@@ -74,7 +75,7 @@ export default function ClientesPage() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [config, setConfig] = useState<any>(null)
+  const [config, setConfig] = useState<Record<string, unknown> | null>(null)
   const [cupons, setCupons] = useState<Cupom[]>([])
 
   const fetchClientes = useCallback(async () => {
@@ -165,7 +166,7 @@ export default function ClientesPage() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'gestao' | 'fidelidade' | 'cupons')}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeTab === tab.id 
                 ? 'bg-primary text-on-primary shadow-lg' 
@@ -245,15 +246,16 @@ export default function ClientesPage() {
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Perfil</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Pedidos</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Gasto</th>
+                    <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Ticket Médio</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Último Pedido</th>
                     <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline/30">
                   {loading ? (
-                    <tr><td colSpan={6} className="p-20"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
+                    <tr><td colSpan={7} className="p-20"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
                   ) : filteredClientes.length === 0 ? (
-                    <tr><td colSpan={6} className="p-20 text-on-surface-variant italic text-center">Nenhum cliente encontrado.</td></tr>
+                    <tr><td colSpan={7} className="p-20 text-on-surface-variant italic text-center">Nenhum cliente encontrado.</td></tr>
                   ) : filteredClientes.map(cliente => (
                     <tr key={cliente.id} className="group hover:bg-primary/5 cursor-pointer" onClick={() => handleOpenDrawer(cliente)}>
                       <td className="p-6">
@@ -272,6 +274,7 @@ export default function ClientesPage() {
                       </td>
                       <td className="p-6 font-medium text-on-background">{cliente.total_pedidos}</td>
                       <td className="p-6 font-bold text-emerald-400">R$ {cliente.total_gasto?.toFixed(2) || '0.00'}</td>
+                      <td className="p-6 font-bold text-on-background">R$ {cliente.total_pedidos > 0 ? (cliente.total_gasto / cliente.total_pedidos).toFixed(2) : '0.00'}</td>
                       <td className="p-6 text-xs text-on-surface-variant">{cliente.ultimo_pedido ? format(new Date(cliente.ultimo_pedido), "dd/MM/yy") : '---'}</td>
                       <td className="p-6">
                         <button className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-all"><span className="material-symbols-outlined text-xl">visibility</span></button>
@@ -302,13 +305,13 @@ function getPerfilBadge(perfil: string) {
   }
 }
 
-function FidelidadeContent({ config, onUpdate, tenantId }: any) {
+function FidelidadeContent({ config, onUpdate, tenantId }: { config: Record<string, unknown> | null; onUpdate: () => void; tenantId: string }) {
   const [localConfig, setLocalConfig] = useState(config)
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
     setSaving(true)
-    const { id, ...rest } = localConfig
+    const { id, ...rest } = localConfig! as Record<string, unknown>
     await supabase.from('configuracoes').update(rest).eq('id', id).eq('tenant_id', tenantId)
     onUpdate()
     setSaving(false)
@@ -325,10 +328,10 @@ function FidelidadeContent({ config, onUpdate, tenantId }: any) {
           </div>
           <button 
             type="button"
-            onClick={() => setLocalConfig({...localConfig, fidelidade_ativa: !localConfig.fidelidade_ativa})}
-            className={`w-14 h-8 rounded-full transition-all relative ${localConfig.fidelidade_ativa ? 'bg-primary' : 'bg-outline'}`}
+            onClick={() => setLocalConfig({...localConfig!, fidelidade_ativa: !(localConfig! as any).fidelidade_ativa})}
+            className={`w-14 h-8 rounded-full transition-all relative ${(localConfig! as any).fidelidade_ativa ? 'bg-primary' : 'bg-outline'}`}
           >
-             <div className={`absolute top-1 w-6 h-6 rounded-full bg-on-primary shadow transition-all ${localConfig.fidelidade_ativa ? 'left-7' : 'left-1'}`} />
+             <div className={`absolute top-1 w-6 h-6 rounded-full bg-on-primary shadow transition-all ${(localConfig! as any).fidelidade_ativa ? 'left-7' : 'left-1'}`} />
           </button>
        </div>
 
@@ -336,26 +339,26 @@ function FidelidadeContent({ config, onUpdate, tenantId }: any) {
           <div className="space-y-6">
              <label className="block">
                 <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Pontos por Real Gasto</span>
-                <input type="number" value={localConfig.pontos_por_real || ''} onChange={e => setLocalConfig({...localConfig, pontos_por_real: Number(e.target.value)})} className="w-full bg-surface-container-lowest border border-outline rounded-xl py-4 px-4 mt-2 outline-none focus:border-primary text-on-background"/>
+                <input type="number" value={(localConfig! as any).pontos_por_real || ''} onChange={e => setLocalConfig({...localConfig!, pontos_por_real: Number(e.target.value)})} className="w-full bg-surface-container-lowest border border-outline rounded-xl py-4 px-4 mt-2 outline-none focus:border-primary text-on-background"/>
                 <p className="text-[10px] text-on-surface-variant mt-1 ml-1">Padrão: 1 ponto por R$ 1,00</p>
              </label>
              <label className="block">
                 <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Valor de cada ponto (R$)</span>
-                <input type="number" step="0.01" value={localConfig.valor_ponto_reais || ''} onChange={e => setLocalConfig({...localConfig, valor_ponto_reais: Number(e.target.value)})} className="w-full bg-surface-container-lowest border border-outline rounded-xl py-4 px-4 mt-2 outline-none focus:border-primary text-on-background"/>
+                <input type="number" step="0.01" value={(localConfig! as any).valor_ponto_reais || ''} onChange={e => setLocalConfig({...localConfig!, valor_ponto_reais: Number(e.target.value)})} className="w-full bg-surface-container-lowest border border-outline rounded-xl py-4 px-4 mt-2 outline-none focus:border-primary text-on-background"/>
                 <p className="text-[10px] text-on-surface-variant mt-1 ml-1">Ex: 100 pontos = R$ 10,00 (se 0,10)</p>
              </label>
           </div>
           <div className="space-y-6">
              <label className="block">
                 <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Mínimo para Resgate</span>
-                <input type="number" value={localConfig.pontos_minimos_resgate || ''} onChange={e => setLocalConfig({...localConfig, pontos_minimos_resgate: Number(e.target.value)})} className="w-full bg-surface-container-lowest border border-outline rounded-xl py-4 px-4 mt-2 outline-none focus:border-primary text-on-background"/>
+                <input type="number" value={(localConfig! as any).pontos_minimos_resgate || ''} onChange={e => setLocalConfig({...localConfig!, pontos_minimos_resgate: Number(e.target.value)})} className="w-full bg-surface-container-lowest border border-outline rounded-xl py-4 px-4 mt-2 outline-none focus:border-primary text-on-background"/>
              </label>
              <div className="flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl border border-primary/20">
                 <div className="flex flex-col">
                    <span className="text-sm font-bold text-on-background">Cashback Automático</span>
                    <span className="text-[10px] text-on-surface-variant">Converte pontos em saldo instantâneo</span>
                 </div>
-                <input type="checkbox" checked={localConfig.cashback_automatico || false} onChange={e => setLocalConfig({...localConfig, cashback_automatico: e.target.checked})} className="accent-primary w-5 h-5 cursor-pointer"/>
+                <input type="checkbox" checked={(localConfig! as any).cashback_automatico || false} onChange={e => setLocalConfig({...localConfig!, cashback_automatico: e.target.checked})} className="accent-primary w-5 h-5 cursor-pointer"/>
              </div>
           </div>
        </div>
@@ -363,8 +366,8 @@ function FidelidadeContent({ config, onUpdate, tenantId }: any) {
        <div className="border-t border-outline pt-8 mb-8">
           <h4 className="font-bold mb-4 flex items-center gap-2 text-on-background"><span className="material-symbols-outlined text-primary">cake</span> Cupom de Aniversário Automático</h4>
           <textarea 
-            value={localConfig.mensagem_aniversario || ''}
-            onChange={e => setLocalConfig({...localConfig, mensagem_aniversario: e.target.value})}
+            value={(localConfig! as any).mensagem_aniversario || ''}
+            onChange={e => setLocalConfig({...localConfig!, mensagem_aniversario: e.target.value})}
             className="w-full bg-surface-container-lowest border border-outline rounded-xl p-4 text-sm h-24 italic outline-none focus:border-primary text-on-background placeholder-on-surface-variant"
             placeholder="Mensagem via WhatsApp..."
           />
@@ -382,9 +385,9 @@ function FidelidadeContent({ config, onUpdate, tenantId }: any) {
   )
 }
 
-function CuponsContent({ cupons, onUpdate, tenantId }: any) {
+function CuponsContent({ cupons, onUpdate, tenantId }: { cupons: Cupom[]; onUpdate: () => void; tenantId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingCupom, setEditingCupom] = useState<any>(null)
+  const [editingCupom, setEditingCupom] = useState<Partial<Cupom> | null>(null)
 
   const handleNew = () => {
     setEditingCupom({ codigo: '', tipo: 'percentual', valor: 0, ativo: true })
@@ -422,7 +425,7 @@ function CuponsContent({ cupons, onUpdate, tenantId }: any) {
              <tbody className="divide-y divide-outline/30">
                 {cupons.length === 0 ? (
                   <tr><td colSpan={5} className="p-20 text-on-surface-variant italic">Nenhum cupom cadastrado.</td></tr>
-                ) : cupons.map((c: any) => (
+                ) : cupons.map((c) => (
                    <tr key={c.id} className="hover:bg-primary/5 transition-colors">
                       <td className="p-5 font-black text-primary font-mono tracking-widest text-lg">{c.codigo}</td>
                       <td className="p-5 font-bold text-sm text-on-background">{c.tipo === 'percentual' ? `${c.valor}%` : `R$ ${c.valor.toFixed(2)}`}</td>
@@ -448,7 +451,7 @@ function CuponsContent({ cupons, onUpdate, tenantId }: any) {
   )
 }
 
-function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
+function CupomModal({ cupom, onClose, onSave, tenantId }: { cupom: Partial<Cupom> | null; onClose: () => void; onSave: () => void; tenantId: string }) {
   const [saving, setSaving] = useState(false)
   
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -457,12 +460,12 @@ function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
       codigo: cupom?.codigo || '',
       tipo: cupom?.tipo || 'percentual',
       valor: cupom?.valor || 0,
-      uso_maximo: cupom?.uso_maximo || undefined,
+      uso_maximo: cupom?.usos_maximos || undefined,
       validade_fim: cupom?.validade_fim || ''
     }
   })
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: Record<string, unknown>) => {
     setSaving(true)
     const payload = { ...data, ativo: cupom?.ativo ?? true }
     let result
@@ -478,7 +481,7 @@ function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onClose() }} role="button" tabIndex={0} />
        <div className="bg-[#16181f] rounded-3xl w-full max-w-md overflow-hidden border border-[#252830] shadow-2xl relative animate-scale-in">
           <div className="p-6 bg-[#0c0e15] border-b border-[#252830] flex justify-between items-center">
              <h4 className="font-bold uppercase tracking-widest text-[10px] text-[#e8391a]">{cupom?.id ? 'Editar' : 'Novo'} Cupom de Desconto</h4>
@@ -527,10 +530,31 @@ function CupomModal({ cupom, onClose, onSave, tenantId }: any) {
   )
 }
 
-function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
+function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: { cliente: Cliente; onClose: () => void; onUpdate: () => void; tenantId: string }) {
   const [obs, setObs] = useState(cliente.observacoes || '')
   const [isUpdating, setIsUpdating] = useState(false)
-  
+  const [tipoPreferido, setTipoPreferido] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!cliente.telefone) return
+    const telefoneLimpo = cliente.telefone.replace(/\D/g, '')
+    supabase
+      .from('pedidos')
+      .select('tipo')
+      .eq('tenant_id', tenantId)
+      .eq('cliente_telefone', telefoneLimpo)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const count: Record<string, number> = {}
+          for (const p of data) {
+            count[p.tipo] = (count[p.tipo] || 0) + 1
+          }
+          const top = Object.entries(count).sort((a, b) => b[1] - a[1])[0]
+          setTipoPreferido(top ? top[0] : null)
+        }
+      })
+  }, [cliente.telefone, tenantId])
+
   const saveObs = async () => {
      setIsUpdating(true)
      await supabase.from('clientes').update({ observacoes: obs }).eq('id', cliente.id).eq('tenant_id', tenantId)
@@ -538,9 +562,17 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
      setIsUpdating(false)
   }
 
+  const diasUltimoPedido = cliente.ultimo_pedido ? differenceInDays(new Date(), parseISO(cliente.ultimo_pedido)) : null
+  const diasEntrePedidos = cliente.total_pedidos > 1 && cliente.primeiro_pedido && cliente.ultimo_pedido
+    ? Math.round(differenceInDays(parseISO(cliente.ultimo_pedido), parseISO(cliente.primeiro_pedido)) / (cliente.total_pedidos - 1))
+    : null
+
+  const tipoLabel = tipoPreferido === 'entrega' ? 'Entrega' : tipoPreferido === 'mesa' ? 'Mesa' : tipoPreferido === 'balcao' ? 'Balcão' : null
+  const tipoIcon = tipoPreferido === 'entrega' ? 'delivery_dining' : tipoPreferido === 'mesa' ? 'table_restaurant' : 'storefront'
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onClose() }} role="button" tabIndex={0} />
       <div className="relative w-full max-w-lg bg-[#16181f] h-full shadow-2xl animate-slide-in-right overflow-y-auto no-scrollbar border-l border-[#252830]">
         <div className="p-10">
            <div className="flex items-center justify-between mb-10">
@@ -549,7 +581,7 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
                  <span className="material-symbols-outlined">close</span>
               </button>
            </div>
-           
+
            <div className="flex flex-col items-center mb-10 text-center">
               <div className="w-28 h-28 rounded-[2.5rem] bg-gradient-to-br from-[#e8391a] to-[#ff6b4a] flex items-center justify-center text-5xl font-black text-white shadow-2xl mb-6 ring-8 ring-[#e8391a]/5">
                 {cliente.nome[0]}
@@ -563,6 +595,11 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
                  {cliente.perfil === 'vip' && cliente.ultimo_pedido && (new Date().getTime() - new Date(cliente.ultimo_pedido).getTime()) > 30*24*60*60*1000 && (
                     <span className="px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-red-500 text-white shadow-lg flex items-center gap-1 animate-pulse">
                       <span className="material-symbols-outlined text-[10px]">report</span> Inativo 30d
+                    </span>
+                 )}
+                 {diasUltimoPedido !== null && diasUltimoPedido <= 7 && (
+                    <span className="px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white shadow-lg flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[10px]">bolt</span> Ativo esta semana
                     </span>
                  )}
               </div>
@@ -599,11 +636,42 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
                        <span className="text-white/40 font-medium">Investimento Total:</span>
                        <span className="font-black text-lg text-emerald-400">R$ {cliente.total_gasto?.toFixed(2) || '0.00'}</span>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-sm border-b border-[#252830]/50 pb-3">
                        <span className="text-white/40 font-medium">Ticket Médio:</span>
-                       <span className="font-black text-lg text-white">R$ {cliente.total_pedidos > 0 ? (cliente.total_gasto / cliente.total_pedidos).toFixed(2) : '0,00'}</span>
+                       <span className="font-black text-lg text-white">R$ {cliente.total_pedidos > 0 ? (cliente.total_gasto / cliente.total_pedidos).toFixed(2) : '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm border-b border-[#252830]/50 pb-3">
+                       <span className="text-white/40 font-medium">Último Pedido:</span>
+                       <span className="font-black text-lg text-white">
+                         {cliente.ultimo_pedido ? format(parseISO(cliente.ultimo_pedido), "dd/MM/yy", { locale: ptBR }) : '---'}
+                         {diasUltimoPedido !== null && (
+                           <span className="text-xs font-normal text-white/40 ml-2">
+                             ({diasUltimoPedido === 0 ? 'hoje' : `${diasUltimoPedido}d atrás`})
+                           </span>
+                         )}
+                       </span>
+                    </div>
+                    {diasEntrePedidos !== null && (
+                      <div className="flex justify-between items-center text-sm border-b border-[#252830]/50 pb-3">
+                         <span className="text-white/40 font-medium">Frequência Média:</span>
+                         <span className="font-black text-lg text-white">a cada {diasEntrePedidos} <span className="text-[10px] font-normal text-white/40">dias</span></span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-sm">
+                       <span className="text-white/40 font-medium">Tipo Preferido:</span>
+                       <span className="font-black text-lg text-white flex items-center gap-2">
+                         {tipoLabel ? (
+                           <><span className="material-symbols-outlined text-xl text-[#e8391a]">{tipoIcon}</span>{tipoLabel}</>
+                         ) : (
+                           <span className="text-white/40 font-normal text-sm">---</span>
+                         )}
+                       </span>
                     </div>
                  </div>
+              </div>
+
+              <div className="bg-[#0c0e15] p-8 rounded-[2rem] border border-[#252830]">
+                 <ClienteHistorico clienteNome={cliente.nome} clienteTelefone={cliente.telefone} tenantId={tenantId} />
               </div>
 
               <div className="bg-[#0c0e15] p-8 rounded-[2rem] border border-[#252830]">
@@ -613,7 +681,7 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
                     </div>
                     {isUpdating && <div className="w-3 h-3 border-2 border-[#e8391a] border-t-transparent rounded-full animate-spin" />}
                  </h5>
-                 <textarea 
+                 <textarea
                    value={obs}
                    onChange={e => setObs(e.target.value)}
                    onBlur={saveObs}
@@ -627,21 +695,22 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
                     <span className="material-symbols-outlined text-lg">location_on</span> Endereços Salvos
                  </h5>
                  <div className="space-y-3">
-                    {cliente.enderecos && cliente.enderecos.length > 0 ? cliente.enderecos.map((end: any, i: number) => (
+                     {cliente.enderecos && cliente.enderecos.length > 0 ? cliente.enderecos.map((end, i: number) => (
                        <div key={i} className={`p-4 rounded-2xl text-xs flex gap-3 ${end.principal ? 'bg-[#e8391a]/5 border border-[#e8391a]/20' : 'bg-[#16181f] border border-[#252830]'}`}>
                           <span className={`material-symbols-outlined ${end.principal ? 'text-[#e8391a]' : 'text-white/40'}`}>{end.principal ? 'home' : 'location_on'}</span>
                           <div>
-                             <div className="font-bold text-white">{end.rua}, {end.numero}</div>
-                             <div className="text-[10px] text-white/40">{end.bairro} - {end.cidade}/{end.estado}</div>
+                             <div className="font-bold text-white">{end.rua}</div>
+                             {end.numero && <div className="text-[10px] text-white/40">Nº {end.numero}</div>}
+                             {end.bairro && <div className="text-[10px] text-white/40">{end.bairro}{end.cidade ? ` - ${end.cidade}` : ''}</div>}
                           </div>
                        </div>
-                    )) : <p className="text-xs text-white/40 italic">Nenhum endereço cadastrado.</p>}
+                     )) : <p className="text-xs text-white/40 italic">Nenhum endereço cadastrado.</p>}
                  </div>
               </div>
            </div>
 
            <div className="flex flex-col gap-3">
-              <button 
+              <button
                 onClick={() => window.open(`https://wa.me/55${cliente.telefone.replace(/\D/g, '')}`, '_blank')}
                 className="w-full bg-emerald-500 text-white py-5 rounded-2xl font-black text-xs flex items-center justify-center gap-3 hover:bg-emerald-600 shadow-xl active:scale-[0.98] transition-all"
               >
@@ -662,11 +731,10 @@ function ClienteDrawer({ cliente, onClose, onUpdate, tenantId }: any) {
   )
 }
 
-function ClienteModal({ cliente, onClose, onSave, tenantId }: any) {
+function ClienteModal({ cliente, onClose, onSave, tenantId }: { cliente: Partial<Cliente> | null; onClose: () => void; onSave: () => void; tenantId: string }) {
   const [saving, setSaving] = useState(false)
-  const [cepError, setCepError] = useState('')
   
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(clienteSchema),
     defaultValues: {
       nome: cliente?.nome || '',
@@ -676,7 +744,7 @@ function ClienteModal({ cliente, onClose, onSave, tenantId }: any) {
     }
   })
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: Record<string, unknown>) => {
     setSaving(true)
     let result
     if (cliente?.id) {
@@ -690,25 +758,9 @@ function ClienteModal({ cliente, onClose, onSave, tenantId }: any) {
     setSaving(false)
   }
 
-  const buscarCep = async (cep: string) => {
-    setCepError('')
-    if (cep.length !== 8) return
-    try {
-      const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
-      const data = await resp.json()
-      if (data.erro) {
-        setCepError('CEP não encontrado')
-        return
-      }
-      // Preenche campos via API (opcional)
-    } catch {
-      setCepError('Erro ao buscar CEP')
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-lg animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-lg animate-fade-in" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onClose() }} role="button" tabIndex={0} />
       <div className="relative w-full max-w-2xl bg-[#16181f] rounded-[2.5rem] shadow-2xl overflow-hidden border border-[#252830] animate-scale-in">
         <div className="bg-[#0c0e15] p-10 flex items-center justify-between border-b border-[#252830]">
            <div className="flex items-center gap-4">

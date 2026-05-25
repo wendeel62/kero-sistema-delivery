@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale/pt-BR'
 import type { UnifiedPedido } from '../PedidosPage'
@@ -17,7 +17,7 @@ export const PedidoModal = memo(function PedidoModal({
   onClose,
   onAdvance,
   expanded = false,
-  onToggleExpand
+  onToggleExpand: _onToggleExpand
 }: PedidoModalProps) {
   if (!pedido) return null
 
@@ -34,6 +34,9 @@ export const PedidoModal = memo(function PedidoModal({
       <div
         className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm"
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        role="button"
+        tabIndex={0}
       />
 
       {/* Slide-out Panel */}
@@ -115,7 +118,7 @@ export const PedidoModal = memo(function PedidoModal({
               Pedido
             </h3>
             <div className="bg-surface-dim/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-outline space-y-3">
-              {pedido.itens.map((it: any, i: number) => (
+              {pedido.itens.map((it, i) => (
                 <div
                   key={i}
                   className="flex justify-between items-start gap-3 border-b border-outline/50 pb-3 last:border-0 last:pb-0"
@@ -129,9 +132,9 @@ export const PedidoModal = memo(function PedidoModal({
                         {it.variacao}
                       </p>
                     )}
-                    {it.obs && (
+                    {(it as { obs?: string }).obs && (
                       <p className="text-[11px] text-on-surface-variant/40 mt-1 italic">
-                        Obs: {it.obs}
+                        Obs: {(it as { obs?: string }).obs}
                       </p>
                     )}
                   </div>

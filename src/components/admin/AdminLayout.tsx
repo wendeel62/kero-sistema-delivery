@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
 import { RefreshCcw } from 'lucide-react'
 import AdminSidebar from './AdminSidebar'
 import { supabase } from '../../lib/supabase'
@@ -73,6 +72,14 @@ function AdminHeader({ activeProject }: { activeProject: AdminProject | null }) 
           e.currentTarget.style.borderColor = '#252830'
           e.currentTarget.style.color = '#9ca3af'
         }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = '#374151'
+          e.currentTarget.style.color = '#e2e8f0'
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = '#252830'
+          e.currentTarget.style.color = '#9ca3af'
+        }}
       >
         <RefreshCcw size={12} />
         Atualizar
@@ -106,7 +113,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div style={{ padding: '24px 28px', flex: 1 }}>
           {/* Pass activeProject through cloneElement or Context */}
           {typeof children === 'function'
-            ? (children as any)(activeProject)
+            ? (children as (activeProject: AdminProject | null) => React.ReactNode)(activeProject)
             : children}
         </div>
       </main>

@@ -5,15 +5,17 @@ import { usePdvUI } from './usePdvUI'
 import { usePdvOffline } from './usePdvOffline'
 import { useRealtime } from './useRealtime'
 import { syncCliente } from '../lib/syncCliente'
+import { useTenantId } from './useTenantId'
 import type { Produto } from '../pages/CardapioOnlinePage'
-import type { Mesa, ItemPedido } from './usePdv'
 
 // Re-export types for backward compatibility
 export type { Produto } from '../pages/CardapioOnlinePage'
+
 export interface Categoria {
   id: string
   nome: string
 }
+
 export interface ItemPedido {
   produto: Produto
   quantidade: number
@@ -25,6 +27,7 @@ export interface ItemPedido {
   adicionais?: string
   pontoCarne?: string
 }
+
 export interface Mesa {
   id: string
   numero: number
@@ -34,12 +37,14 @@ export interface Mesa {
   pessoas: number
   aberta_em: string
 }
+
 export interface PrecoTamanho {
   id: string
   produto_id: string
   tamanho: string
   preco: number
 }
+
 export interface Sabor {
   id: string
   nome: string
@@ -50,15 +55,15 @@ export interface Sabor {
 // ============================================
 // HOOK PRINCIPAL (COMBINADOR)
 // ============================================
-
 export function usePdv() {
   const pedidoAtualRef = useRef<HTMLDivElement>(null)
-  
+
   // Hooks especializados
+  const tenantId = useTenantId()
   const state = usePdvState()
-  const api = usePdvApi(state.tenantId)
+  const api = usePdvApi(tenantId)
   const offline = usePdvOffline()
-  
+
   // UI hook dependencies
   const ui = usePdvUI({
     produtos: state.produtos,
@@ -76,11 +81,23 @@ export function usePdv() {
     onSetShowDivisaoConta: state.setShowDivisaoConta
   })
 
+  // Sync API data to state
+  useEffect(() => {
+    state.setProdutos(api.produtos)
+    state.setCategorias(api.categorias)
+    state.setMesas(api.mesas)
+    state.setPrecosTamanho(api.precosTamanho)
+    state.setSabores(api.sabores)
+  }, [
+    api.produtos, api.categorias, api.mesas,
+    api.precosTamanho, api.sabores, state
+  ])
+
   // Realtime updates
   useRealtime({
     configs: [
-      { table: 'produtos', filter: `tenant_id=eq.${state.tenantId}`, callback: api.fetchData },
-      { table: 'mesas', filter: `tenant_id=eq.${state.tenantId}`, callback: api.fetchData }
+      { table: 'produtos', filter: `tenant_id=eq.${tenantId}`, callback: api.fetchData },
+      { table: 'mesas', filter: `tenant_id=eq.${tenantId}`, callback: api.fetchData }
     ]
   })
 
@@ -112,7 +129,7 @@ export function usePdv() {
   // ----- Save Order -----
   const salvarPedido = useCallback(async () => {
     if (state.itens.length === 0) return
-    
+
     if (state.tipo === 'entrega') {
       if (!state.clienteNome || !state.clienteTelefone) {
         alert('Nome e Telefone são obrigatórios para pedidos de entrega!')
@@ -130,13 +147,13 @@ export function usePdv() {
       produto_id: i.produto.id,
       produto_nome: i.produto.nome + (i.tamanho ? ` (${i.tamanho})` : '') + (i.sabor1 ? ` - ${i.sabor1}` : '') + (i.sabor2 ? ` + ${i.sabor2}` : ''),
       quantidade: i.quantidade,
-      preco_unitario: i.produto.preco,
+      preco_unitario: i.produto.preco ?? 0,
       total: Number(i.produto.preco) * i.quantidade,
       observacoes: i.observacoes || null,
     }))
 
     const pedidoData: CreatePedidoData = {
-      tenantId: state.tenantId,
+      tenantId: tenantId!,
       clienteNome: state.clienteNome || null,
       clienteTelefone: state.clienteTelefone || null,
       tipo: state.tipo,
@@ -155,12 +172,11 @@ export function usePdv() {
       const result = await api.salvarPedido(pedidoData)
       if (result.success) {
         if (state.clienteNome || state.clienteTelefone) {
-          await syncCliente(state.clienteNome, state.clienteTelefone, ui.total)
+          await syncCliente(state.clienteNome, state.clienteTelefone, ui.total, tenantId!, state.enderecoEntrega || undefined)
         }
-        
         state.setSalvando(false)
         state.setSucesso(true)
-        
+
         if (state.tipo === 'mesa') {
           const mesaEncontrada = state.mesas.find(m => m.numero === Number(state.mesaNumero))
           if (mesaEncontrada) {
@@ -168,10 +184,10 @@ export function usePdv() {
             state.setMesaDosPedido(mesaEncontrada)
           }
         }
-        
+
         setTimeout(() => {
           state.setSucesso(false)
-          state.setItens([])
+          ;(state as any).setItens([])
           state.setClienteNome('')
           state.setClienteTelefone('')
           state.setMesaNumero('')
@@ -187,7 +203,7 @@ export function usePdv() {
       // Salva offline
       try {
         await offline.savePedidoOffline({
-          tenant_id: state.tenantId,
+          tenant_id: tenantId!,
           cliente_nome: state.clienteNome || null,
           cliente_telefone: state.clienteTelefone || null,
           tipo: state.tipo,
@@ -201,13 +217,12 @@ export function usePdv() {
           endereco_entrega: state.tipo === 'entrega' ? state.enderecoEntrega || null : null,
           itens: itensInsert
         })
-        
         state.setSalvando(false)
         state.setSucesso(true)
-        
+
         setTimeout(() => {
           state.setSucesso(false)
-          state.setItens([])
+          ;(state as any).setItens([])
         }, 10000)
       } catch (error) {
         alert('Erro ao salvar pedido offline')
@@ -220,7 +235,7 @@ export function usePdv() {
     state.clienteNome,
     state.clienteTelefone,
     state.enderecoEntrega,
-    state.tenantId,
+    tenantId,
     state.mesaNumero,
     state.desconto,
     state.formaPagamento,
@@ -236,15 +251,15 @@ export function usePdv() {
   return {
     // Refs
     pedidoAtualRef,
-    
+
     // Data (from API)
     produtos: api.produtos,
     categorias: api.categorias,
     mesas: api.mesas,
     precosTamanho: api.precosTamanho,
     sabores: api.sabores,
-    tenantId: state.tenantId,
-    
+    tenantId: tenantId,
+
     // Cart (from State)
     itens: state.itens,
     cartPulse: state.cartPulse,
@@ -253,7 +268,7 @@ export function usePdv() {
     removeItem: state.removeItem,
     subtotal: ui.subtotal,
     total: ui.total,
-    
+
     // Variacoes Modal (from State)
     produtoSelecionado: state.produtoSelecionado,
     showVariacoesModal: state.showVariacoesModal,
@@ -266,7 +281,7 @@ export function usePdv() {
     setSabor1: state.setSabor1,
     setSabor2: state.setSabor2,
     setShowVariacoesModal: state.setShowVariacoesModal,
-    
+
     // Filters (from State & UI)
     filtro: state.filtro,
     busca: state.busca,
@@ -274,7 +289,7 @@ export function usePdv() {
     setFiltro: state.setFiltro,
     setBusca: state.setBusca,
     getStatusColor: ui.getStatusColor,
-    
+
     // Mesa (from State)
     showOcuparMesa: state.showOcuparMesa,
     mesaSelecionada: state.mesaSelecionada,
@@ -282,6 +297,7 @@ export function usePdv() {
     responsavelMesa: state.responsavelMesa,
     showDivisaoConta: state.showDivisaoConta,
     itensMesa: state.itensMesa,
+    setItensMesa: state.setItensMesa,
     mesaFechar: state.mesaFechar,
     showMesasPanel: state.showMesasPanel,
     mesasComItens: state.mesasComItens,
@@ -299,7 +315,7 @@ export function usePdv() {
     abrirPainelMesas,
     onMesaClick: ui.handleMesaClick,
     onMesaFecharClick: ui.handleMesaFecharClick,
-    
+
     // Order (from State)
     tipo: state.tipo,
     clienteNome: state.clienteNome,
@@ -323,7 +339,7 @@ export function usePdv() {
     setEnderecoEntrega: state.setEnderecoEntrega,
     salvarPedido,
     fetchData: api.fetchData,
-    
+
     // Offline status
     isOnline: offline.isOnline,
     syncStatus: offline.syncStatus

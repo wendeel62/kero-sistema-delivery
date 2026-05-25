@@ -1,4 +1,4 @@
-import type { KPIs, FunnelRealtimeData } from '../../hooks/useDashboardKpis'
+import type { KPIs, FunilRealtimeData } from '../../hooks/useDashboardKpis'
 
 interface FunilVendasProps {
   kpis: KPIs
@@ -18,7 +18,6 @@ export default function FunilVendas({
   onToggleDropdown
 }: FunilVendasProps) {
   const funnelItems = [
-    { label: 'Mensagens WhatsApp', value: funilData?.whatsapp || 0, color: '#25d366' },
     { label: 'Visitas Cardápio', value: funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes, color: '#d32f2f' },
     { label: 'Adicionado Carrinho', value: funilData?.addCarrinho || kpis.funnelData.addCarrinho, color: '#ff9800' },
     { label: 'Checkout Iniciado', value: funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado, color: '#ffb74d' },
@@ -29,7 +28,6 @@ export default function FunilVendas({
 
   const dropdownOptions = [
     { id: 'todas', label: 'Todas', icon: 'tune' },
-    { id: 'whatsapp', label: 'Mensagens WhatsApp', icon: 'chat' },
     { id: 'visualizacoes', label: 'Visitas Cardápio', icon: 'visibility' },
     { id: 'addCarrinho', label: 'Adicionar Carrinho', icon: 'add_shopping_cart' },
     { id: 'checkout', label: 'Inicio Compras', icon: 'shopping_cart' },
@@ -82,10 +80,10 @@ export default function FunilVendas({
         ) : (
           <div className="flex justify-between items-center group">
             <span className="text-sm text-on-surface-variant group-hover:text-on-background transition-smooth">
-              {funilSelecionado === 'whatsapp' ? 'Mensagens WhatsApp' : funilSelecionado === 'visualizacoes' ? 'Visitas Cardápio' : funilSelecionado === 'addCarrinho' ? 'Adicionar Carrinho' : funilSelecionado === 'checkout' ? 'Início Compras' : 'Compras'}
+              {funilSelecionado === 'visualizacoes' ? 'Visitas Cardápio' : funilSelecionado === 'addCarrinho' ? 'Adicionar Carrinho' : funilSelecionado === 'checkout' ? 'Início Compras' : 'Compras'}
             </span>
             <span className="text-2xl font-bold text-primary">
-              {funilSelecionado === 'whatsapp' ? (funilData?.whatsapp || 0) : funilSelecionado === 'visualizacoes' ? (funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes || 0) : funilSelecionado === 'addCarrinho' ? (funilData?.addCarrinho || kpis.funnelData.addCarrinho || 0) : funilSelecionado === 'checkout' ? (funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado || 0) : (funilData?.compras || kpis.funnelData.compras || 0)}
+              {funilSelecionado === 'visualizacoes' ? (funilData?.visualizacoes || kpis.funnelData.visualizacoes || kpis.visualizacoes || 0) : funilSelecionado === 'addCarrinho' ? (funilData?.addCarrinho || kpis.funnelData.addCarrinho || 0) : funilSelecionado === 'checkout' ? (funilData?.checkoutIniciado || kpis.funnelData.checkoutIniciado || 0) : (funilData?.compras || kpis.funnelData.compras || 0)}
             </span>
           </div>
         )}

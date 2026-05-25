@@ -1,6 +1,5 @@
 import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder'
 import type { Configuracoes } from '../types/index'
-import type { UnifiedPedido } from '../types/index'
 
 // ---------------------------------------------------------------------------
 // Types

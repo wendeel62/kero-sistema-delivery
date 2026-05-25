@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || 'http://localhost:5173',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -141,7 +141,6 @@ async function executeAction(
 
     case 'update_store_settings': {
       const data = action.data as Record<string, unknown>
-      // Verify if settings exist
       const { data: existing } = await supabase
         .from('configuracoes')
         .select('id')
@@ -202,6 +201,33 @@ async function executeAction(
   }
 }
 
+async function verifyJwt(req: Request): Promise<{ valid: boolean; userId: string; tenantId: string; error: string }> {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { valid: false, userId: '', tenantId: '', error: 'Missing or invalid authorization header' }
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { valid: false, userId: '', tenantId: '', error: 'Server misconfiguration' }
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  const { data, error } = await supabase.auth.getUser(token)
+
+  if (error || !data.user) {
+    return { valid: false, userId: '', tenantId: '', error: 'Invalid or expired token' }
+  }
+
+  const userId = data.user.id
+  const tenantId = data.user.user_metadata?.tenant_id || userId
+
+  return { valid: true, userId, tenantId, error: '' }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -211,6 +237,14 @@ serve(async (req) => {
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const auth = await verifyJwt(req)
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: auth.error }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -225,7 +259,6 @@ serve(async (req) => {
       })
     }
 
-    // Supabase admin client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -236,17 +269,16 @@ serve(async (req) => {
     }
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Execute pending action if confirmed
+    const effectiveTenantId = storeId || auth.tenantId
+
     let replyText = ''
     let action: { type: string; data: Record<string, unknown> } | null = null
 
-    if (pendingAction?.confirmed && storeId) {
-      replyText = await executeAction(pendingAction, storeId, supabase)
+    if (pendingAction?.confirmed && effectiveTenantId) {
+      replyText = await executeAction(pendingAction, effectiveTenantId, supabase)
     } else {
-      // Build dynamic system prompt
       const systemPrompt = buildSystemPrompt(context)
 
-      // Groq messages
       const groqMessages = [
         { role: 'system', content: systemPrompt },
         ...messages,
@@ -260,7 +292,6 @@ serve(async (req) => {
         })
       }
 
-      // Call Groq API
       const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -294,7 +325,6 @@ serve(async (req) => {
         })
       }
 
-      // Parse structured response or plain text
       try {
         const parsed = JSON.parse(rawContent)
         if (parsed.message && parsed.action) {

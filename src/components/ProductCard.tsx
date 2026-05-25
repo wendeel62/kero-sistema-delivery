@@ -7,7 +7,7 @@ interface ProductCardProps {
   onImageClick?: (url: string) => void
 }
 
-export default function ProductCard({ produto, preco, onAddToCart, onImageClick }: ProductCardProps) {
+export default function ProductCard({ produto, preco, onAddToCart, onImageClick: _onImageClick }: ProductCardProps) {
   return (
     <div 
       className="bg-[#16181f] border border-[#252830] rounded-xl overflow-hidden cursor-pointer flex flex-col h-fit hover:border-[#e8391a]/40 transition-all"

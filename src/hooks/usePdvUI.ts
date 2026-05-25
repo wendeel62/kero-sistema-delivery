@@ -40,7 +40,7 @@ export interface UsePdvUiDeps {
   desconto: number
   onAddItem: (p: Produto, precosTamanho: Record<string, PrecoTamanho[]>) => void
   onLoadMesaItens: (mesa: Mesa) => Promise<void>
-  onSetMesaFechar: (mesa: any) => void
+  onSetMesaFechar: (mesa: Mesa) => void
   onSetShowDivisaoConta: (show: boolean) => void
 }
 
@@ -50,12 +50,12 @@ export interface UsePdvUiDeps {
 
 export function usePdvUI({
   produtos,
-  precosTamanho,
+  precosTamanho: _precosTamanho,
   filtro,
   busca,
   itens,
   desconto,
-  onAddItem,
+  onAddItem: _onAddItem,
   onLoadMesaItens,
   onSetMesaFechar,
   onSetShowDivisaoConta
@@ -70,11 +70,11 @@ export function usePdvUI({
   }, [produtos, filtro, busca])
 
   // ----- Filter Actions -----
-  const handleSetFiltro = useCallback((categoriaId: string | null) => {
+  const handleSetFiltro = useCallback((_categoriaId: string | null) => {
     // Filter logic is handled by the filter state
   }, [])
 
-  const handleSetBusca = useCallback((busca: string) => {
+  const handleSetBusca = useCallback((_busca: string) => {
     // Search logic is handled by the busca state
   }, [])
 

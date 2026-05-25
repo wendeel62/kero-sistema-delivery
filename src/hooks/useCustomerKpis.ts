@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { getTenantIdSafe } from '../lib/getTenantId'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from './useTenantId'
 
 // ============================================
 // TYPES
@@ -34,8 +34,8 @@ export interface FunnelKpiData {
 // ============================================
 
 export function useCustomerKpis() {
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantIdSafe() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+  const { user: _user } = useAuth()
+  const tenantId = useTenantId()
 
   // KPIs de clientes e funnel
   const { data: customerKpis = defaultCustomerKpis, isLoading } = useQuery<CustomerKpis>({

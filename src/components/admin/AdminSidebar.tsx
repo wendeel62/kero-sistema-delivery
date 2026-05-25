@@ -2,7 +2,8 @@ import * as LucideIcons from 'lucide-react'
 import { LogOut } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useNavigate } from 'react-router-dom'
-import { ADMIN_PROJECTS, type AdminProject } from '../../config/adminProjects'
+import { ADMIN_PROJECTS } from '../../config/adminProjects'
+import type { AdminProject } from '../../config/adminProjects'
 
 interface AdminSidebarProps {
   activeProject: AdminProject | null
@@ -11,7 +12,7 @@ interface AdminSidebarProps {
 }
 
 function DynamicIcon({ name, size = 18 }: { name: string; size?: number }) {
-  const Icon = (LucideIcons as Record<string, any>)[name]
+  const Icon = (LucideIcons as any)[name]
   if (!Icon) return null
   return <Icon size={size} />
 }
@@ -78,6 +79,8 @@ export default function AdminSidebar({ activeProject, onSelectProject, adminEmai
             }}
             onMouseOver={(e) => { if (activeProject) { e.currentTarget.style.background = '#12141a'; e.currentTarget.style.color = '#e2e8f0' } }}
             onMouseOut={(e) => { if (activeProject) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280' } }}
+            onFocus={(e) => { if (activeProject) { e.currentTarget.style.background = '#12141a'; e.currentTarget.style.color = '#e2e8f0' } }}
+            onBlur={(e) => { if (activeProject) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280' } }}
           >
             <span style={{ color: !activeProject ? '#e8391a' : 'inherit' }} className="flex items-center">
               <LucideIcons.LayoutDashboard size={16} />
@@ -124,6 +127,8 @@ export default function AdminSidebar({ activeProject, onSelectProject, adminEmai
                 }}
                 onMouseOver={(e) => { if (!isActive && !isComingSoon) { e.currentTarget.style.background = '#12141a'; e.currentTarget.style.color = '#e2e8f0' } }}
                 onMouseOut={(e) => { if (!isActive && !isComingSoon) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280' } }}
+                onFocus={(e) => { if (!isActive && !isComingSoon) { e.currentTarget.style.background = '#12141a'; e.currentTarget.style.color = '#e2e8f0' } }}
+                onBlur={(e) => { if (!isActive && !isComingSoon) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280' } }}
               >
                 <span style={{ color: isActive ? project.color : 'inherit' }} className="flex items-center">
                   <DynamicIcon name={project.icon} size={16} />
@@ -178,6 +183,8 @@ export default function AdminSidebar({ activeProject, onSelectProject, adminEmai
           }}
           onMouseOver={(e) => (e.currentTarget.style.color = '#e2e8f0')}
           onMouseOut={(e) => (e.currentTarget.style.color = '#6b7280')}
+          onFocus={(e) => (e.currentTarget.style.color = '#e2e8f0')}
+          onBlur={(e) => (e.currentTarget.style.color = '#6b7280')}
         >
           <LogOut size={13} />
           Sair

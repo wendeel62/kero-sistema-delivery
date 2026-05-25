@@ -47,7 +47,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ReceitaChart
-          receitaData={h.receitaData}
+          receitaData={h.receitaData ?? undefined}
           receitaDias={h.receitaDias}
           showReceitaDropdown={h.showReceitaDropdown}
           formatCurrency={h.formatCurrency}

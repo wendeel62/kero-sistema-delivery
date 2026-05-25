@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { clienteSchema } from '../../schemas/clienteSchema'
@@ -11,11 +11,10 @@ export interface ClienteFormProps {
   tenantId: string
 }
 
-export function ClienteForm({ cliente, onClose, onSave, tenantId }: ClienteFormProps) {
+export function ClienteForm({ cliente, onClose, onSave, tenantId: _tenantId }: ClienteFormProps) {
   const [saving, setSaving] = useState(false)
-  const [cepError, setCepError] = useState('')
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(clienteSchema),
     defaultValues: {
       nome: cliente?.nome || '',
@@ -25,7 +24,7 @@ export function ClienteForm({ cliente, onClose, onSave, tenantId }: ClienteFormP
     }
   })
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (_data: Record<string, unknown>) => {
     setSaving(true)
     // Implementar save logic
     onSave()
@@ -33,29 +32,9 @@ export function ClienteForm({ cliente, onClose, onSave, tenantId }: ClienteFormP
     setSaving(false)
   }
 
-  const buscarCep = async (cep: string) => {
-    setCepError('')
-    if (cep.length !== 8) return
-    try {
-      const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
-      const data = await resp.json()
-      if (data.erro) {
-        setCepError('CEP não encontrado')
-        return
-      }
-      // Preencher campos via API
-      setValue('endereco', data.logradouro)
-      setValue('bairro', data.bairro)
-      setValue('cidade', data.localidade)
-      setValue('estado', data.uf)
-    } catch {
-      setCepError('Erro ao buscar CEP')
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-lg animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-lg animate-fade-in" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="button" tabIndex={0} />
       <div className="relative w-full max-w-2xl bg-[#16181f] rounded-[2.5rem] shadow-2xl overflow-hidden border border-[#252830] animate-scale-in">
         {/* Header */}
         <div className="bg-[#0c0e15] p-10 flex items-center justify-between border-b border-[#252830]">

@@ -232,7 +232,7 @@ export default function EntregasPage() {
     const channelPedidos = supabase.channel(`rt-pedidos-${tenantId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
     const channelPedidosOnline = supabase.channel(`rt-pedidos-online-${tenantId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}` }, () => { fetchEntregasAtivas(); fetchEntregasConcluidas() }).subscribe()
     return () => { supabase.removeChannel(channelMotoboys); supabase.removeChannel(channelEntregas); supabase.removeChannel(channelPedidos); supabase.removeChannel(channelPedidosOnline) }
-  }, [fetchMotoboys, fetchEntregasAtivas, fetchEntregasConcluidas, fetchHistorico, activeTab])
+  }, [fetchMotoboys, fetchEntregasAtivas, fetchEntregasConcluidas, fetchHistorico, activeTab, tenantId])
 
   const criarMotoboy = async () => {
     if (!novoMotoboy.nome || !novoMotoboy.telefone) return
@@ -287,7 +287,7 @@ export default function EntregasPage() {
         </div>
         <div className="flex bg-[#16181f] rounded-2xl p-1 border border-[#252830] overflow-x-auto">
           {[{ id: 'ativas', label: 'Ativas', icon: 'local_shipping' }, { id: 'motoboys', label: 'Motoboys', icon: 'two_wheeler' }, { id: 'historico', label: 'Histórico', icon: 'history' }].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#e8391a] text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-[#252830]'}`}>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as 'ativas' | 'motoboys' | 'historico')} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#e8391a] text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-[#252830]'}`}>
               <span className="material-symbols-outlined text-base sm:text-lg">{tab.icon}</span><span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
@@ -372,7 +372,7 @@ export default function EntregasPage() {
             <div className="bg-gradient-to-br from-[#f57c24]/20 to-[#f57c24]/5 rounded-2xl p-6 border border-[#f57c24]/30"><div className="flex items-center justify-between mb-4"><span className="material-symbols-outlined text-2xl text-[#f57c24]">timer</span><span className="text-3xl font-bold text-white">{resumoHistorico.tempoMedio} min</span></div><span className="text-xs text-white/50 font-medium uppercase tracking-wider">Tempo Médio</span></div>
           </div>
           <div className="bg-[#16181f] rounded-2xl p-4 border border-[#252830] mb-6 flex flex-col md:flex-row gap-4">
-            <div className="flex gap-2">{[{ id: 'hoje', label: 'Hoje' }, { id: 'semana', label: 'Esta Semana' }, { id: 'mes', label: 'Este Mês' }, { id: 'personalizado', label: 'Personalizado' }].map(btn => <button key={btn.id} onClick={() => setFiltroPeriodo(btn.id as any)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border ${filtroPeriodo === btn.id ? 'bg-[#e8391a]/20 border-[#e8391a]/30 text-[#e8391a]' : 'border-[#252830] text-white/60 hover:bg-[#252830] hover:text-white'}`}>{btn.label}</button>)}</div>
+            <div className="flex gap-2">{[{ id: 'hoje' as const, label: 'Hoje' }, { id: 'semana' as const, label: 'Esta Semana' }, { id: 'mes' as const, label: 'Este Mês' }, { id: 'personalizado' as const, label: 'Personalizado' }].map(btn => <button key={btn.id} onClick={() => setFiltroPeriodo(btn.id)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border ${filtroPeriodo === btn.id ? 'bg-[#e8391a]/20 border-[#e8391a]/30 text-[#e8391a]' : 'border-[#252830] text-white/60 hover:bg-[#252830] hover:text-white'}`}>{btn.label}</button>)}</div>
             <select value={filtroMotoboy} onChange={e => setFiltroMotoboy(e.target.value)} className="bg-[#0c0e15] border border-[#252830] rounded-lg py-2 px-3 text-sm text-white"><option value="todos">Todos os Motoboys</option>{motoboys.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}</select>
             {filtroPeriodo === 'personalizado' && <div className="flex gap-2"><input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="bg-[#0c0e15] border border-[#252830] rounded-lg py-2 px-3 text-sm text-white" /><input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="bg-[#0c0e15] border border-[#252830] rounded-lg py-2 px-3 text-sm text-white" /></div>}
           </div>
@@ -400,7 +400,7 @@ export default function EntregasPage() {
 
       {showNovoMotoboy && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-lg animate-fade-in" onClick={() => setShowNovoMotoboy(false)} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-lg animate-fade-in" onClick={() => setShowNovoMotoboy(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowNovoMotoboy(false) }} role="button" tabIndex={0} />
           <div className="relative w-full max-w-md bg-[#16181f] rounded-3xl shadow-2xl overflow-hidden border border-[#252830] animate-scale-in">
             <div className="bg-[#0c0e15] p-8 flex items-center justify-between border-b border-[#252830]">
               <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-[#e8391a]/10 flex items-center justify-center text-[#e8391a]"><span className="material-symbols-outlined text-3xl font-bold">two_wheeler</span></div><div><h3 className="text-2xl font-bold text-white">Novo Motoboy</h3><p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Cadastro de entregador</p></div></div>

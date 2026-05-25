@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { Produto } from './CatalogoProdutos'
+import type { Produto } from './types'
 
 export interface CartItem {
   produto: Produto

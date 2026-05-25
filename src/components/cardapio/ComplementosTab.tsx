@@ -26,7 +26,7 @@ export default function ComplementosTab({
   selectedProdutoComplementos,
   newTamanho,
   newPrecoValor,
-  tenantId,
+  tenantId: _tenantId,
   onToggleSaborDisponivel,
   onEditSabor,
   onDeleteSabor,
@@ -96,6 +96,9 @@ export default function ComplementosTab({
           <div
             key={p.id}
             onClick={() => onSelectProduto(p)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectProduto(p) } }}
+            role="button"
+            tabIndex={0}
             className={`p-4 rounded-xl border cursor-pointer transition-all ${
               selectedProdutoComplementos?.id === p.id
                 ? 'bg-[#e8391a]/20 border-[#e8391a]'

@@ -252,10 +252,6 @@ export default function CardapioOnlinePage() {
     setSabor2('')
   }
 
-  const removeFromCart = (id: string, tamanho?: string, tipoPizza?: string, sabor1?: string, sabor2?: string) => {
-    setCart(prev => prev.map(item => item.produto.id === id && item.tamanho === tamanho && item.tipoPizza === tipoPizza && item.sabor1 === sabor1 && item.sabor2 === sabor2 ? { ...item, quantidade: item.quantidade - 1 } : item).filter(item => item.quantidade > 0))
-  }
-
   const subtotal = cart.reduce((sum, item) => sum + (item.precoUnitario || 0) * item.quantidade, 0)
   const taxaEntrega = config.taxa_entrega
   const total = subtotal + taxaEntrega
@@ -292,9 +288,9 @@ export default function CardapioOnlinePage() {
       tamanho: item.tamanho,
     }))
 
-    const { data: pedidoIdResult, error: insertError } = await supabase.rpc('submit_public_order', {
+    const { data: pedidoIdResult, error: _insertError } = await supabase.rpc('submit_public_order', {
+      p_slug: slug,
       p_order_data: {
-        tenant_id: tenantId,
         cliente_nome: nome,
         cliente_telefone: telefone,
         cep, endereco, numero_endereco: numero, complemento, bairro, cidade, estado,
@@ -307,7 +303,7 @@ export default function CardapioOnlinePage() {
 
     // console.log('Pedido criado:', pedidoIdResult, 'Erro:', insertError)
 
-    await syncCliente(nome, telefone, total)
+    await syncCliente(nome, telefone, total, tenantId!)
 
     if (pedidoIdResult) {
       // console.log('Setting pedidoId:', pedidoIdResult)
@@ -701,8 +697,8 @@ export default function CardapioOnlinePage() {
 
       {/* Modal Seleção Tamanho e Sabores */}
       {showTamanhoModal && produtoSelecionado && precosTamanho[produtoSelecionado.id] && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setShowTamanhoModal(false)}>
-          <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-8 w-full max-w-md border border-[#252830] shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={() => setShowTamanhoModal(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowTamanhoModal(false) }} role="button" tabIndex={0}>
+          <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-8 w-full max-w-md border border-[#252830] shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()} role="presentation">
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="font-sans text-2xl font-bold text-white">{produtoSelecionado.nome}</h3>
@@ -717,7 +713,7 @@ export default function CardapioOnlinePage() {
             </div>
             
             <div className="space-y-3 mb-8">
-              <label className="text-[10px] font-medium text-[#e8391a] ml-1">Selecione o tamanho</label>
+              <label htmlFor="tamanho-select" className="text-[10px] font-medium text-[#e8391a] ml-1">Selecione o tamanho</label>
               <div className="grid grid-cols-1 gap-2">
                 {precosTamanho[produtoSelecionado.id].map((pt) => (
                   <button
@@ -761,8 +757,9 @@ export default function CardapioOnlinePage() {
             {tipoPizza === 'meio-a-meio' && (
               <div className="space-y-4 mb-8 bg-[#16181f] p-4 rounded-2xl border border-[#252830]">
                 <div>
-                  <label className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">1º Sabor</label>
+                  <label htmlFor="sabor1-select" className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">1º Sabor</label>
                   <select 
+                    id="sabor1-select" 
                     value={sabor1} 
                     onChange={(e) => setSabor1(e.target.value)}
                     className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-medium appearance-none cursor-pointer"
@@ -774,8 +771,9 @@ export default function CardapioOnlinePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">2º Sabor</label>
+                  <label htmlFor="sabor2-select" className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">2º Sabor</label>
                   <select 
+                    id="sabor2-select" 
                     value={sabor2} 
                     onChange={(e) => setSabor2(e.target.value)}
                     className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-medium appearance-none cursor-pointer"
@@ -791,8 +789,9 @@ export default function CardapioOnlinePage() {
 
             {tipoPizza === 'inteiro' && sabores.length > 0 && (
               <div className="mb-8">
-                <label className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">Observação de Sabor</label>
+                <label htmlFor="sabor-obs" className="text-[10px] font-medium text-gray-500 mb-2 block ml-1">Observação de Sabor</label>
                 <select 
+                  id="sabor-obs" 
                   value={sabor1} 
                   onChange={(e) => setSabor1(e.target.value)}
                   className="w-full bg-[#252830] border-none focus:ring-2 focus:ring-[#e8391a] rounded-xl py-3 px-4 text-sm text-white font-medium appearance-none cursor-pointer"
@@ -839,6 +838,9 @@ export default function CardapioOnlinePage() {
         <div 
           className="fixed inset-0 z-[200] bg-black animate-in fade-in zoom-in duration-300 flex flex-col items-center justify-center overflow-hidden"
           onClick={() => setSelectedImageUrl(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setSelectedImageUrl(null) }}
+          role="button"
+          tabIndex={0}
         >
           {/* Header com botão fechar */}
           <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent z-10 pointer-events-none">

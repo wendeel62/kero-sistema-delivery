@@ -18,7 +18,6 @@
 | /motoboy | MotoboyApp | ✅ |
 | /pedido/:numero | PedidoStatusPage | ✅ |
 | /cozinha | CozinhaPage | ✅ |
-| /mfa-verify | MfaPage | ✅ |
 | /admin/login | AdminLogin | ✅ |
 | /admin | AdminDashboard | ✅ |
 | / | DashboardPage | ✅ |
@@ -34,7 +33,6 @@
 | /operacoes | OperacoesPage | ✅ |
 | /agente-ia | AgenteIaPage | ✅ |
 | /configuracoes | ConfiguracoesPage | ✅ |
-| /mfa-setup | MfaSetupPage | ✅ |
 
 ### 1.2 Divergências
 **Nenhuma** - Todos os componentes existem.

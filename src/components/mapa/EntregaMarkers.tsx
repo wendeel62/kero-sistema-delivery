@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import type { MotoboyPosicao, EntregaAtiva } from '../../types'
@@ -112,7 +112,7 @@ const MotoboyMarker = ({
  */
 export const EntregaMarkers: React.FC<EntregaMarkersProps> = ({
   motoboys,
-  entregasAtivas,
+  entregasAtivas: _entregasAtivas,
   getEntregaForMotoboy,
   filtros
 }) => {

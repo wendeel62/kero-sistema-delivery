@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { queryClient, queryKeys, STALE_TIMES } from '../lib/queryClient'
+import { queryKeys, STALE_TIMES } from '../lib/queryClient'
 import { supabase } from '../lib/supabase'
 
 // ============================================

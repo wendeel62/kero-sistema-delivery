@@ -3,12 +3,12 @@ import type { Mesa } from '../../hooks/usePdv'
 interface MesasPanelProps {
   showMesasPanel: boolean
   mesas: Mesa[]
-  mesasComItens: Record<string, any[]>
+  mesasComItens: Record<string, Array<Record<string, unknown>>>
   mesaExpandida: string | null
   getTempoOcupada: (abertaEm: string) => string
   onClose: () => void
   onExpandMesa: (id: string | null) => void
-  onFecharMesa: (mesa: Mesa, itens: any[]) => void
+  onFecharMesa: (mesa: Mesa, itens: Array<Record<string, unknown>>) => void
 }
 
 export default function MesasPanel({
@@ -26,8 +26,8 @@ export default function MesasPanel({
   const mesasOcupadas = mesas.filter(m => m.status === 'ocupada' || m.status === 'aguardando_pagamento')
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
-      <div className="bg-[#1a1a1a] rounded-2xl w-full max-w-lg border border-[#252830] shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="button" tabIndex={0}>
+      <div className="bg-[#1a1a1a] rounded-2xl w-full max-w-lg border border-[#252830] shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()} role="presentation">
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-[#252830] flex justify-between items-center">
           <div>
@@ -49,7 +49,7 @@ export default function MesasPanel({
           ) : (
             mesasOcupadas.map(mesa => {
               const itensDestaMesa = mesasComItens[mesa.id] || []
-              const totalMesa = itensDestaMesa.reduce((sum, item) => sum + (item.total || 0), 0)
+              const totalMesa = itensDestaMesa.reduce((sum, item) => sum + ((item.total as number) || 0), 0)
               const expandida = mesaExpandida === mesa.id
 
               return (
@@ -81,7 +81,7 @@ export default function MesasPanel({
                         ) : (
                           itensDestaMesa.map((item, i) => (
                             <div key={i} className="flex justify-between items-center text-xs">
-                              <span className="text-gray-300">{item.quantidade}x {item.produto_nome}</span>
+                              <span className="text-gray-300">{(item.quantidade as number)}x {(item.produto_nome as string)}</span>
                               <span className="text-gray-400 font-bold">{Number(item.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                             </div>
                           ))

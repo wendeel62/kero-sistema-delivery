@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { getTenantIdSafe } from '../lib/getTenantId'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from './useTenantId'
 
 // ============================================
 // TYPES
@@ -28,8 +28,8 @@ export interface FinancialConfig {
 // ============================================
 
 export function useFinancialKpis() {
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantIdSafe() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+  const { user: _user } = useAuth()
+  const tenantId = useTenantId()
   const [receitaDias, setReceitaDias] = useState<number>(7)
 
   const queryClient = useQueryClient()

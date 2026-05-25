@@ -1,6 +1,7 @@
-import { useState, useCallback, useReducer } from 'react'
+import { useState, useCallback } from 'react'
 import type { Produto } from '../pages/CardapioOnlinePage'
 import type { Categoria, Mesa, PrecoTamanho, Sabor, ItemPedido } from './usePdv'
+import type { ItemPedidoRow } from './usePdvApi'
 
 // ============================================
 // TYPES
@@ -36,10 +37,10 @@ export interface PdvState {
   pessoasMesa: number
   responsavelMesa: string
   showDivisaoConta: boolean
-  itensMesa: any[]
-  mesaFechar: any
+  itensMesa: ItemPedidoRow[]
+  mesaFechar: { id: string; numero: number; status: string; responsavel: string; pessoas: number; aberta_em: string } | null
   showMesasPanel: boolean
-  mesasComItens: Record<string, any[]>
+  mesasComItens: Record<string, ItemPedidoRow[]>
   mesaExpandida: string | null
 
   // Order
@@ -81,10 +82,10 @@ export interface PdvActions {
   setPessoasMesa: (pessoas: number) => void
   setResponsavelMesa: (responsavel: string) => void
   setShowDivisaoConta: (show: boolean) => void
-  setMesaFechar: (mesa: any) => void
+  setMesaFechar: (mesa: { id: string; numero: number; status: string; responsavel: string; pessoas: number; aberta_em: string } | null) => void
   setShowMesasPanel: (show: boolean) => void
   setMesaExpandida: (mesaId: string | null) => void
-  setItensMesa: (itens: any[]) => void
+  setItensMesa: (itens: ItemPedidoRow[]) => void
 
   // Order actions
   setTipo: (tipo: 'balcao' | 'entrega' | 'mesa') => void
@@ -141,10 +142,10 @@ export function usePdvState() {
   const [pessoasMesa, setPessoasMesa] = useState(1)
   const [responsavelMesa, setResponsavelMesa] = useState('')
   const [showDivisaoConta, setShowDivisaoConta] = useState(false)
-  const [itensMesa, setItensMesa] = useState<any[]>([])
-  const [mesaFechar, setMesaFechar] = useState<any>(null)
+  const [itensMesa, setItensMesa] = useState<ItemPedidoRow[]>([])
+  const [mesaFechar, setMesaFechar] = useState<{ id: string; numero: number; status: string; responsavel: string; pessoas: number; aberta_em: string } | null>(null)
   const [showMesasPanel, setShowMesasPanel] = useState(false)
-  const [mesasComItens, setMesasComItens] = useState<Record<string, any[]>>({})
+  const [mesasComItens, setMesasComItens] = useState<Record<string, ItemPedidoRow[]>>({})
   const [mesaExpandida, setMesaExpandida] = useState<string | null>(null)
 
   // ----- State: Order -----
@@ -162,20 +163,6 @@ export function usePdvState() {
   const [mesaDosPedido, setMesaDosPedido] = useState<Mesa | null>(null)
 
   // ----- Cart Actions -----
-  const addItem = useCallback((p: Produto, precosTamanho: Record<string, PrecoTamanho[]>) => {
-    const variants = precosTamanho[p.id]
-    if ((variants && variants.length > 0) || !p.preco || Number(p.preco) === 0) {
-      setProdutoSelecionado(p)
-      setTamanhoSelecionado(variants?.[0]?.tamanho || '')
-      setTipoPizza('inteiro')
-      setSabor1('')
-      setSabor2('')
-      setShowVariacoesModalState(true)
-      return
-    }
-    addToCart(p, Number(p.preco))
-  }, [])
-
   const addToCart = useCallback((p: Produto, preco: number, tamanho?: string, s1?: string, s2?: string, tipo?: 'inteiro' | 'meio-a-meio') => {
     setItens(prev => {
       const existing = prev.find(i => i.produto.id === p.id && i.tamanho === tamanho && i.sabor1 === s1 && i.sabor2 === s2)
@@ -189,6 +176,21 @@ export function usePdvState() {
     setShowVariacoesModalState(false)
     setProdutoSelecionado(null)
   }, [])
+
+  const addItem = useCallback((p: Produto, precosTamanho: Record<string, PrecoTamanho[]>) => {
+    if (p.disponivel === false) return
+    const variants = precosTamanho[p.id]
+    if ((variants && variants.length > 0) || !p.preco || Number(p.preco) === 0) {
+      setProdutoSelecionado(p)
+      setTamanhoSelecionado(variants?.[0]?.tamanho || '')
+      setTipoPizza('inteiro')
+      setSabor1('')
+      setSabor2('')
+      setShowVariacoesModalState(true)
+      return
+    }
+    addToCart(p, Number(p.preco))
+  }, [addToCart])
 
   const removeItem = useCallback((id: string) => {
     setItens(prev => prev.map(i => i.produto.id === id ? { ...i, quantidade: i.quantidade - 1 } : i).filter(i => i.quantidade > 0))

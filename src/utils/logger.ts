@@ -111,13 +111,13 @@ class LoggerClass {
     const reset = '\x1b[0m'
     const color = colors ? colorMap[level] : ''
 
-    const logFn = console[level] || console.log
+    const logFn = (console as unknown as Record<string, unknown>)[level === 'debug' ? 'log' : level] || console.warn
     const contextStr = context ? '\n' + JSON.stringify(context, null, 2) : ''
 
     if (colors) {
-      logFn(`${color}${prefixStr}${reset} [${timeStr}] ${color}${levelStr}${reset} - ${message}${contextStr}`)
+      (logFn as (...args: unknown[]) => void)(`${color}${prefixStr}${reset} [${timeStr}] ${color}${levelStr}${reset} - ${message}${contextStr}`)
     } else {
-      logFn(`${prefixStr} [${timeStr}] ${levelStr} - ${message}${contextStr}`)
+      (logFn as (...args: unknown[]) => void)(`${prefixStr} [${timeStr}] ${levelStr} - ${message}${contextStr}`)
     }
   }
 

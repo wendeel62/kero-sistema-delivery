@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from '../hooks/useTenantId'
 import { useThermalPrinter } from '../hooks/useThermalPrinter'
 import { ConfigInputField } from '../components/ConfigInputField'
 import { ConfigToggle } from '../components/ConfigToggle'
@@ -55,10 +56,11 @@ interface Config {
 
 export default function ConfiguracoesPage() {
   const { user } = useAuth()
-  const navigate = useNavigate()
+  const tenantId = useTenantId()
   const { status, isSupported, connect, disconnect, print } = useThermalPrinter()
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -71,7 +73,7 @@ export default function ConfiguracoesPage() {
   const fetchConfig = useCallback(async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase.from('configuracoes').select('*').limit(1).single()
+      const { data, error } = await supabase.from('configuracoes').select('*').eq('tenant_id', tenantId).single()
       
       if (error) {
         if (error.code === 'PGRST116') {
@@ -89,14 +91,14 @@ export default function ConfiguracoesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     fetchConfig()
-  }, [])
+  }, [fetchConfig])
   useRealtime({
     configs: [
-      { table: 'configuracoes', filter: `tenant_id=eq.${user?.id}`, callback: fetchConfig }
+      { table: 'configuracoes', filter: `tenant_id=eq.${tenantId}`, callback: fetchConfig }
     ]
   })
 
@@ -130,7 +132,10 @@ export default function ConfiguracoesPage() {
       .select()
       .single()
 
-    if (data) setConfig(data)
+    if (data) {
+      setConfig(data)
+      queryClient.invalidateQueries({ queryKey: ['configuracoes-loja', tenantId] })
+    }
     if (error) showToast('Erro ao salvar: ' + error.message)
     setSaving(false)
     setSaved(true)
@@ -194,10 +199,10 @@ export default function ConfiguracoesPage() {
           <ConfigInputField label="Logo URL (Icone)" value={config.logo_url || ''} onChange={v => update('logo_url', v)} placeholder="https://exemplo.com/logo.png" />
           
           <div className="md:col-span-2 mt-4 p-4 bg-[#16181f] rounded-xl border border-dashed border-[#e8391a]/30">
-            <label className="text-xs font-bold text-[#e8391a] uppercase tracking-widest block mb-2">Link do seu Cardápio Online</label>
+            <label htmlFor="cardapio-link" className="text-xs font-bold text-[#e8391a] uppercase tracking-widest block mb-2">Link do seu Cardápio Online</label>
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-gray-400 text-sm">link</span>
-              <code className="text-emerald-400 text-sm font-mono break-all">
+              <code id="cardapio-link" className="text-emerald-400 text-sm font-mono break-all">
                 {window.location.origin}/cardapio/{config.slug || (config.nome_loja ? slugify(config.nome_loja) : 'carregando...')}
               </code>
               <button 
@@ -214,25 +219,6 @@ export default function ConfiguracoesPage() {
             </div>
             <p className="text-[10px] text-gray-500 mt-2 font-medium italic">* O link atualiza automaticamente ao mudar o nome da loja.</p>
           </div>
-        </div>
-      </div>
-
-      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
-        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
-          <span className="material-symbols-outlined text-[#e8391a]">security</span> Segurança
-        </h3>
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-primary/5 rounded-2xl border border-primary/20">
-          <div className="space-y-1">
-            <h4 className="font-bold text-white">Autenticação em Duas Etapas (MFA)</h4>
-            <p className="text-xs text-on-surface-variant max-w-md">Proteja sua conta com uma camada extra de segurança. Exigiremos um código do seu celular ao entrar.</p>
-          </div>
-          <button 
-            onClick={() => navigate('/mfa-setup')}
-            className="w-full sm:w-auto px-6 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm">enhanced_encryption</span>
-            Configurar MFA
-          </button>
         </div>
       </div>
 

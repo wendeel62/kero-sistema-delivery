@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import type { RelatorioFinanceiro } from './types'
+import PaymentDistributionChart from '../../components/Financeiro/PaymentDistributionChart'
 
 export interface RelatoriosFinanceirosProps {
   relatorio: RelatorioFinanceiro | null
@@ -10,7 +11,7 @@ export interface RelatoriosFinanceirosProps {
 export const RelatoriosFinanceiros = memo(function RelatoriosFinanceiros({
   relatorio,
   loading,
-  onPeriodChange
+  onPeriodChange: _onPeriodChange
 }: RelatoriosFinanceirosProps) {
   if (loading) {
     return (
@@ -90,10 +91,7 @@ export const RelatoriosFinanceiros = memo(function RelatoriosFinanceiros({
           <span className="material-symbols-outlined text-5xl opacity-10 mb-4 text-primary">analytics</span>
           <p className="text-on-surface-variant italic text-sm">Gráfico de Faturamento Diário</p>
         </div>
-        <div className="bg-surface-container rounded-[2.5rem] p-8 border border-outline min-h-[300px] flex flex-col items-center justify-center text-center shadow-lg">
-          <span className="material-symbols-outlined text-5xl opacity-10 mb-4 text-[#ff9800]">pie_chart</span>
-          <p className="text-on-surface-variant italic text-sm">Distribuição por Forma de Pagamento</p>
-        </div>
+        <PaymentDistributionChart data={relatorio.receitas.por_forma_pagamento} />
       </div>
 
       {/* Previsões */}

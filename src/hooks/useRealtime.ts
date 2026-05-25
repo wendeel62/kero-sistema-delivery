@@ -1,12 +1,14 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { RealtimePostgresChangesPayload, RealtimeChannel } from '@supabase/supabase-js'
 
-export type Table = 
-  | 'pedidos' | 'pedidos_online' | 'produtos' | 'configuracoes' | 'clientes' 
-  | 'cupons' | 'ingredientes' | 'fornecedores' | 'entradas_estoque' 
-  | 'ficha_tecnica' | 'caixa' | 'sangrias_caixa' | 'contas_pagar' 
-  | 'mesas' | 'motoboys' | 'entradas'
+export type Table =
+  | 'pedidos' | 'pedidos_online' | 'produtos' | 'configuracoes' | 'clientes'
+  | 'cupons' | 'ingredientes' | 'fornecedores' | 'entradas_estoque'
+  | 'ficha_tecnica' | 'caixa' | 'sangrias_caixa' | 'contas_pagar'
+  | 'mesas' | 'motoboys' | 'entradas' | 'notificacoes'
+  | 'user_roles' | 'user_profiles' | 'audit_logs'
+  | 'metas_faturamento' | 'historico_agente'
 
 export interface UseRealtimeConfig {
   table: Table
@@ -48,40 +50,33 @@ export function useRealtime(options: UseRealtimeOptions) {
 
     mountedRef.current = true
 
-    // Build filter string from all configs
-    const filterClauses = configs
-      .filter(c => c.filter)
-      .map(c => c.filter!)
-      .join(',')
-
-    const channelName = `realtime-${configs.map(c => c.table).join('-')}-${Date.now()}`
+    // Stable channel name based on tables (no Date.now() to prevent leak)
+    const channelName = `realtime-${configs.map(c => c.table).sort().join('-')}`
 
     let channel = supabase.channel(channelName)
 
     // Subscribe to each table
     configs.forEach(config => {
-      const filter = config.filter 
-        ? { event: '*', schema: 'public', table: config.table, filter: config.filter }
-        : { event: '*', schema: 'public', table: config.table }
+      const filterObj = config.filter
+        ? { event: '*' as const, schema: 'public', table: config.table, filter: config.filter }
+        : { event: '*' as const, schema: 'public', table: config.table }
 
-// Type assertion para contornar overload do Supabase client
-channel = channel.on(
-'postgres_changes' as any,
-filter,
-(payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-if (!mountedRef.current) return
-const callback = callbacksRef.current.get(config.table)
-if (callback) {
-callback(payload)
-}
-}
-)
+      channel = channel.on(
+        'postgres_changes',
+        filterObj,
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          if (!mountedRef.current) return
+          const callback = callbacksRef.current.get(config.table)
+          if (callback) {
+            callback(payload)
+          }
+        }
+      )
     })
 
     // Subscribe with error handling
     channel.subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        // Auto-retry after 3 seconds
         setTimeout(() => {
           if (mountedRef.current && enabled) {
             channel.subscribe()
@@ -97,7 +92,7 @@ callback(payload)
       mountedRef.current = false
       cleanup()
     }
-  }, [configs, enabled, cleanup])
+  }, [enabled, cleanup, configs])
 
   return { cleanup }
 }

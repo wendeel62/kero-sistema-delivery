@@ -20,7 +20,7 @@ export default function PicosChart({ pedidosPorHora, totalPedidos }: PicosChartP
       <ResponsiveContainer width="100%" height={120}>
         <AreaChart data={pedidosPorHora.map((count, hour) => ({ hora: `${hour}h`, pedidos: count }))}>
           <XAxis dataKey="hora" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(value: any) => [`${value} pedidos`, 'Qtd']} contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#9ca3af' }} />
+          <Tooltip formatter={(value: any, _name: any) => [`${value} pedidos`, 'Qtd']} contentStyle={{ backgroundColor: '#16181f', border: '1px solid #252830', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#9ca3af' }} />
           <Area type="monotone" dataKey="pedidos" fill="#f57c24" fillOpacity={0.2} stroke="#f57c24" />
         </AreaChart>
       </ResponsiveContainer>

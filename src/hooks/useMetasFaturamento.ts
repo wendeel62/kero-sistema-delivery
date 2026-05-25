@@ -62,22 +62,25 @@ export function useMetasFaturamento(tenantId: string, enabled = true) {
       const mesStart = padDateTime(startOfMonth(now))
       const mesEnd = padDateTime(endOfMonth(now))
 
-      const [{ data: configData }, { data: diaPedidos }, { data: semanaPedidos }, { data: mesPedidos }] = await Promise.all([
+      const [{ data: configData }, { data: diaPedidos }, { data: diaPedidosOnline }, { data: semanaPedidos }, { data: semanaPedidosOnline }, { data: mesPedidos }, { data: mesPedidosOnline }] = await Promise.all([
         supabase.from('configuracoes').select('id, metas_faturamento').eq('tenant_id', tenantId).limit(1).single(),
-        supabase.from('pedidos').select('total').eq('tenant_id', tenantId).eq('status', 'entregue').gte('created_at', diaStart).lte('created_at', diaEnd),
-        supabase.from('pedidos').select('total').eq('tenant_id', tenantId).eq('status', 'entregue').gte('created_at', semanaStart).lte('created_at', semanaEnd),
-        supabase.from('pedidos').select('total').eq('tenant_id', tenantId).eq('status', 'entregue').gte('created_at', mesStart).lte('created_at', mesEnd),
+        supabase.from('pedidos').select('total').eq('tenant_id', tenantId).neq('status', 'cancelado').gte('created_at', diaStart).lte('created_at', diaEnd),
+        supabase.from('pedidos_online').select('total').eq('tenant_id', tenantId).neq('status', 'cancelado').gte('created_at', diaStart).lte('created_at', diaEnd),
+        supabase.from('pedidos').select('total').eq('tenant_id', tenantId).neq('status', 'cancelado').gte('created_at', semanaStart).lte('created_at', semanaEnd),
+        supabase.from('pedidos_online').select('total').eq('tenant_id', tenantId).neq('status', 'cancelado').gte('created_at', semanaStart).lte('created_at', semanaEnd),
+        supabase.from('pedidos').select('total').eq('tenant_id', tenantId).neq('status', 'cancelado').gte('created_at', mesStart).lte('created_at', mesEnd),
+        supabase.from('pedidos_online').select('total').eq('tenant_id', tenantId).neq('status', 'cancelado').gte('created_at', mesStart).lte('created_at', mesEnd),
       ])
 
       const metas = (configData?.metas_faturamento || {}) as MetasFaturamentoRaw
-      const configId = configData?.id
-      const total = (items: any[] | null) => (items || []).reduce((acc, item) => acc + Number(item.total || 0), 0)
+      const _configId = configData?.id
+      const total = (items: Array<{ total: number | string }> | null) => (items || []).reduce((acc, item) => acc + Number(item.total || 0), 0)
 
       return {
-        configId,
-        dia: buildPeriodo(metas.dia ?? null, total(diaPedidos)),
-        semana: buildPeriodo(metas.semana ?? null, total(semanaPedidos)),
-        mes: buildPeriodo(metas.mes ?? null, total(mesPedidos)),
+        configId: _configId,
+        dia: buildPeriodo(metas.dia ?? null, total(diaPedidos) + total(diaPedidosOnline)),
+        semana: buildPeriodo(metas.semana ?? null, total(semanaPedidos) + total(semanaPedidosOnline)),
+        mes: buildPeriodo(metas.mes ?? null, total(mesPedidos) + total(mesPedidosOnline)),
       }
     },
     enabled: !!tenantId && enabled,
@@ -118,9 +121,9 @@ export function useMetasFaturamento(tenantId: string, enabled = true) {
   // Extrair apenas os dados de metas (sem o configId)
   const data = useMemo(() => {
     if (!query.data) return undefined
-    const { configId, ...metasData } = query.data
-    return metasData as any
-  }, [query.data])
+    const { configId: _configId, ...metasData } = query.data
+    return metasData as Omit<typeof query.data, 'configId'>
+  }, [query])
 
   return {
     data,

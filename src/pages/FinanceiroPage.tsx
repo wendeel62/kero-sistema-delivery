@@ -4,7 +4,10 @@ import { useRealtime } from '../hooks/useRealtime'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import { useMetaPeriodo } from '../contexts/MetaPeriodoContext'
-import { useMetasFaturamento, type MetaFaturamentoPeriodo, type MetaPeriodo } from '../hooks/useMetasFaturamento'
+import { useMetasFaturamento, type MetaPeriodo } from '../hooks/useMetasFaturamento'
+import { useFinancialKpis } from '../hooks/useFinancialKpis'
+import ReceitaChart from '../components/Dashboard/ReceitaChart'
+import PaymentDistributionChart from '../components/Financeiro/PaymentDistributionChart'
 
 const periodos: Array<{ key: MetaPeriodo; label: string }> = [
   { key: 'dia', label: 'Hoje' },
@@ -85,15 +88,18 @@ export default function FinanceiroPage() {
   const [editingMeta, setEditingMeta] = useState(false)
   const [metaInput, setMetaInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
+  const [pagamentoPorForma, setPagamentoPorForma] = useState<Record<string, number>>({})
   const { periodo, setPeriodo } = useMetaPeriodo()
   const { data: metasData, saveMeta } = useMetasFaturamento(user?.id ?? '', true)
+  const financialKpis = useFinancialKpis()
 
   const fetchData = useCallback(async () => {
     const { data: pedidos } = await supabase
       .from('pedidos')
       .select('total')
       .eq('tenant_id', tenantId)
-      .eq('status', 'entregue')
+      .neq('status', 'cancelado')
       .gte('created_at', dateRange.start)
       .lte('created_at', dateRange.end + ' 23:59:59')
     
@@ -101,7 +107,7 @@ export default function FinanceiroPage() {
       .from('pedidos_online')
       .select('total')
       .eq('tenant_id', tenantId)
-      .eq('status', 'entregue')
+      .neq('status', 'cancelado')
       .gte('created_at', dateRange.start)
       .lte('created_at', dateRange.end + ' 23:59:59')
 
@@ -109,12 +115,36 @@ export default function FinanceiroPage() {
     const totalOn = (pedidosOnline || []).reduce((acc, p) => acc + Number(p.total), 0)
     setFaturamentoTotal(totalPed + totalOn)
 
+    const { data: pedidosForma } = await supabase
+      .from('pedidos')
+      .select('total, forma_pagamento')
+      .eq('tenant_id', tenantId)
+      .neq('status', 'cancelado')
+      .gte('created_at', dateRange.start)
+      .lte('created_at', dateRange.end + ' 23:59:59')
+
+    const { data: pedidosOnlineForma } = await supabase
+      .from('pedidos_online')
+      .select('total, forma_pagamento')
+      .eq('tenant_id', tenantId)
+      .neq('status', 'cancelado')
+      .gte('created_at', dateRange.start)
+      .lte('created_at', dateRange.end + ' 23:59:59')
+
+    const agregado: Record<string, number> = {}
+    const allForma = [...(pedidosForma || []), ...(pedidosOnlineForma || [])]
+    allForma.forEach((p) => {
+      const forma = p.forma_pagamento || 'outros'
+      agregado[forma] = (agregado[forma] || 0) + Number(p.total || 0)
+    })
+    setPagamentoPorForma(agregado)
+
     const { data: ct } = await supabase.from('contas_pagar').select('*').eq('tenant_id', tenantId).order('data_vencimento')
     setContas(ct || [])
 
     const { data: cx } = await supabase.from('caixa').select('*').eq('tenant_id', tenantId).eq('status', 'aberto').maybeSingle()
     setCaixaAtivo(cx)
-  }, [dateRange])
+  }, [dateRange, tenantId])
 
   useEffect(() => {
     fetchData()
@@ -123,6 +153,7 @@ export default function FinanceiroPage() {
   useRealtime({
     configs: [
       { table: 'pedidos', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
+      { table: 'pedidos_online', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
       { table: 'contas_pagar', filter: `tenant_id=eq.${tenantId}`, callback: fetchData },
       { table: 'caixa', filter: `tenant_id=eq.${tenantId}`, callback: fetchData }
     ]
@@ -181,7 +212,7 @@ export default function FinanceiroPage() {
            ].map(tab => (
              <button
                key={tab.id}
-               onClick={() => setActiveTab(tab.id as any)}
+               onClick={() => setActiveTab(tab.id as 'dashboard' | 'contas_pagar' | 'caixa')}
                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                  activeTab === tab.id 
                  ? 'bg-primary text-on-primary shadow-lg' 
@@ -293,7 +324,6 @@ export default function FinanceiroPage() {
                   <span className="block text-xs uppercase tracking-[0.3em] text-on-surface-variant mb-3">Meta</span>
                   {editingMeta ? (
                     <input
-                      autoFocus
                       type="number"
                       step="0.01"
                       value={metaInput}
@@ -349,15 +379,16 @@ export default function FinanceiroPage() {
              ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             <div className="bg-surface-container rounded-[2.5rem] p-8 border border-outline min-h-[300px] flex flex-col items-center justify-center text-center shadow-lg">
-                <span className="material-symbols-outlined text-5xl opacity-10 mb-4 text-primary">analytics</span>
-                <p className="text-on-surface-variant italic text-sm">Gráfico de Faturamento Diário</p>
-             </div>
-             <div className="bg-surface-container rounded-[2.5rem] p-8 border border-outline min-h-[300px] flex flex-col items-center justify-center text-center shadow-lg">
-                <span className="material-symbols-outlined text-5xl opacity-10 mb-4 text-[#ff9800]">pie_chart</span>
-                <p className="text-on-surface-variant italic text-sm">Distribuição por Forma de Pagamento</p>
-             </div>
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <ReceitaChart
+                 receitaData={financialKpis.financialKpis.receitaData ?? undefined}
+                 receitaDias={financialKpis.receitaDias}
+                 showReceitaDropdown={showReceitaDropdown}
+                 formatCurrency={financialKpis.formatCurrency}
+                 onToggleDropdown={() => setShowReceitaDropdown(!showReceitaDropdown)}
+                 onSelectDias={(dias) => { financialKpis.setReceitaDias(dias); setShowReceitaDropdown(false) }}
+              />
+              <PaymentDistributionChart data={pagamentoPorForma} />
           </div>
         </>
       )}
@@ -401,7 +432,7 @@ function ContasPagarContent({ contas, onUpdate }: { contas: ContaPagar[], onUpda
                   </tr>
                </thead>
                <tbody>
-                  {contas.map((c: any) => (
+                   {contas.map((c) => (
                      <tr key={c.id} className="border-b border-[#252830]/50 hover:bg-[#e8391a]/5">
                         <td className="p-4 text-sm font-medium text-white/70">{format(new Date(c.data_vencimento), 'dd/MM/yyyy')}</td>
                         <td className="p-4 text-sm font-bold text-white">{c.descricao}</td>

@@ -6,10 +6,9 @@
  */
 import { useCallback, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { User } from '@supabase/supabase-js'
 
 interface UseCardapioUploadOptions {
-  user: User | null
+  tenantId: string | null
 }
 
 interface UseCardapioUploadReturn {
@@ -36,7 +35,7 @@ interface UseCardapioUploadReturn {
 export function useCardapioUpload(
   options: UseCardapioUploadOptions
 ): UseCardapioUploadReturn {
-  const { user } = options
+  const { tenantId } = options
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -60,13 +59,12 @@ export function useCardapioUpload(
 
   const uploadPhoto = useCallback(
     async (produtoId: string): Promise<string | null> => {
-      if (!selectedFile || !user) {
-        alert('Erro: usuário não autenticado')
+      if (!selectedFile || !tenantId) {
+        alert('Erro: tenant nao identificado')
         return null
       }
-      const tid = user.id
       const ext = selectedFile.name.split('.').pop() || 'jpg'
-      const filePath = `${tid}/${produtoId}.${ext}`
+      const filePath = `${tenantId}/${produtoId}.${ext}`
 
       const { error } = await supabase.storage
         .from('produtos')
@@ -86,7 +84,7 @@ export function useCardapioUpload(
       const { data: urlData } = supabase.storage.from('produtos').getPublicUrl(filePath)
       return urlData.publicUrl
     },
-    [selectedFile, user]
+    [selectedFile, tenantId]
   )
 
   // ── Remove ─────────────────────────────────────────────────────────

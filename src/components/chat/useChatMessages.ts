@@ -56,28 +56,6 @@ export function useChatMessages({
     messagesRef.current = messages
   }, [messages])
 
-  // Detecção de online/offline
-  useEffect(() => {
-    const handleOnline = () => {
-      isOnline.current = true
-      setConnectionStatus('connected')
-      processQueue()
-    }
-
-    const handleOffline = () => {
-      isOnline.current = false
-      setConnectionStatus('offline')
-    }
-
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
-
   // Processa fila de mensagens offline
   const processQueue = useCallback(async () => {
     if (queue.length === 0 || !isOnline.current) return
@@ -110,7 +88,7 @@ export function useChatMessages({
           isRead: false,
         },
       ])
-    } catch (error) {
+    } catch {
       // Re-adiciona na fila em caso de erro
       setQueue(prev => [messageToSend, ...prev])
       setMessages(prev =>
@@ -120,6 +98,28 @@ export function useChatMessages({
       )
     }
   }, [queue, apiEndpoint, userId, tenantId])
+
+  // Detecção de online/offline
+  useEffect(() => {
+    const handleOnline = () => {
+      isOnline.current = true
+      setConnectionStatus('connected')
+      processQueue()
+    }
+
+    const handleOffline = () => {
+      isOnline.current = false
+      setConnectionStatus('offline')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [processQueue])
 
   // Envia mensagem
   const sendMessage = useCallback(async (content: string) => {
@@ -179,7 +179,7 @@ export function useChatMessages({
       ])
 
       reconnectAttempts.current = 0
-    } catch (error) {
+    } catch {
       // Retry com backoff exponencial
       reconnectAttempts.current += 1
       

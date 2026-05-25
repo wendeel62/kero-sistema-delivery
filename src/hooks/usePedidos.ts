@@ -2,7 +2,6 @@
 // Hook para lógica de pedidos
 import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { useQuery } from '@tanstack/react-query'
 
 interface Pedido {
   id: string

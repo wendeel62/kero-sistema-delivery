@@ -1,4 +1,5 @@
-import { supabase } from './supabase'
+// supabase import unused - kept for future auth-based tenant resolution
+// import { supabase } from './supabase'
 
 /**
  * Extrai o tenant_id de um objeto de token parseado

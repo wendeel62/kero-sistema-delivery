@@ -77,7 +77,6 @@ export default function CardPedidoCozinha({
   const getTipoBadge = () => {
     const badges: Record<string, string> = {
       balcao: '#e8391a',
-      whatsapp: '#25d366',
       ifood: '#ff0000',
       rappi: '#000000',
       entrega: '#f57c24',

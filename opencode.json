@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "server": {
+    "port": 4096,
+    "hostname": "127.0.0.1",
+    "mdns": false,
+    "cors": ["http://localhost:5173"]
+  },
+  "lsp": {
+    "tailwindcss": {
+      "command": ["tailwindcss-language-server", "--stdio"],
+      "extensions": [".css"]
+    }
+  },
+  "mcp": {
+    "supabase": {
+      "type": "remote",
+      "url": "https://mcp.supabase.com/mcp?project_ref=kmtjfapbooqzhysllrbe&read_only=false&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage",
+      "enabled": true
+    },
+    "browsermcp": {
+      "type": "local",
+      "command": ["npx", "@browsermcp/mcp@latest"],
+      "enabled": true
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-72f7cbaf-2f72-446e-8a4a-b0eb3df4359a"
+      },
+      "enabled": true
+    },
+    "semgrep": {
+      "type": "local",
+      "command": ["C:\\Users\\usuario\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\semgrep.exe", "mcp"],
+      "environment": {
+        "SEMGREP_APP_TOKEN": "a7f19332255204ab3b36f49f1b8456e99166a0bfde378df2eb0b90d0a0d4ab0c"
+      },
+      "enabled": true
+    }
+  }
+}

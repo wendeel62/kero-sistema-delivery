@@ -19,7 +19,7 @@ export const setSentryScope = (options: {
   extras?: Record<string, unknown>
   level?: 'fatal' | 'error' | 'warning' | 'info' | 'debug'
 }) => {
-  Sentry.configureScope((scope) => {
+  Sentry.withScope((scope) => {
     if (options.user) {
       scope.setUser(options.user)
     }
@@ -43,7 +43,7 @@ export const setSentryScope = (options: {
  * Limpa o escopo do Sentry
  */
 export const clearSentryScope = () => {
-  Sentry.configureScope((scope) => {
+  Sentry.withScope((scope) => {
     scope.clear()
   })
 }
@@ -98,7 +98,7 @@ export const captureException = (error: Error, context?: {
  * @see https://docs.sentry.io/platforms/javascript/performance/
  */
 export const startTransaction = (name: string, op?: string) => {
-  return Sentry.startSpan({
+  return Sentry.startInactiveSpan({
     name,
     op: op || 'custom',
   })

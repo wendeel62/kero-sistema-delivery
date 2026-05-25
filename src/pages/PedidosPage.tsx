@@ -8,7 +8,7 @@
  * - usePedidosFilters: Hook de filtros
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
@@ -16,14 +16,10 @@ import { useThermalPrinter } from '../hooks/useThermalPrinter'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { differenceInMinutes, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale/pt-BR'
-
 // Componentes modulares
 import { PedidosList } from './pedidos/PedidosList'
 import { PedidoFilters } from './pedidos/PedidoFilters'
 import { PedidoModal } from './pedidos/PedidoModal'
-import { PedidoActionsModal } from './pedidos/PedidoActions'
 import { usePedidosFilters, type FiltroData } from './pedidos/usePedidosFilters'
 
 // Types
@@ -37,9 +33,9 @@ export type UnifiedPedido = {
   raw_status: string
   status_kanban: 'novo' | 'em_preparo' | 'saiu_entrega' | 'entregue' | 'cancelado'
   created_at: string
-  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'ifood' | 'rappi' | 'whatsapp'
+  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'ifood' | 'rappi'
   forma_pagamento: string
-  itens: any[]
+  itens: Array<{ qtd: number; nome: string; preco?: number; observacoes?: string; tamanho?: string; variacao?: string }>
   endereco_entrega?: string
   updated_at?: string
   mesa_numero?: number
@@ -73,11 +69,10 @@ function getTenantId(): string {
 
 export default function PedidosPage() {
   const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || user?.id || ''
   const queryClient = useQueryClient()
   const toast = useToast()
-  const { print, isAutoEnabled } = useThermalPrinter()
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const { print: _print } = useThermalPrinter()
 
   // Hook de filtros
   const {
@@ -99,8 +94,9 @@ export default function PedidosPage() {
   const [cancelModalPedido, setCancelModalPedido] = useState<UnifiedPedido | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [motoboyModalPedido, setMotoboyModalPedido] = useState<UnifiedPedido | null>(null)
-  const [motoboysDisponiveis, setMotoboysDisponiveis] = useState<any[]>([])
+  const [motoboysDisponiveis, setMotoboysDisponiveis] = useState<Array<Record<string, unknown>>>([])
   const [vinculandoMotoboy, setVinculandoMotoboy] = useState(false)
+  const [_currentTime, setCurrentTime] = useState(new Date())
 
   // Timer para atualizar o tempo decorrido
   useEffect(() => {
@@ -130,42 +126,42 @@ export default function PedidosPage() {
 
       const unified: UnifiedPedido[] = []
 
-      ;(pdvList || []).forEach((p: any) => {
+      ;(pdvList || []).forEach((p: Record<string, unknown>) => {
         unified.push({
-          id: p.id,
-          numero: p.numero,
-          cliente_nome: p.cliente_nome || (p.tipo === 'mesa' ? `Mesa ${p.mesa_numero}` : 'Cliente Balcão'),
-          cliente_telefone: p.cliente_telefone || '',
+          id: p.id as string,
+          numero: p.numero as number,
+          cliente_nome: (p.cliente_nome as string) || ((p.tipo as string) === 'mesa' ? `Mesa ${p.mesa_numero as number}` : 'Cliente Balcão'),
+          cliente_telefone: (p.cliente_telefone as string) || '',
           total: Number(p.total),
           tipo_tabela: 'pedidos',
-          raw_status: p.status,
-          status_kanban: mapKanbanStatus(p.status),
-          created_at: p.created_at,
-          canal: p.tipo,
-          forma_pagamento: p.forma_pagamento,
-          endereco_entrega: p.endereco_entrega,
-          mesa_numero: p.mesa_numero,
-          itens: p.itens_pedido?.map((ip: any) => ({
-            nome: ip.produto_nome,
-            qtd: ip.quantidade,
-            variacao: ip.tamanho,
-            obs: ip.observacoes
+          raw_status: p.status as string,
+          status_kanban: mapKanbanStatus(p.status as string),
+          created_at: p.created_at as string,
+          canal: p.tipo as UnifiedPedido['canal'],
+          forma_pagamento: p.forma_pagamento as string,
+          endereco_entrega: p.endereco_entrega as string,
+          mesa_numero: p.mesa_numero as number,
+          itens: (p.itens_pedido as Array<Record<string, unknown>>)?.map((ip: Record<string, unknown>) => ({
+            nome: ip.produto_nome as string,
+            qtd: ip.quantidade as number,
+            variacao: ip.tamanho as string,
+            obs: ip.observacoes as string
           })) || []
         })
       })
 
-      ;(onlineList || []).forEach((p: any) => {
-        let itensArray: any[] = []
+      ;(onlineList || []).forEach((p: Record<string, unknown>) => {
+        let itensArray: Array<Record<string, unknown>> = []
 
         if (p.itens) {
           try {
-            const parsedItens = typeof p.itens === 'string' ? JSON.parse(p.itens) : p.itens
+            const parsedItens = typeof p.itens === 'string' ? JSON.parse(p.itens as string) : p.itens
             itensArray = Array.isArray(parsedItens)
-              ? parsedItens.map((ip: any) => ({
-                  nome: ip.produto_nome || ip.nome,
-                  qtd: ip.quantidade || ip.qtd,
-                  variacao: ip.tamanho || ip.variacao,
-                  obs: ip.observacoes || ip.obs
+              ? (parsedItens as Array<Record<string, unknown>>).map((ip: Record<string, unknown>) => ({
+                  nome: (ip.produto_nome as string) || (ip.nome as string),
+                  qtd: (ip.quantidade as number) || (ip.qtd as number),
+                  variacao: (ip.tamanho as string) || (ip.variacao as string),
+                  obs: (ip.observacoes as string) || (ip.obs as string)
                 }))
               : []
           } catch (e) {
@@ -175,19 +171,19 @@ export default function PedidosPage() {
         }
 
         unified.push({
-          id: p.id,
-          numero: p.numero,
-          cliente_nome: p.cliente_nome,
-          cliente_telefone: p.cliente_telefone,
+          id: p.id as string,
+          numero: p.numero as number,
+          cliente_nome: p.cliente_nome as string,
+          cliente_telefone: p.cliente_telefone as string,
           total: Number(p.total),
           tipo_tabela: 'pedidos_online',
-          raw_status: p.status,
-          status_kanban: mapKanbanStatus(p.status),
-          created_at: p.created_at,
+          raw_status: p.status as string,
+          status_kanban: mapKanbanStatus(p.status as string),
+          created_at: p.created_at as string,
           canal: 'app',
-          forma_pagamento: p.forma_pagamento,
-          endereco_entrega: `${p.endereco}, ${p.numero_endereco} - ${p.bairro}`,
-          itens: itensArray
+          forma_pagamento: p.forma_pagamento as string,
+          endereco_entrega: `${p.endereco as string}, ${p.numero_endereco as string} - ${p.bairro as string}`,
+          itens: itensArray as UnifiedPedido['itens']
         })
       })
 
@@ -196,6 +192,7 @@ export default function PedidosPage() {
       return unified
     },
     staleTime: 30000,
+    refetchOnMount: true,
     enabled: !!tenantId
   })
 
@@ -223,7 +220,7 @@ export default function PedidosPage() {
 
   // Ações
   const handleAvançarStatus = useCallback(async (pedido: UnifiedPedido) => {
-    const isDelivery = ['entrega', 'app', 'ifood', 'rappi', 'whatsapp'].includes(pedido.canal)
+    const isDelivery = ['entrega', 'app', 'ifood', 'rappi'].includes(pedido.canal)
     const nextStatusMap: Record<string, string> = isDelivery
       ? {
           aberto: 'preparando',
@@ -262,7 +259,7 @@ export default function PedidosPage() {
     } catch (err) {
       console.error(err)
     }
-  }, [selectedPedido, refetchPedidos])
+  }, [selectedPedido, refetchPedidos, tenantId])
 
   const { mutate: cancelarPedido } = useMutation({
     mutationFn: async ({ pedido, motivo }: { pedido: UnifiedPedido; motivo: string }) => {
@@ -291,10 +288,11 @@ export default function PedidosPage() {
     setVinculandoMotoboy(true)
 
     try {
-      await supabase.from(motoboyModalPedido.tipo_tabela).update({ status: 'saiu_entrega' }).eq('id', motoboyModalPedido.id)
+      await supabase.from(motoboyModalPedido.tipo_tabela).update({ status: 'saiu_entrega', motoboy_id: motoboyId }).eq('id', motoboyModalPedido.id)
       await supabase.from('entregas').insert({
         pedido_id: motoboyModalPedido.id,
         motoboy_id: motoboyId,
+        tenant_id: tenantId,
         status: 'atribuido',
         atribuido_em: new Date().toISOString()
       })
@@ -397,19 +395,19 @@ export default function PedidosPage() {
                   <p className="text-sm text-on-surface-variant">Nenhum motoboy disponível</p>
                 </div>
               ) : (
-                motoboysDisponiveis.map(motoboy => (
+                motoboysDisponiveis.map((motoboy: Record<string, unknown>) => (
                   <button
-                    key={motoboy.id}
-                    onClick={() => vincularMotoboy(motoboy.id)}
+                    key={motoboy.id as string}
+                    onClick={() => vincularMotoboy(motoboy.id as string)}
                     disabled={vinculandoMotoboy}
                     className="w-full p-3 rounded-xl border border-outline hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center gap-3 disabled:opacity-50"
                   >
                     <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                      <span className="text-lg font-bold text-emerald-500">{motoboy.nome[0]}</span>
+                      <span className="text-lg font-bold text-emerald-500">{(motoboy.nome as string)[0]}</span>
                     </div>
                     <div className="flex-1 text-left">
-                      <div className="font-bold text-on-background">{motoboy.nome}</div>
-                      <div className="text-xs text-on-surface-variant">{motoboy.telefone}</div>
+                      <div className="font-bold text-on-background">{motoboy.nome as string}</div>
+                      <div className="text-xs text-on-surface-variant">{motoboy.telefone as string}</div>
                     </div>
                   </button>
                 ))

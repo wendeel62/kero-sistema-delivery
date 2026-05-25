@@ -1,18 +1,20 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Lancamento, FiltroLancamentos, RelatorioFinanceiro } from './types'
+import { handleSupabaseError } from '../../lib/supabaseErrorHandler'
+import { logger } from '../../utils/logger'
+import type { Lancamento, FiltroLancamentos } from './types'
 
 export interface UseLancamentosReturn {
   lancamentos: Lancamento[]
   filteredLancamentos: Lancamento[]
   loading: boolean
   filters: FiltroLancamentos
-  setFilter: (key: keyof FiltroLancamentos, value: any) => void
+  setFilter: <K extends keyof FiltroLancamentos>(key: K, value: FiltroLancamentos[K]) => void
   refresh: () => Promise<void>
-  addLancamento: (data: Partial<Lancamento>) => Promise<void>
-  updateLancamento: (id: string, data: Partial<Lancamento>) => Promise<void>
-  deleteLancamento: (id: string) => Promise<void>
-  baixarBaixa: (id: string, data: Partial<Lancamento>) => Promise<void>
+  addLancamento: (data: Partial<Lancamento>) => Promise<boolean>
+  updateLancamento: (id: string, data: Partial<Lancamento>) => Promise<boolean>
+  deleteLancamento: (id: string) => Promise<boolean>
+  baixarBaixa: (id: string, data?: Partial<Lancamento>) => Promise<boolean>
 }
 
 export function useLancamentos(tenantId: string | undefined): UseLancamentosReturn {
@@ -29,7 +31,7 @@ export function useLancamentos(tenantId: string | undefined): UseLancamentosRetu
 
   const fetchLancamentos = useCallback(async () => {
     if (!tenantId) return
-    
+
     setLoading(true)
     try {
       let query = supabase
@@ -52,14 +54,12 @@ export function useLancamentos(tenantId: string | undefined): UseLancamentosRetu
 
       const { data, error } = await query
 
-      if (error) {
-        console.error('Erro ao buscar lançamentos:', error)
-        return
-      }
+      if (handleSupabaseError(error, 'useLancamentos.fetchLancamentos')) return
 
       setLancamentos(data || [])
-    } catch (error) {
-      console.error('Erro:', error)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      logger.error('[useLancamentos] Unexpected error', { message })
     } finally {
       setLoading(false)
     }
@@ -80,32 +80,48 @@ export function useLancamentos(tenantId: string | undefined): UseLancamentosRetu
     })
   }, [lancamentos, filters])
 
-  const addLancamento = async (data: Partial<Lancamento>) => {
-    if (!tenantId) return
-    await supabase.from('lancamentos').insert([{ ...data, tenant_id: tenantId }])
-    await fetchLancamentos()
+  const addLancamento = async (data: Partial<Lancamento>): Promise<boolean> => {
+    if (!tenantId) return true
+    const hasError = handleSupabaseError(
+      (await supabase.from('lancamentos').insert([{ ...data, tenant_id: tenantId }])).error,
+      'useLancamentos.addLancamento'
+    )
+    if (!hasError) await fetchLancamentos()
+    return hasError
   }
 
-  const updateLancamento = async (id: string, data: Partial<Lancamento>) => {
-    if (!tenantId) return
-    await supabase.from('lancamentos').update(data).eq('id', id).eq('tenant_id', tenantId)
-    await fetchLancamentos()
+  const updateLancamento = async (id: string, data: Partial<Lancamento>): Promise<boolean> => {
+    if (!tenantId) return true
+    const hasError = handleSupabaseError(
+      (await supabase.from('lancamentos').update(data).eq('id', id).eq('tenant_id', tenantId)).error,
+      'useLancamentos.updateLancamento'
+    )
+    if (!hasError) await fetchLancamentos()
+    return hasError
   }
 
-  const deleteLancamento = async (id: string) => {
-    if (!tenantId) return
-    await supabase.from('lancamentos').delete().eq('id', id).eq('tenant_id', tenantId)
-    await fetchLancamentos()
+  const deleteLancamento = async (id: string): Promise<boolean> => {
+    if (!tenantId) return true
+    const hasError = handleSupabaseError(
+      (await supabase.from('lancamentos').delete().eq('id', id).eq('tenant_id', tenantId)).error,
+      'useLancamentos.deleteLancamento'
+    )
+    if (!hasError) await fetchLancamentos()
+    return hasError
   }
 
-  const baixarBaixa = async (id: string, data: Partial<Lancamento>) => {
-    if (!tenantId) return
-    await supabase.from('lancamentos').update({
-      status: 'pago',
-      data_pagamento: new Date().toISOString(),
-      ...data
-    }).eq('id', id).eq('tenant_id', tenantId)
-    await fetchLancamentos()
+  const baixarBaixa = async (id: string, data?: Partial<Lancamento>): Promise<boolean> => {
+    if (!tenantId) return true
+    const hasError = handleSupabaseError(
+      (await supabase.from('lancamentos').update({
+        status: 'pago',
+        data_pagamento: new Date().toISOString(),
+        ...data
+      }).eq('id', id).eq('tenant_id', tenantId)).error,
+      'useLancamentos.baixarBaixa'
+    )
+    if (!hasError) await fetchLancamentos()
+    return hasError
   }
 
   return {

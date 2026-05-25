@@ -25,10 +25,10 @@ export const CheckoutModal = memo(function CheckoutModal({
   isOpen,
   onClose,
   cart,
-  subtotal,
-  taxaEntrega,
+  subtotal: _subtotal,
+  taxaEntrega: _taxaEntrega,
   total,
-  config,
+  config: _config,
   onSubmit
 }: CheckoutModalProps) {
   const [nome, setNome] = useState('')
@@ -80,10 +80,11 @@ export const CheckoutModal = memo(function CheckoutModal({
           {step === 'dados' ? (
             <>
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                <label htmlFor="checkout-nome" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                   Nome Completo
                 </label>
                 <input
+                  id="checkout-nome"
                   type="text"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
@@ -93,10 +94,11 @@ export const CheckoutModal = memo(function CheckoutModal({
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                <label htmlFor="checkout-telefone" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                   WhatsApp
                 </label>
                 <input
+                  id="checkout-telefone"
                   type="tel"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
@@ -106,10 +108,11 @@ export const CheckoutModal = memo(function CheckoutModal({
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                <label htmlFor="checkout-endereco" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                   Endereço
                 </label>
                 <input
+                  id="checkout-endereco"
                   type="text"
                   value={endereco}
                   onChange={(e) => setEndereco(e.target.value)}
@@ -120,10 +123,11 @@ export const CheckoutModal = memo(function CheckoutModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                  <label htmlFor="checkout-numero" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                     Número
                   </label>
                   <input
+                    id="checkout-numero"
                     type="text"
                     value={numero}
                     onChange={(e) => setNumero(e.target.value)}
@@ -132,10 +136,11 @@ export const CheckoutModal = memo(function CheckoutModal({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                  <label htmlFor="checkout-bairro" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                     Bairro
                   </label>
                   <input
+                    id="checkout-bairro"
                     type="text"
                     value={bairro}
                     onChange={(e) => setBairro(e.target.value)}
@@ -196,10 +201,11 @@ export const CheckoutModal = memo(function CheckoutModal({
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+                <label htmlFor="checkout-obs" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
                   Observações
                 </label>
                 <textarea
+                  id="checkout-obs"
                   value={observacoes}
                   onChange={(e) => setObservacoes(e.target.value)}
                   placeholder="Ex: Sem cebola, troco para 50, etc."

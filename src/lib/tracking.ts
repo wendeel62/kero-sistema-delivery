@@ -29,8 +29,9 @@ export function initMetaPixel(pixelId: string): void {
 
 export function trackMetaEvent(event: string, params?: Record<string, unknown>): void {
   try {
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      ;(window as any).fbq('track', event, params)
+    const w = window as unknown as Record<string, unknown>
+    if (typeof window !== 'undefined' && w.fbq) {
+      ;(w as unknown as Record<string, (method: string, event: string, params?: Record<string, unknown>) => void>).fbq('track', event, params)
     }
   } catch (error) {
     console.error('[KeroTracking] Erro ao trackear Meta event:', error)
@@ -46,8 +47,9 @@ export function initGA4(measurementId: string): void {
     }
 
     // Inicializar dataLayer se não existir
-    if (typeof window !== 'undefined' && !(window as any).dataLayer) {
-      ;(window as any).dataLayer = []
+    const w2 = window as unknown as Record<string, unknown>
+    if (typeof window !== 'undefined' && !w2.dataLayer) {
+      ;(w2 as unknown as Record<string, unknown[]>).dataLayer = []
     }
 
     // Injetar script gtag
@@ -73,8 +75,9 @@ export function initGA4(measurementId: string): void {
 
 export function trackGA4Event(event: string, params?: Record<string, unknown>): void {
   try {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      ;(window as any).gtag('event', event, params)
+    const w3 = window as unknown as Record<string, unknown>
+    if (typeof window !== 'undefined' && w3.gtag) {
+      ;(w3 as unknown as Record<string, (method: string, event: string, params?: Record<string, unknown>) => void>).gtag('event', event, params)
     }
   } catch (error) {
     console.error('[KeroTracking] Erro ao trackear GA4 event:', error)

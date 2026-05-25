@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { getTenantIdSafe } from '../lib/getTenantId'
 import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from './useTenantId'
 
 // ============================================
 // TYPES
@@ -33,8 +33,8 @@ export interface DeliveryKpiData {
 // ============================================
 
 export function useDeliveryKpis() {
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantIdSafe() || '19f48a0b-3117-4d2b-856e-41673dc43275'
+  const { user: _user } = useAuth()
+  const tenantId = useTenantId()
 
   const { data: deliveryKpis = defaultDeliveryKpis, isLoading } = useQuery<DeliveryKpis>({
     queryKey: ['delivery-kpis', tenantId],
@@ -74,12 +74,13 @@ export function useDeliveryKpis() {
         > = {}
 
         historico.forEach(
-          (h: any) => {
-            if (!porPedido[h.pedido_id]) porPedido[h.pedido_id] = []
-            porPedido[h.pedido_id].push({
-              status_anterior: h.status_anterior,
-              status_novo: h.status_novo,
-              created_at: h.created_at
+          (h: Record<string, unknown>) => {
+            const pedidoId = h.pedido_id as string
+            if (!porPedido[pedidoId]) porPedido[pedidoId] = []
+            porPedido[pedidoId].push({
+              status_anterior: h.status_anterior as string,
+              status_novo: h.status_novo as string,
+              created_at: h.created_at as string
             })
           }
         )
@@ -96,8 +97,8 @@ export function useDeliveryKpis() {
           let inicioPreparo: number | null = null
           let inicioEntrega: number | null = null
 
-          const pedido = allPedidos.find((p: any) => p.id === pedidoId)
-          if (pedido) inicioNovo = new Date(pedido.created_at).getTime()
+          const pedido = allPedidos.find((p: Record<string, unknown>) => p.id === pedidoId)
+          if (pedido) inicioNovo = new Date(pedido.created_at as string).getTime()
 
           mudancas.forEach(m => {
             const tempo = new Date(m.created_at).getTime()

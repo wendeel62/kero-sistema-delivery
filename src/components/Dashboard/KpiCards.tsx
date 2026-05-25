@@ -12,7 +12,7 @@ export default function KpiCards({ kpiData, formatCurrency }: KpiCardsProps) {
         <div
           key={kpi.id}
           className="group p-6 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 hover:bg-surface-container-high shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up"
-          style={{ '--i': i } as any}
+          style={{ '--i': i } as React.CSSProperties}
         >
           <div className="flex flex-col gap-3 h-full">
             <div className="flex items-center gap-2 flex-1">

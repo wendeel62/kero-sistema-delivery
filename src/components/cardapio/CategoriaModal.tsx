@@ -18,13 +18,14 @@ export default function CategoriaModal({
   if (!showCategoriaModal) return null
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 sm:p-6" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="button" tabIndex={0}>
+      <div className="bg-[#1a1a1a] rounded-3xl p-6 sm:p-10 w-full max-w-lg border border-[#252830] shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-fade-in max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role="presentation">
         <h3 className="text-xl sm:text-3xl font-bold mb-6 sm:mb-8 text-white tracking-tight">{editCategoria?.id ? 'Editar' : 'Nova'} Categoria</h3>
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Nome da Categoria</label>
+            <label htmlFor="categoria-nome" className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Nome da Categoria</label>
             <input
+              id="categoria-nome"
               value={editCategoria?.nome || ''}
               onChange={e => onEditChange({ nome: e.target.value })}
               placeholder="Ex: Pizzas Gourmet"
@@ -32,8 +33,9 @@ export default function CategoriaModal({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Descricao</label>
+            <label htmlFor="categoria-descricao" className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Descricao</label>
             <textarea
+              id="categoria-descricao"
               value={editCategoria?.descricao || ''}
               onChange={e => onEditChange({ descricao: e.target.value })}
               placeholder="Pequena descricao para o cardapio"
