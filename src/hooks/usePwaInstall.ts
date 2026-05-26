@@ -81,6 +81,11 @@ export function usePwaInstall(): UsePwaInstallReturn {
   }, [isInstalled])
 
   const install = useCallback(async (): Promise<boolean> => {
+    if (import.meta.env.DEV) {
+      setIsInstalled(true)
+      return true
+    }
+
     if (!deferredPrompt) return false
     if (promptHandled.current) return false
     promptHandled.current = true
@@ -111,7 +116,7 @@ export function usePwaInstall(): UsePwaInstallReturn {
 
   return {
     deferredPrompt,
-    isInstallable: deferredPrompt !== null,
+    isInstallable: import.meta.env.DEV ? true : deferredPrompt !== null,
     isInstalled,
     isDismissed,
     install,

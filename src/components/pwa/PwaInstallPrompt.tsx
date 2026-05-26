@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { usePwa } from '../../contexts/PwaContext'
 
 function getOS(): 'ios' | 'android' | 'windows' | 'mac' | 'linux' | 'other' {
@@ -25,51 +25,32 @@ const OS = getOS()
 const browser = getBrowser()
 
 export function PwaInstallPrompt() {
-  const { isInstallable, isInstalled, isDismissed, install, dismissInstall } = usePwa()
-  const [visible, setVisible] = useState(false)
+  const { isInstallable, isInstalled, install, dismissInstall } = usePwa()
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [installing, setInstalling] = useState(false)
-
-  useEffect(() => {
-    if (isInstalled || isDismissed) {
-      setVisible(false)
-      return
-    }
-    const timer = setTimeout(() => setVisible(true), 3000)
-    return () => clearTimeout(timer)
-  }, [isInstalled, isDismissed])
 
   const handleInstall = useCallback(async () => {
     setInstalling(true)
     const success = await install()
-    if (success) setVisible(false)
+    if (success) setInstalling(false)
     setInstalling(false)
   }, [install])
 
   const handleDismiss = useCallback(() => {
     dismissInstall(dontShowAgain)
-    setVisible(false)
   }, [dismissInstall, dontShowAgain])
 
-  if (!visible || isInstalled) return null
+  if (isInstalled) return null
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex justify-center overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label="Instalar Kero Delivery"
     >
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={handleDismiss}
-        onKeyDown={(e) => { if (e.key === 'Escape') handleDismiss() }}
-        role="button"
-        tabIndex={0}
-        aria-label="Fechar"
-      />
-
-      <div className="relative w-full max-w-sm md:max-w-md bg-surface-container text-on-background rounded-3xl shadow-2xl border border-outline/20 overflow-hidden m-auto">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-sm md:max-w-md mt-[12vh] mb-8 mx-4 bg-surface-container text-on-background rounded-3xl shadow-2xl border border-outline/20 overflow-hidden self-start">
         <div className="p-6 pb-4 flex flex-col items-center text-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm overflow-hidden">
             <img
@@ -87,20 +68,18 @@ export function PwaInstallPrompt() {
         </div>
 
         <div className="px-6 pb-4 space-y-3">
-          {isInstallable && (
-            <button
-              onClick={handleInstall}
-              disabled={installing}
-              className="w-full h-12 bg-primary hover:bg-primary-bright text-white font-bold rounded-xl text-base transition-all active:scale-[0.98] shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {installing ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <span className="material-symbols-outlined text-[20px]">download</span>
-              )}
-              {installing ? 'Instalando...' : 'Instalar Agora'}
-            </button>
-          )}
+          <button
+            onClick={handleInstall}
+            disabled={installing}
+            className="w-full h-12 bg-primary hover:bg-primary-bright text-white font-bold rounded-xl text-base transition-all active:scale-[0.98] shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {installing ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[20px]">download</span>
+            )}
+            {installing ? 'Instalando...' : 'Instalar Agora'}
+          </button>
 
           <div className="bg-surface-dim/50 rounded-xl p-3.5 border border-outline/20 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant text-center">
@@ -140,7 +119,7 @@ export function PwaInstallPrompt() {
           </div>
         </div>
 
-        <div className="px-6 pb-5 space-y-3">
+        <div className="px-6 pb-5 flex flex-col items-center gap-3">
           <label className="flex items-center gap-2.5 cursor-pointer group">
             <input
               type="checkbox"
@@ -155,7 +134,7 @@ export function PwaInstallPrompt() {
 
           <button
             onClick={handleDismiss}
-            className="w-full h-10 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-dim rounded-xl transition-colors"
+            className="text-xs font-medium text-on-surface-variant hover:text-on-surface underline underline-offset-2 transition-colors"
           >
             Agora não
           </button>
