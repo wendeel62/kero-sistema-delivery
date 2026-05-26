@@ -7,6 +7,7 @@ import ToastContainer from './components/Toast'
 import { ErrorBoundary } from './components/error-boundary'
 import { MetaPeriodoProvider } from './contexts/MetaPeriodoContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { PwaProvider } from './contexts/PwaContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import AdminGuard from './components/admin/AdminGuard'
@@ -111,16 +112,18 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <BrowserRouter>
-                <Suspense fallback={<LoadingSpinner />}>
+          <PwaProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <BrowserRouter>
+                  <Suspense fallback={<LoadingSpinner />}>
                   <AppRoutes />
                   <ToastContainer />
-                </Suspense>
-              </BrowserRouter>
-            </ToastProvider>
-          </AuthProvider>
+                  </Suspense>
+                </BrowserRouter>
+              </ToastProvider>
+            </AuthProvider>
+          </PwaProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

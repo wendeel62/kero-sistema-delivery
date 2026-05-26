@@ -41,3 +41,7 @@ export { useMetasFaturamento } from './useMetasFaturamento'
 
 // Impressão
 export { useThermalPrinter } from './useThermalPrinter'
+
+// PWA
+export { usePwaInstall } from './usePwaInstall'
+export { usePwaUpdate } from './usePwaUpdate'

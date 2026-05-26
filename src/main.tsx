@@ -143,41 +143,6 @@ function AppWithErrorBoundary() {
 }
 
 // ============================================
-// Register Service Worker (PWA)
-// ============================================
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.ready.then((registration) => {
-      console.warn('[PWA] Service Worker ativo, scope:', registration.scope)
-
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing
-        if (!newWorker) return
-
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            const shouldReload = window.confirm(
-              'Uma nova versão do Kero está disponível! Deseja atualizar agora?'
-            )
-            if (shouldReload) {
-              registration.waiting?.postMessage({ type: 'SKIP_WAITING' })
-              window.location.reload()
-            }
-          }
-        })
-      })
-    }).catch((error) => {
-      console.warn('[PWA] Service Worker não disponível:', error)
-      Sentry.captureException(error)
-    })
-
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.warn('[PWA] Controller do Service Worker atualizado.')
-    })
-  })
-}
-
-// ============================================
 // Render Application
 // ============================================
 createRoot(document.getElementById('root')!).render(

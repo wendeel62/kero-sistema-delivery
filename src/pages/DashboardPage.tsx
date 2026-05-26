@@ -1,4 +1,5 @@
 import { useDashboardKpis } from '../hooks/useDashboardKpis'
+import { PwaInstallPrompt } from '../components/pwa/PwaInstallPrompt'
 import DashboardHeader from '../components/Dashboard/DashboardHeader'
 import KpiCards from '../components/Dashboard/KpiCards'
 import ReceitaChart from '../components/Dashboard/ReceitaChart'
@@ -36,6 +37,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
+      <PwaInstallPrompt />
       <DashboardHeader
         lojaAberta={h.lojaAberta}
         loadingLoja={h.loadingLoja}
