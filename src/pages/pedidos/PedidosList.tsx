@@ -136,7 +136,7 @@ const PedidoCard = memo(function PedidoCard({
   onAdvance,
   onCancel,
   onView,
-  onPrint: _onPrint
+  onPrint
 }: PedidoCardProps) {
   const minutesElapsed = useMemo(() => {
     const now = new Date()
@@ -200,6 +200,18 @@ const PedidoCard = memo(function PedidoCard({
           {formatCurrency(pedido.total)}
         </span>
         <div className="flex gap-2">
+          {onPrint && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onPrint(pedido)
+              }}
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container transition-colors"
+              title="Imprimir"
+            >
+              <span className="material-symbols-outlined text-sm">print</span>
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation()

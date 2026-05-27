@@ -16,6 +16,8 @@ export interface UsePwaInstallReturn {
   isInstallable: boolean
   isInstalled: boolean
   isDismissed: boolean
+  justInstalled: boolean
+  clearJustInstalled: () => void
   install: () => Promise<boolean>
   dismissInstall: (dontShowAgain?: boolean) => void
   canShow: boolean
@@ -31,6 +33,7 @@ export function usePwaInstall(): UsePwaInstallReturn {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(getIsInstalled)
   const [isDismissed, setIsDismissed] = useState(false)
+  const [justInstalled, setJustInstalled] = useState(false)
   const promptHandled = useRef(false)
 
   const checkDismissed = useCallback(() => {
@@ -63,6 +66,7 @@ export function usePwaInstall(): UsePwaInstallReturn {
 
     const onAppInstalled = () => {
       setIsInstalled(true)
+      setJustInstalled(true)
       setDeferredPrompt(null)
       localStorage.removeItem(LS_KEY_DISMISSED)
       localStorage.removeItem(LS_KEY_DONT_SHOW)
@@ -83,6 +87,7 @@ export function usePwaInstall(): UsePwaInstallReturn {
   const install = useCallback(async (): Promise<boolean> => {
     if (import.meta.env.DEV) {
       setIsInstalled(true)
+      setJustInstalled(true)
       return true
     }
 
@@ -95,6 +100,7 @@ export function usePwaInstall(): UsePwaInstallReturn {
       const { outcome } = await deferredPrompt.userChoice
       if (outcome === 'accepted') {
         setIsInstalled(true)
+        setJustInstalled(true)
       }
       setDeferredPrompt(null)
       return outcome === 'accepted'
@@ -114,11 +120,17 @@ export function usePwaInstall(): UsePwaInstallReturn {
     setIsDismissed(true)
   }, [])
 
+  const clearJustInstalled = useCallback(() => {
+    setJustInstalled(false)
+  }, [])
+
   return {
     deferredPrompt,
     isInstallable: import.meta.env.DEV ? true : deferredPrompt !== null,
     isInstalled,
     isDismissed,
+    justInstalled,
+    clearJustInstalled,
     install,
     dismissInstall,
     canShow: !isInstalled && !isDismissed && (deferredPrompt !== null || checkDismissed() === false),

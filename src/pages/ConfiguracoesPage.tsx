@@ -5,8 +5,11 @@ import { useRealtime } from '../hooks/useRealtime'
 import { useAuth } from '../contexts/AuthContext'
 import { useTenantId } from '../hooks/useTenantId'
 import { useThermalPrinter } from '../hooks/useThermalPrinter'
+import { useDesktopPrinter } from '../hooks/useDesktopPrinter'
 import { ConfigInputField } from '../components/ConfigInputField'
 import { ConfigToggle } from '../components/ConfigToggle'
+import { PrinterOnboardingModal } from '../components/printer/PrinterOnboardingModal'
+import { PrinterSelectModal } from '../components/printer/PrinterSelectModal'
 
 const slugify = (text: string) => {
   return text
@@ -58,6 +61,9 @@ export default function ConfiguracoesPage() {
   const { user } = useAuth()
   const tenantId = useTenantId()
   const { status, isSupported, connect, disconnect, print } = useThermalPrinter()
+  const desktop = useDesktopPrinter()
+  const [showDesktopOnboarding, setShowDesktopOnboarding] = useState(false)
+  const [showPrinterSelect, setShowPrinterSelect] = useState(false)
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const queryClient = useQueryClient()
@@ -372,6 +378,126 @@ export default function ConfiguracoesPage() {
           )}
         </div>
       </div>
+
+      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
+        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
+          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressora Windows
+        </h3>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className={`inline-block w-2 h-2 rounded-full ${
+              desktop.status === 'conectada' ? 'bg-green-500' :
+              desktop.status === 'imprimindo' ? 'bg-yellow-500' :
+              desktop.status === 'available' ? 'bg-green-400' :
+              desktop.status === 'checking' ? 'bg-yellow-500' :
+              desktop.status === 'unavailable' ? 'bg-gray-500' : 'bg-red-500'
+            }`}></span>
+            <span className="text-white capitalize">
+              {desktop.status === 'checking' ? 'Verificando...' :
+               desktop.status === 'available' ? 'Módulo disponível — selecione uma impressora' :
+               desktop.status === 'conectada' ? `Conectado: ${desktop.selectedPrinter}` :
+               desktop.status === 'imprimindo' ? 'Imprimindo...' :
+               desktop.status === 'unavailable' ? 'Módulo auxiliar não detectado' :
+               desktop.status}
+            </span>
+          </div>
+
+          <div className="flex gap-3">
+            {desktop.status === 'unavailable' && (
+              <button
+                onClick={() => setShowDesktopOnboarding(true)}
+                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
+              >
+                Baixar Módulo de Impressão
+              </button>
+            )}
+            {desktop.status === 'available' && (
+              <button
+                onClick={async () => {
+                  await desktop.listPrinters()
+                  setShowPrinterSelect(true)
+                }}
+                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
+              >
+                Conectar Impressora
+              </button>
+            )}
+            {desktop.status === 'conectada' && (
+              <button
+                onClick={async () => {
+                  await desktop.listPrinters()
+                  setShowPrinterSelect(true)
+                }}
+                className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
+              >
+                Trocar Impressora
+              </button>
+            )}
+            {desktop.status === 'conectada' && (
+              <button
+                onClick={desktop.disconnectPrinter}
+                className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
+              >
+                Desconectar
+              </button>
+            )}
+          </div>
+
+          {desktop.status !== 'unavailable' && (
+            <ConfigToggle
+              label="Impressão automática ao receber pedido"
+              checked={config?.impressao_automatica ?? false}
+              onChange={v => update('impressao_automatica', v)}
+            />
+          )}
+
+          {desktop.status === 'conectada' && (
+            <button
+              onClick={() => {
+                const testPedido = {
+                  id: 'test',
+                  numero: 999,
+                  cliente_nome: 'Cliente Teste',
+                  cliente_telefone: '11999999999',
+                  total: 25.90,
+                  canal: 'balcao' as const,
+                  forma_pagamento: 'dinheiro',
+                  created_at: new Date().toISOString(),
+                  itens: [
+                    { qtd: 1, nome: 'Pizza Margherita', variacao: 'Grande', obs: 'Sem cebola' },
+                    { qtd: 2, nome: 'Coca-Cola 350ml' }
+                  ]
+                }
+                if (desktop.config) desktop.print(testPedido as any, desktop.config)
+              }}
+              className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
+            >
+              Imprimir Cupom de Teste
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showDesktopOnboarding && (
+        <PrinterOnboardingModal
+          onClose={() => setShowDesktopOnboarding(false)}
+          onHelperReady={() => {
+            setShowDesktopOnboarding(false)
+            desktop.checkHelper()
+          }}
+        />
+      )}
+
+      {showPrinterSelect && (
+        <PrinterSelectModal
+          printers={desktop.printers}
+          onSelect={(name) => {
+            desktop.selectPrinter(name)
+            setShowPrinterSelect(false)
+          }}
+          onClose={() => setShowPrinterSelect(false)}
+        />
+      )}
 
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">

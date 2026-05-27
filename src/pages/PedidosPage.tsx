@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
 import { useThermalPrinter } from '../hooks/useThermalPrinter'
+import { useDesktopPrinter } from '../hooks/useDesktopPrinter'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -72,7 +73,13 @@ export default function PedidosPage() {
   const tenantId = user?.user_metadata?.tenant_id || getTenantId() || user?.id || ''
   const queryClient = useQueryClient()
   const toast = useToast()
-  const { print: _print } = useThermalPrinter()
+  const thermal = useThermalPrinter()
+  const desktopPrinter = useDesktopPrinter()
+
+  // Prefer desktop printer (Windows) over WebUSB
+  const print = desktopPrinter.selectedPrinter ? desktopPrinter.print : thermal.print
+  const config = thermal.config ?? desktopPrinter.config
+  const isAutoEnabled = thermal.isAutoEnabled || desktopPrinter.isAutoEnabled
 
   // Hook de filtros
   const {
@@ -202,17 +209,23 @@ export default function PedidosPage() {
       {
         table: 'pedidos',
         filter: `tenant_id=eq.${tenantId}`,
-        callback: () => {
+        callback: (payload) => {
           playAlertSound()
           queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+          if (payload.eventType === 'INSERT') {
+            handleAutoPrint(payload, 'pedidos')
+          }
         }
       },
       {
         table: 'pedidos_online',
         filter: `tenant_id=eq.${tenantId}`,
-        callback: () => {
+        callback: (payload) => {
           playAlertSound()
           queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+          if (payload.eventType === 'INSERT') {
+            handleAutoPrint(payload, 'pedidos_online')
+          }
         }
       }
     ]
@@ -306,6 +319,90 @@ export default function PedidosPage() {
     setVinculandoMotoboy(false)
   }
 
+  // ---- Manual print handler ------------------------------------------------
+
+  const handlePrint = useCallback((pedido: UnifiedPedido) => {
+    if (config) {
+      print(pedido, config)
+    }
+  }, [print, config])
+
+  // ---- Auto-print on new order ---------------------------------------------
+
+  const handleAutoPrint = useCallback(async (payload: { new: Record<string, unknown> }, origemTabela: 'pedidos' | 'pedidos_online') => {
+    if (!config || !isAutoEnabled) return
+
+    try {
+      if (origemTabela === 'pedidos') {
+        const { data: pedidoCompleto } = await supabase
+          .from('pedidos')
+          .select('*, itens_pedido(*)')
+          .eq('id', payload.new.id)
+          .single()
+
+        if (!pedidoCompleto) return
+
+        const unified: UnifiedPedido = {
+          id: pedidoCompleto.id,
+          numero: pedidoCompleto.numero,
+          cliente_nome: pedidoCompleto.cliente_nome || '',
+          cliente_telefone: pedidoCompleto.cliente_telefone || '',
+          total: Number(pedidoCompleto.total),
+          tipo_tabela: 'pedidos',
+          raw_status: pedidoCompleto.status,
+          status_kanban: mapKanbanStatus(pedidoCompleto.status),
+          created_at: pedidoCompleto.created_at,
+          canal: pedidoCompleto.tipo || 'balcao',
+          forma_pagamento: pedidoCompleto.forma_pagamento || '',
+          endereco_entrega: pedidoCompleto.endereco_entrega,
+          mesa_numero: pedidoCompleto.mesa_numero,
+          itens: (pedidoCompleto.itens_pedido || []).map((ip: Record<string, unknown>) => ({
+            nome: ip.produto_nome as string,
+            qtd: ip.quantidade as number,
+            variacao: ip.tamanho as string,
+            obs: ip.observacoes as string,
+          }))
+        }
+
+        print(unified, config)
+      } else {
+        const p = payload.new
+        let itensArray: UnifiedPedido['itens'] = []
+
+        if (p.itens) {
+          const parsed = typeof p.itens === 'string' ? JSON.parse(p.itens as string) : p.itens
+          itensArray = Array.isArray(parsed)
+            ? parsed.map((ip: Record<string, unknown>) => ({
+                nome: (ip.produto_nome as string) || (ip.nome as string),
+                qtd: (ip.quantidade as number) || (ip.qtd as number),
+                variacao: (ip.tamanho as string) || (ip.variacao as string),
+                obs: (ip.observacoes as string) || (ip.obs as string),
+              }))
+            : []
+        }
+
+        const unified: UnifiedPedido = {
+          id: p.id as string,
+          numero: p.numero as number,
+          cliente_nome: p.cliente_nome as string,
+          cliente_telefone: p.cliente_telefone as string,
+          total: Number(p.total),
+          tipo_tabela: 'pedidos_online',
+          raw_status: p.status as string,
+          status_kanban: mapKanbanStatus(p.status as string),
+          created_at: p.created_at as string,
+          canal: 'app',
+          forma_pagamento: p.forma_pagamento as string,
+          itens: itensArray,
+        }
+
+        print(unified, config)
+      }
+    } catch (err) {
+      console.error('[KeroPrint] Erro na impressão automática:', err)
+    }
+  }, [config, isAutoEnabled, print])
+
   return (
     <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">
       {/* Header */}
@@ -342,6 +439,7 @@ export default function PedidosPage() {
         onAdvance={handleAvançarStatus}
         onCancel={setCancelModalPedido}
         onView={setSelectedPedido}
+        onPrint={handlePrint}
         isLoading={isLoading}
       />
 

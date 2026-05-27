@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { usePwa } from '../../contexts/PwaContext'
+import { PrinterOnboardingModal } from '../printer/PrinterOnboardingModal'
 
 function getOS(): 'ios' | 'android' | 'windows' | 'mac' | 'linux' | 'other' {
   const ua = navigator.userAgent.toLowerCase()
@@ -24,8 +25,10 @@ function getBrowser(): 'chrome' | 'safari' | 'firefox' | 'edge' | 'samsung' | 'o
 const OS = getOS()
 const browser = getBrowser()
 
+const LS_ONBOARDING_DISMISSED = 'printer_onboarding_dismissed'
+
 export function PwaInstallPrompt() {
-  const { isInstallable, isInstalled, install, dismissInstall } = usePwa()
+  const { isInstallable, isInstalled, justInstalled, install, dismissInstall, clearJustInstalled } = usePwa()
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [installing, setInstalling] = useState(false)
 
@@ -39,6 +42,20 @@ export function PwaInstallPrompt() {
   const handleDismiss = useCallback(() => {
     dismissInstall(dontShowAgain)
   }, [dismissInstall, dontShowAgain])
+
+  // Show printer onboarding right after PWA install (only once)
+  if (isInstalled && justInstalled && !localStorage.getItem(LS_ONBOARDING_DISMISSED)) {
+    return (
+      <PrinterOnboardingModal
+        onClose={() => {
+          clearJustInstalled()
+        }}
+        onHelperReady={() => {
+          clearJustInstalled()
+        }}
+      />
+    )
+  }
 
   if (isInstalled) return null
 

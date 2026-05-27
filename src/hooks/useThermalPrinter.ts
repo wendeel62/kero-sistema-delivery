@@ -341,11 +341,13 @@ export function useThermalPrinter() {
     isAutoEnabled,
     /** Configured paper width (58mm or 80mm). */
     larguraPapel,
+    /** Full configuration object (nullable until loaded). */
+    config: config ?? null,
     /** Info about the connected device (null if disconnected). */
     deviceInfo,
     /** Prompt user to select a USB printer. Requires user gesture. */
     connect,
-    /** Disconnect current printer and clear saved identity. */
+    /** Disconnect current printer and save identity. */
     disconnect,
     /** Enqueue a receipt for printing. Fire-and-forget with retry. */
     print,
