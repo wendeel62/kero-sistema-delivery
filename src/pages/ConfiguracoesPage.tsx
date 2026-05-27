@@ -483,7 +483,9 @@ export default function ConfiguracoesPage() {
           onClose={() => setShowDesktopOnboarding(false)}
           onHelperReady={() => {
             setShowDesktopOnboarding(false)
-            desktop.checkHelper()
+            desktop.checkHelper().then(ok => {
+              if (ok) showToast('Módulo de impressão detectado! Conecte sua impressora.')
+            })
           }}
         />
       )}

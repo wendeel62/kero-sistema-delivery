@@ -14,6 +14,7 @@ interface PrinterOnboardingModalProps {
 
 export function PrinterOnboardingModal({ onClose, onHelperReady }: PrinterOnboardingModalProps) {
   const [checking, setChecking] = useState(false)
+  const [verifyStatus, setVerifyStatus] = useState<'success' | 'error' | null>(null)
 
   const handleDownload = useCallback(() => {
     const a = document.createElement('a')
@@ -26,13 +27,17 @@ export function PrinterOnboardingModal({ onClose, onHelperReady }: PrinterOnboar
 
   const handleVerify = useCallback(async () => {
     setChecking(true)
+    setVerifyStatus(null)
     try {
       const res = await fetch('http://localhost:3002/health', { signal: AbortSignal.timeout(3000) })
       if (res.ok) {
-        onHelperReady()
+        setVerifyStatus('success')
+        setTimeout(() => onHelperReady(), 1200)
+      } else {
+        setVerifyStatus('error')
       }
     } catch {
-      // Silent
+      setVerifyStatus('error')
     }
     setChecking(false)
   }, [onHelperReady])
@@ -58,6 +63,19 @@ export function PrinterOnboardingModal({ onClose, onHelperReady }: PrinterOnboar
               O Kero precisa de um módulo auxiliar de <strong>3MB</strong> para conectar com as
               impressoras do seu computador e imprimir pedidos automaticamente.
             </p>
+
+            {verifyStatus === 'success' && (
+              <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-400 text-lg">check_circle</span>
+                <span className="text-emerald-400 text-sm font-medium">Módulo detectado! Redirecionando...</span>
+              </div>
+            )}
+            {verifyStatus === 'error' && (
+              <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2">
+                <span className="material-symbols-outlined text-red-400 text-lg">error</span>
+                <span className="text-red-400 text-sm">Módulo não encontrado. Baixe e execute o instalador primeiro.</span>
+              </div>
+            )}
           </div>
         </div>
 
