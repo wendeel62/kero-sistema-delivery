@@ -10,9 +10,30 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/alexbrainman/printer"
+	"golang.org/x/sys/windows"
 )
+
+var (
+	winspool = windows.NewLazySystemDLL("winspool.drv")
+	procGetDefaultPrinter = winspool.NewProc("GetDefaultPrinterW")
+)
+
+func getDefaultPrinterName() (string, error) {
+	bufSize := uint32(0)
+	procGetDefaultPrinter.Call(uintptr(unsafe.Pointer(&bufSize)), 0)
+	if bufSize == 0 {
+		return "", fmt.Errorf("no default printer")
+	}
+	buf := make([]uint16, bufSize)
+	ret, _, _ := procGetDefaultPrinter.Call(uintptr(unsafe.Pointer(&bufSize)), uintptr(unsafe.Pointer(&buf[0])))
+	if ret == 0 {
+		return "", fmt.Errorf("failed to get default printer")
+	}
+	return windows.UTF16ToString(buf), nil
+}
 
 const (
 	port        = "3002"
@@ -82,6 +103,21 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
 type PrintersResponse struct {
 	Printers []string `json:"printers"`
+}
+
+type DefaultPrinterResponse struct {
+	Printer string `json:"printer"`
+}
+
+func handleDefaultPrinter(w http.ResponseWriter, r *http.Request) {
+	name, err := getDefaultPrinterName()
+	if err != nil {
+		log.Printf("[ERROR] Failed to get default printer: %v", err)
+		writeError(w, http.StatusNotFound, "No default printer found: "+err.Error())
+		return
+	}
+	log.Printf("[INFO] Default printer: %s", name)
+	writeJSON(w, http.StatusOK, DefaultPrinterResponse{Printer: name})
 }
 
 func handleListPrinters(w http.ResponseWriter, r *http.Request) {
@@ -192,6 +228,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", handleHealth)
 	mux.HandleFunc("/api/printers", handleListPrinters)
+	mux.HandleFunc("/api/printers/default", handleDefaultPrinter)
 	mux.HandleFunc("/api/print", handlePrint)
 
 	server := &http.Server{

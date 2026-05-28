@@ -12,8 +12,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
-import { useThermalPrinter } from '../hooks/useThermalPrinter'
-import { useDesktopPrinter } from '../hooks/useDesktopPrinter'
+import { usePrinter } from '../hooks/usePrinter'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -73,13 +72,11 @@ export default function PedidosPage() {
   const tenantId = user?.user_metadata?.tenant_id || getTenantId() || user?.id || ''
   const queryClient = useQueryClient()
   const toast = useToast()
-  const thermal = useThermalPrinter()
-  const desktopPrinter = useDesktopPrinter()
+  const printer = usePrinter()
 
-  // Prefer desktop printer (Windows) over WebUSB
-  const print = desktopPrinter.selectedPrinter ? desktopPrinter.print : thermal.print
-  const config = thermal.config ?? desktopPrinter.config
-  const isAutoEnabled = thermal.isAutoEnabled || desktopPrinter.isAutoEnabled
+  const print = printer.print
+  const config = printer.config
+  const isAutoEnabled = printer.isAutoEnabled
 
   // Hook de filtros
   const {

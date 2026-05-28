@@ -23,7 +23,7 @@ export function PrinterSelectModal({ printers, onSelect, onClose }: PrinterSelec
 
   return (
     <div className="fixed inset-0 z-[100] flex justify-center overflow-y-auto">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="presentation" />
       <div className="relative w-full max-w-sm md:max-w-md mt-[20vh] mb-8 mx-4 bg-surface-container text-on-background rounded-3xl shadow-2xl border border-outline/20 overflow-hidden self-start">
         <div className="p-6 pb-4 flex flex-col items-center text-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">

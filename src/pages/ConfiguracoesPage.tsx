@@ -4,8 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useRealtime } from '@hooks/useRealtime'
 import { useAuth } from '@contexts/AuthContext'
 import { useTenantId } from '@hooks/useTenantId'
-import { useThermalPrinter } from '@hooks/useThermalPrinter'
-import { useDesktopPrinter } from '@hooks/useDesktopPrinter'
+import { usePrinter } from '@hooks/usePrinter'
 import { ConfigInputField } from '@components/ConfigInputField'
 import { ConfigToggle } from '@components/ConfigToggle'
 import { PrinterOnboardingModal } from '@components/printer/PrinterOnboardingModal'
@@ -61,8 +60,7 @@ interface Config {
 export default function ConfiguracoesPage() {
   const { user } = useAuth()
   const tenantId = useTenantId()
-  const { status, isSupported, connect, disconnect, print } = useThermalPrinter()
-  const desktop = useDesktopPrinter()
+  const printer = usePrinter()
   const [showDesktopOnboarding, setShowDesktopOnboarding] = useState(false)
   const [showPrinterSelect, setShowPrinterSelect] = useState(false)
   const [config, setConfig] = useState<Config | null>(null)
@@ -289,106 +287,62 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
+      {/* Seção: Impressora USB (WebUSB) */}
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
-          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão Térmica
+          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressora USB
         </h3>
         <div className="space-y-4">
-          {/* Status da impressora */}
+          {/* Status */}
           <div className="flex items-center gap-2">
             <span className={`inline-block w-2 h-2 rounded-full ${
-              status === 'conectada' ? 'bg-green-500' :
-              status === 'desconectada' ? 'bg-red-500' : 'bg-yellow-500'
+              printer.technology === 'webusb' && printer.status === 'conectada' ? 'bg-green-500' :
+              printer.technology === 'webusb' && printer.status === 'imprimindo' ? 'bg-yellow-500' :
+              printer.status === 'desconectada' ? 'bg-red-500' : 'bg-yellow-500'
             }`}></span>
-            <span className="text-white capitalize">{status}</span>
+            <span className="text-white">
+              {printer.technology === 'webusb' && printer.status === 'conectada'
+                ? `Conectado: ${printer.printerName || 'Impressora USB'}`
+                : printer.technology === 'webusb' && printer.status === 'imprimindo'
+                  ? `Imprimindo: ${printer.printerName || 'Impressora USB'}`
+                : printer.status === 'conectando' ? 'Conectando...' :
+                  printer.status === 'desconectada' ? 'Desconectado' :
+                  printer.status === 'erro' ? 'Erro na conexão' :
+                  'Impressora USB não conectada'}
+            </span>
           </div>
 
-          {/* Aviso se não suportado */}
-          {!isSupported && (
+          {!printer.isWebUSBSupported && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
               <p className="text-yellow-400 text-sm">
-                Impressão via Web USB funciona apenas no Chrome e Edge. Firefox não é suportado.
+                WebUSB funciona apenas no Chrome e Edge. Firefox não é suportado.
               </p>
             </div>
           )}
 
-          {/* Botões de conexão */}
           <div className="flex gap-3">
-            {status !== 'conectada' && (
+            {printer.technology !== 'webusb' && (
               <button
-                onClick={connect}
-                disabled={!isSupported}
+                onClick={printer.connectWebUSB}
+                disabled={!printer.isWebUSBSupported}
                 className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Conectar Impressora
+                Conectar USB
               </button>
             )}
-
-            {status === 'conectada' && (
+            {printer.technology === 'webusb' && printer.status === 'conectada' && (
               <button
-                onClick={disconnect}
+                onClick={printer.disconnectWebUSB}
                 className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
               >
-                Desconectar
+                Desconectar USB
               </button>
             )}
           </div>
-
-          {/* Seletor largura papel */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => update('largura_papel', 80)}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                (config?.largura_papel ?? 80) === 80
-                  ? 'bg-[#e8391a] text-white'
-                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
-              }`}
-            >
-              80mm
-            </button>
-            <button
-              onClick={() => update('largura_papel', 58)}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                config?.largura_papel === 58
-                  ? 'bg-[#e8391a] text-white'
-                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
-              }`}
-            >
-              58mm
-            </button>
-          </div>
-
-          {/* Botão teste */}
-          {status === 'conectada' && (
-            <button
-              onClick={() => {
-                const testPedido = {
-                  id: 'test',
-                  numero: 999,
-                  cliente_nome: 'Cliente Teste',
-                  cliente_telefone: '11999999999',
-                  total: 25.90,
-                  tipo_tabela: 'pedidos' as const,
-                  raw_status: 'aberto',
-                  status_kanban: 'novo' as const,
-                  canal: 'balcao' as const,
-                  forma_pagamento: 'dinheiro',
-                  created_at: new Date().toISOString(),
-                  itens: [
-                    { qtd: 1, nome: 'Pizza Margherita', variacao: 'Grande', obs: 'Sem cebola' },
-                    { qtd: 2, nome: 'Coca-Cola 350ml' }
-                  ]
-                }
-                if (config) print(testPedido, config)
-              }}
-              className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
-            >
-              Imprimir Cupom de Teste
-            </button>
-          )}
         </div>
       </div>
 
+      {/* Seção: Impressora Windows (Go Helper) */}
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
           <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressora Windows
@@ -396,24 +350,26 @@ export default function ConfiguracoesPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <span className={`inline-block w-2 h-2 rounded-full ${
-              desktop.status === 'conectada' ? 'bg-green-500' :
-              desktop.status === 'imprimindo' ? 'bg-yellow-500' :
-              desktop.status === 'available' ? 'bg-green-400' :
-              desktop.status === 'checking' ? 'bg-yellow-500' :
-              desktop.status === 'unavailable' ? 'bg-gray-500' : 'bg-red-500'
+              printer.technology === 'desktop' && printer.status === 'conectada' ? 'bg-green-500' :
+              printer.technology === 'desktop' && printer.status === 'imprimindo' ? 'bg-yellow-500' :
+              printer.status === 'available' ? 'bg-green-400' :
+              printer.status === 'checking' ? 'bg-yellow-500' :
+              printer.status === 'unavailable' ? 'bg-gray-500' : 'bg-red-500'
             }`}></span>
-            <span className="text-white capitalize">
-              {desktop.status === 'checking' ? 'Verificando...' :
-               desktop.status === 'available' ? 'Módulo disponível — selecione uma impressora' :
-               desktop.status === 'conectada' ? `Conectado: ${desktop.selectedPrinter}` :
-               desktop.status === 'imprimindo' ? 'Imprimindo...' :
-               desktop.status === 'unavailable' ? 'Módulo auxiliar não detectado' :
-               desktop.status}
+            <span className="text-white">
+              {printer.status === 'checking' ? 'Verificando...' :
+               printer.status === 'available' ? 'Módulo disponível — selecione uma impressora' :
+               printer.technology === 'desktop' && printer.status === 'conectada'
+                 ? `Conectado: ${printer.printerName}` :
+               printer.status === 'imprimindo' ? 'Imprimindo...' :
+               printer.status === 'unavailable' ? 'Módulo auxiliar não detectado' :
+               printer.status === 'desconectada' ? 'Desconectado' :
+               printer.status}
             </span>
           </div>
 
           <div className="flex gap-3">
-            {desktop.status === 'unavailable' && (
+            {printer.status === 'unavailable' && (
               <button
                 onClick={() => setShowDesktopOnboarding(true)}
                 className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
@@ -421,10 +377,10 @@ export default function ConfiguracoesPage() {
                 Baixar Módulo de Impressão
               </button>
             )}
-            {desktop.status === 'available' && (
+            {(printer.status === 'available' || (printer.status === 'conectada' && printer.technology !== 'desktop')) && (
               <button
                 onClick={async () => {
-                  await desktop.listPrinters()
+                  await printer.listPrinters()
                   setShowPrinterSelect(true)
                 }}
                 className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
@@ -432,10 +388,10 @@ export default function ConfiguracoesPage() {
                 Conectar Impressora
               </button>
             )}
-            {desktop.status === 'conectada' && (
+            {printer.technology === 'desktop' && printer.status === 'conectada' && (
               <button
                 onClick={async () => {
-                  await desktop.listPrinters()
+                  await printer.listPrinters()
                   setShowPrinterSelect(true)
                 }}
                 className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
@@ -443,41 +399,53 @@ export default function ConfiguracoesPage() {
                 Trocar Impressora
               </button>
             )}
-            {desktop.status === 'conectada' && (
+            {printer.technology === 'desktop' && printer.status === 'conectada' && (
               <button
-                onClick={desktop.disconnectPrinter}
+                onClick={printer.disconnectDesktop}
                 className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
               >
                 Desconectar
               </button>
             )}
           </div>
+        </div>
+      </div>
 
+      {/* Seção: Configuração de impressão */}
+      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
+        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
+          <span className="material-symbols-outlined text-[#e8391a]">settings</span> Configuração do Cupom
+        </h3>
+        <div className="space-y-4">
           {/* Seletor largura papel */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => update('largura_papel', 80)}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                (config?.largura_papel ?? 80) === 80
-                  ? 'bg-[#e8391a] text-white'
-                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
-              }`}
-            >
-              80mm
-            </button>
-            <button
-              onClick={() => update('largura_papel', 58)}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                config?.largura_papel === 58
-                  ? 'bg-[#e8391a] text-white'
-                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
-              }`}
-            >
-              58mm
-            </button>
+          <div>
+            <span className="text-sm text-gray-400 mb-2 block">Largura do papel</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => update('largura_papel', 80)}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  (config?.largura_papel ?? 80) === 80
+                    ? 'bg-[#e8391a] text-white'
+                    : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
+                }`}
+              >
+                80mm
+              </button>
+              <button
+                onClick={() => update('largura_papel', 58)}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  config?.largura_papel === 58
+                    ? 'bg-[#e8391a] text-white'
+                    : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
+                }`}
+              >
+                58mm
+              </button>
+            </div>
           </div>
 
-          {desktop.status === 'conectada' && (
+          {/* Botão teste */}
+          {printer.status === 'conectada' && (
             <button
               onClick={() => {
                 const testPedido = {
@@ -497,12 +465,17 @@ export default function ConfiguracoesPage() {
                     { qtd: 2, nome: 'Coca-Cola 350ml' }
                   ]
                 }
-                if (desktop.config) desktop.print(testPedido, desktop.config)
+                if (config) printer.print(testPedido, config)
               }}
-              className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
+              className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
             >
               Imprimir Cupom de Teste
             </button>
+          )}
+          {printer.status !== 'conectada' && (
+            <p className="text-sm text-gray-500 italic">
+              Conecte uma impressora USB ou Windows para testar a impressão.
+            </p>
           )}
         </div>
       </div>
@@ -512,7 +485,7 @@ export default function ConfiguracoesPage() {
           onClose={() => setShowDesktopOnboarding(false)}
           onHelperReady={() => {
             setShowDesktopOnboarding(false)
-            desktop.checkHelper().then(ok => {
+            printer.checkHelper().then(ok => {
               if (ok) showToast('Módulo de impressão detectado! Conecte sua impressora.')
             })
           }}
@@ -521,9 +494,9 @@ export default function ConfiguracoesPage() {
 
       {showPrinterSelect && (
         <PrinterSelectModal
-          printers={desktop.printers}
+          printers={printer.printers}
           onSelect={(name) => {
-            desktop.selectPrinter(name)
+            printer.selectPrinterDesktop(name)
             setShowPrinterSelect(false)
           }}
           onClose={() => setShowPrinterSelect(false)}
