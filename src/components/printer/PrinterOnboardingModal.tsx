@@ -16,13 +16,26 @@ export function PrinterOnboardingModal({ onClose, onHelperReady }: PrinterOnboar
   const [checking, setChecking] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState<'success' | 'error' | null>(null)
 
-  const handleDownload = useCallback(() => {
-    const a = document.createElement('a')
-    a.href = HELPER_DOWNLOAD_URL
-    a.download = 'Kero-Printer-Setup.exe'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch(HELPER_DOWNLOAD_URL)
+      if (!res.ok) throw new Error('Arquivo não encontrado')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'Kero-Printer-Setup.exe'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('[KeroPrint] Falha ao baixar instalador:', err)
+    }
+    setDownloading(false)
   }, [])
 
   const handleVerify = useCallback(async () => {
@@ -82,10 +95,15 @@ export function PrinterOnboardingModal({ onClose, onHelperReady }: PrinterOnboar
         <div className="px-6 pb-4 space-y-3">
           <button
             onClick={handleDownload}
-            className="w-full h-12 bg-primary hover:bg-primary-bright text-white font-bold rounded-xl text-base transition-all active:scale-[0.98] shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
+            disabled={downloading}
+            className="w-full h-12 bg-primary hover:bg-primary-bright text-white font-bold rounded-xl text-base transition-all active:scale-[0.98] shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined text-[20px]">download</span>
-            Baixar Módulo de Impressão
+            {downloading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[20px]">download</span>
+            )}
+            {downloading ? 'Baixando...' : 'Baixar Módulo de Impressão'}
           </button>
 
           <button

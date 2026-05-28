@@ -21,7 +21,7 @@
     },
     "browsermcp": {
       "type": "local",
-      "command": ["npx", "@browsermcp/mcp@latest"],
+      "command": ["npx", "-y", "@browsermcp/mcp@latest"],
       "enabled": true
     },
     "context7": {
@@ -34,11 +34,11 @@
     },
     "semgrep": {
       "type": "local",
-      "command": ["C:\\Users\\usuario\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\semgrep.exe", "mcp"],
+      "command": ["C:\\Users\\usuario\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\semgrep.exe", "mcp", "--transport", "stdio"],
       "environment": {
         "SEMGREP_APP_TOKEN": "a7f19332255204ab3b36f49f1b8456e99166a0bfde378df2eb0b90d0a0d4ab0c"
       },
-      "enabled": true
+      "enabled": false
     }
   }
 }

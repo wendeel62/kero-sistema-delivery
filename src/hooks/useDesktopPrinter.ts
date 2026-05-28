@@ -125,7 +125,7 @@ export function useDesktopPrinter() {
 
   // ---- Print queue (serialized) --------------------------------------------
 
-  const executePrint = async (pedido: UnifiedPedido, configData: Configuracoes): Promise<void> => {
+  const executePrint = useCallback(async (pedido: UnifiedPedido, configData: Configuracoes): Promise<void> => {
     const printerName = selectedPrinter ?? localStorage.getItem(storageKey)
     if (!printerName) throw new Error('[KeroPrint] Nenhuma impressora selecionada')
 
@@ -145,7 +145,7 @@ export function useDesktopPrinter() {
       PRINT_TIMEOUT_MS,
       'Timeout ao imprimir — impressora não respondeu'
     )
-  }
+  }, [selectedPrinter, storageKey])
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return
@@ -177,7 +177,7 @@ export function useDesktopPrinter() {
 
     processingRef.current = false
     setStatus(prev => (prev === 'imprimindo' ? (selectedPrinter ? 'conectada' : 'available') : prev))
-  }, [toast, selectedPrinter])
+  }, [toast, selectedPrinter, executePrint])
 
   const enqueue = useCallback(
     (pedido: UnifiedPedido, configData: Configuracoes): Promise<void> => {

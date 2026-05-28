@@ -17,7 +17,7 @@ lint -> typecheck -> build -> test (audit paralelo)
 ## Stack
 - **Frontend**: React 19, Vite 8, TailwindCSS v4 via `@tailwindcss/vite` (sem PostCSS)
 - **Backend**: Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
-- **Servidor local**: Express em `server/` apenas para impressao termica
+- **Impressão térmica**: `printer-helper/main.go` (Go native helper, porta 3002) + `@point-of-sale/webusb-receipt-printer` (WebUSB)
 - **Auth**: Supabase Auth JWT + multi-tenant RBAC (`tenant_id` em `user_metadata`)
 - **State**: TanStack React Query (staleTime: volateis 1min, intermediario 10min, estatico 24h)
 - **Forms**: Zod (schemas em `src/schemas/`) + react-hook-form

@@ -400,8 +400,9 @@ export default function PedidosPage() {
       }
     } catch (err) {
       console.error('[KeroPrint] Erro na impressão automática:', err)
+      toast.error('Falha ao imprimir pedido automaticamente — verifique a impressora')
     }
-  }, [config, isAutoEnabled, print])
+  }, [config, isAutoEnabled, print, toast])
 
   return (
     <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">

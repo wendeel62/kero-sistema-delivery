@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
-import { useRealtime } from '../hooks/useRealtime'
-import { useAuth } from '../contexts/AuthContext'
-import { useTenantId } from '../hooks/useTenantId'
-import { useThermalPrinter } from '../hooks/useThermalPrinter'
-import { useDesktopPrinter } from '../hooks/useDesktopPrinter'
-import { ConfigInputField } from '../components/ConfigInputField'
-import { ConfigToggle } from '../components/ConfigToggle'
-import { PrinterOnboardingModal } from '../components/printer/PrinterOnboardingModal'
-import { PrinterSelectModal } from '../components/printer/PrinterSelectModal'
+import { supabase } from '@/lib/supabase'
+import { useRealtime } from '@hooks/useRealtime'
+import { useAuth } from '@contexts/AuthContext'
+import { useTenantId } from '@hooks/useTenantId'
+import { useThermalPrinter } from '@hooks/useThermalPrinter'
+import { useDesktopPrinter } from '@hooks/useDesktopPrinter'
+import { ConfigInputField } from '@components/ConfigInputField'
+import { ConfigToggle } from '@components/ConfigToggle'
+import { PrinterOnboardingModal } from '@components/printer/PrinterOnboardingModal'
+import { PrinterSelectModal } from '@components/printer/PrinterSelectModal'
+
 
 const slugify = (text: string) => {
   return text
@@ -274,6 +275,20 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
+      {/* Toggle unificado de impressão automática — aplica a ambos os módulos */}
+      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
+        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
+          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão
+        </h3>
+        <div className="space-y-4">
+          <ConfigToggle
+            label="Impressão automática ao receber pedido"
+            checked={config?.impressao_automatica ?? false}
+            onChange={v => update('impressao_automatica', v)}
+          />
+        </div>
+      </div>
+
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
           <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão Térmica
@@ -319,13 +334,6 @@ export default function ConfiguracoesPage() {
             )}
           </div>
 
-          {/* Toggle impressão automática */}
-          <ConfigToggle
-            label="Impressão automática ao receber pedido"
-            checked={config?.impressao_automatica ?? false}
-            onChange={v => update('impressao_automatica', v)}
-          />
-
           {/* Seletor largura papel */}
           <div className="flex gap-2">
             <button
@@ -354,13 +362,15 @@ export default function ConfiguracoesPage() {
           {status === 'conectada' && (
             <button
               onClick={() => {
-                // Pedido fictício para teste — estrutura alinhada com PedidoItem
                 const testPedido = {
                   id: 'test',
                   numero: 999,
                   cliente_nome: 'Cliente Teste',
                   cliente_telefone: '11999999999',
                   total: 25.90,
+                  tipo_tabela: 'pedidos' as const,
+                  raw_status: 'aberto',
+                  status_kanban: 'novo' as const,
                   canal: 'balcao' as const,
                   forma_pagamento: 'dinheiro',
                   created_at: new Date().toISOString(),
@@ -369,7 +379,7 @@ export default function ConfiguracoesPage() {
                     { qtd: 2, nome: 'Coca-Cola 350ml' }
                   ]
                 }
-                if (config) print(testPedido as any, config)
+                if (config) print(testPedido, config)
               }}
               className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
             >
@@ -443,13 +453,29 @@ export default function ConfiguracoesPage() {
             )}
           </div>
 
-          {desktop.status !== 'unavailable' && (
-            <ConfigToggle
-              label="Impressão automática ao receber pedido"
-              checked={config?.impressao_automatica ?? false}
-              onChange={v => update('impressao_automatica', v)}
-            />
-          )}
+          {/* Seletor largura papel */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => update('largura_papel', 80)}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                (config?.largura_papel ?? 80) === 80
+                  ? 'bg-[#e8391a] text-white'
+                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
+              }`}
+            >
+              80mm
+            </button>
+            <button
+              onClick={() => update('largura_papel', 58)}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                config?.largura_papel === 58
+                  ? 'bg-[#e8391a] text-white'
+                  : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
+              }`}
+            >
+              58mm
+            </button>
+          </div>
 
           {desktop.status === 'conectada' && (
             <button
@@ -460,6 +486,9 @@ export default function ConfiguracoesPage() {
                   cliente_nome: 'Cliente Teste',
                   cliente_telefone: '11999999999',
                   total: 25.90,
+                  tipo_tabela: 'pedidos' as const,
+                  raw_status: 'aberto',
+                  status_kanban: 'novo' as const,
                   canal: 'balcao' as const,
                   forma_pagamento: 'dinheiro',
                   created_at: new Date().toISOString(),
@@ -468,7 +497,7 @@ export default function ConfiguracoesPage() {
                     { qtd: 2, nome: 'Coca-Cola 350ml' }
                   ]
                 }
-                if (desktop.config) desktop.print(testPedido as any, desktop.config)
+                if (desktop.config) desktop.print(testPedido, desktop.config)
               }}
               className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
             >

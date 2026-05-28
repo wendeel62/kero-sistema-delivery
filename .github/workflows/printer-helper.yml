@@ -36,11 +36,28 @@ jobs:
           $env:GOARCH = "386"
           go build -ldflags="-s -w" -o ../public/Kero-Printer-Helper-x86.exe .
 
+      - name: Copy binary for installer
+        shell: pwsh
+        run: Copy-Item "public/Kero-Printer-Helper-x64.exe" "printer-helper/dist/Kero-Printer-Helper.exe" -Force
+
+      - name: Setup NSIS
+        run: |
+          Invoke-WebRequest -Uri "https://sourceforge.net/projects/nsis/files/NSIS%203/3.09/nsis-3.09-setup.exe/download" -OutFile "$env:TEMP\nsis-setup.exe"
+          Start-Process -Wait -FilePath "$env:TEMP\nsis-setup.exe" -ArgumentList "/S"
+          echo "NSIS_DIR=C:\Program Files (x86)\NSIS" >> $env:GITHUB_ENV
+
+      - name: Build installer (NSIS)
+        working-directory: printer-helper
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Kero-Printer-Helper
-          path: public/Kero-Printer-Helper-*.exe
+          path: |
+            public/Kero-Printer-Helper-*.exe
+            public/Kero-Printer-Setup.exe
 
       - name: Upload to release
         if: github.event_name == 'release'
@@ -49,3 +66,4 @@ jobs:
           files: |
             public/Kero-Printer-Helper-x64.exe
             public/Kero-Printer-Helper-x86.exe
+            public/Kero-Printer-Setup.exe
