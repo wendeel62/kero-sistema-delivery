@@ -8,7 +8,7 @@
  * - usePedidosFilters: Hook de filtros
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
@@ -88,6 +88,8 @@ export default function PedidosPage() {
     enabled: !!tenantId,
     staleTime: 60_000,
   })
+
+  const autoPrintedOrders = useRef(new Set<string>())
 
   const mapToOrderData = useCallback((pedido: UnifiedPedido): OrderData => {
     return {
@@ -302,7 +304,7 @@ export default function PedidosPage() {
       if (selectedPedido?.id === pedido.id) {
         setSelectedPedido({ ...selectedPedido, raw_status: nextRaw, status_kanban: mapKanbanStatus(nextRaw) })
       }
-      if (printer.autoPrint) {
+      if (printer.autoPrint && !autoPrintedOrders.current.has(pedido.id)) {
         try {
           await printer.print(mapToOrderData(pedido))
         } catch { /* silent */ }
@@ -402,7 +404,8 @@ export default function PedidosPage() {
           }))
         }
 
-        printer.print(mapToOrderData(unified))
+        await printer.print(mapToOrderData(unified))
+        autoPrintedOrders.current.add(pedidoCompleto.id)
       } else {
         const p = payload.new
         let itensArray: UnifiedPedido['itens'] = []
@@ -434,7 +437,8 @@ export default function PedidosPage() {
           itens: itensArray,
         }
 
-        printer.print(mapToOrderData(unified))
+        await printer.print(mapToOrderData(unified))
+        autoPrintedOrders.current.add(p.id as string)
       }
     } catch (err) {
       console.error('[KeroPrint] Erro na impressão automática:', err)
