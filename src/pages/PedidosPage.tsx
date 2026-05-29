@@ -15,6 +15,7 @@ import { useRealtime } from '../hooks/useRealtime'
 import { usePrinter } from '../hooks/usePrinter'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { OrderData } from '../services/printService'
 
 // Componentes modulares
 import { PedidosList } from './pedidos/PedidosList'
@@ -74,9 +75,44 @@ export default function PedidosPage() {
   const toast = useToast()
   const printer = usePrinter()
 
-  const print = printer.print
-  const config = printer.config
-  const isAutoEnabled = printer.isAutoEnabled
+  const { data: config } = useQuery({
+    queryKey: ['configuracoes', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('configuracoes')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .single()
+      return data as { nome_loja: string; endereco: string; telefone: string } | null
+    },
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  })
+
+  const mapToOrderData = useCallback((pedido: UnifiedPedido): OrderData => {
+    return {
+      numero: String(pedido.numero),
+      cliente_nome: pedido.cliente_nome,
+      cliente_telefone: pedido.cliente_telefone,
+      tipo_entrega: pedido.canal === 'entrega' ? 'delivery' : 'balcao',
+      endereco: pedido.endereco_entrega,
+      itens: pedido.itens.map(item => ({
+        quantidade: item.qtd,
+        nome: item.nome,
+        variacao: item.variacao || item.tamanho,
+        observacao: item.observacoes,
+        preco_unitario: item.preco || 0,
+      })),
+      subtotal: pedido.total,
+      taxa_entrega: 0,
+      desconto: 0,
+      total: pedido.total,
+      forma_pagamento: pedido.forma_pagamento,
+      estabelecimento_nome: config?.nome_loja || '',
+      estabelecimento_endereco: config?.endereco || '',
+      estabelecimento_telefone: config?.telefone || '',
+    }
+  }, [config])
 
   // Hook de filtros
   const {
@@ -266,10 +302,15 @@ export default function PedidosPage() {
       if (selectedPedido?.id === pedido.id) {
         setSelectedPedido({ ...selectedPedido, raw_status: nextRaw, status_kanban: mapKanbanStatus(nextRaw) })
       }
+      if (printer.autoPrint) {
+        try {
+          await printer.print(mapToOrderData(pedido))
+        } catch { /* silent */ }
+      }
     } catch (err) {
       console.error(err)
     }
-  }, [selectedPedido, refetchPedidos, tenantId])
+  }, [selectedPedido, refetchPedidos, tenantId, printer, mapToOrderData])
 
   const { mutate: cancelarPedido } = useMutation({
     mutationFn: async ({ pedido, motivo }: { pedido: UnifiedPedido; motivo: string }) => {
@@ -320,14 +361,14 @@ export default function PedidosPage() {
 
   const handlePrint = useCallback((pedido: UnifiedPedido) => {
     if (config) {
-      print(pedido, config)
+      printer.print(mapToOrderData(pedido))
     }
-  }, [print, config])
+  }, [config, printer, mapToOrderData])
 
-  // ---- Auto-print on new order ---------------------------------------------
+  // ---- Auto-print on new order
 
   const handleAutoPrint = useCallback(async (payload: { new: Record<string, unknown> }, origemTabela: 'pedidos' | 'pedidos_online') => {
-    if (!config || !isAutoEnabled) return
+    if (!config || !printer.autoPrint) return
 
     try {
       if (origemTabela === 'pedidos') {
@@ -357,11 +398,11 @@ export default function PedidosPage() {
             nome: ip.produto_nome as string,
             qtd: ip.quantidade as number,
             variacao: ip.tamanho as string,
-            obs: ip.observacoes as string,
+            observacoes: ip.observacoes as string,
           }))
         }
 
-        print(unified, config)
+        printer.print(mapToOrderData(unified))
       } else {
         const p = payload.new
         let itensArray: UnifiedPedido['itens'] = []
@@ -373,7 +414,7 @@ export default function PedidosPage() {
                 nome: (ip.produto_nome as string) || (ip.nome as string),
                 qtd: (ip.quantidade as number) || (ip.qtd as number),
                 variacao: (ip.tamanho as string) || (ip.variacao as string),
-                obs: (ip.observacoes as string) || (ip.obs as string),
+                observacoes: (ip.observacoes as string) || (ip.obs as string),
               }))
             : []
         }
@@ -393,13 +434,13 @@ export default function PedidosPage() {
           itens: itensArray,
         }
 
-        print(unified, config)
+        printer.print(mapToOrderData(unified))
       }
     } catch (err) {
       console.error('[KeroPrint] Erro na impressão automática:', err)
       toast.error('Falha ao imprimir pedido automaticamente — verifique a impressora')
     }
-  }, [config, isAutoEnabled, print, toast])
+  }, [config, printer, toast, mapToOrderData])
 
   return (
     <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">

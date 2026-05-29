@@ -1,5 +1,10 @@
+import { useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '../lib/supabase'
+import { usePrinter } from '../hooks/usePrinter'
 import { usePdv } from '../hooks/usePdv'
 import type { Produto } from '../hooks/usePdv'
+import type { OrderData } from '../services/printService'
 import MesasGrid from '../components/pdv/MesasGrid'
 import MesasPanel from '../components/pdv/MesasPanel'
 import OcuparMesaModal from '../components/pdv/OcuparMesaModal'
@@ -9,6 +14,54 @@ import DivisaoConta from '../components/DivisaoConta'
 
 export default function PdvPage() {
   const h = usePdv()
+  const printer = usePrinter()
+
+  const { data: config } = useQuery({
+    queryKey: ['configuracoes_print'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('configuracoes')
+        .select('*')
+        .single()
+      return data as { nome_loja: string; endereco: string; telefone: string } | null
+    },
+    staleTime: 60_000,
+  })
+
+  const printOrder = useCallback(() => {
+    if (!printer.autoPrint || !printer.selectedPrinter || !config) return
+    const orderData: OrderData = {
+      numero: String(Date.now()),
+      cliente_nome: h.clienteNome || 'Cliente',
+      cliente_telefone: h.clienteTelefone || '',
+      tipo_entrega: h.tipo === 'entrega' ? 'delivery' : 'balcao',
+      endereco: h.enderecoEntrega,
+      itens: h.itens.map(item => ({
+        quantidade: item.quantidade,
+        nome: item.produto.nome,
+        variacao: item.tamanho,
+        observacao: item.observacoes,
+        preco_unitario: item.produto.preco || 0,
+      })),
+      subtotal: h.subtotal,
+      taxa_entrega: h.tipo === 'entrega' ? 5 : 0,
+      desconto: h.desconto,
+      total: h.total,
+      forma_pagamento: h.formaPagamento || 'Dinheiro',
+      estabelecimento_nome: config.nome_loja,
+      estabelecimento_endereco: config.endereco || '',
+      estabelecimento_telefone: config.telefone || '',
+    }
+    try {
+      printer.print(orderData)
+    } catch { /* silent */ }
+  }, [printer, config, h])
+
+  useEffect(() => {
+    if (h.sucesso && printer.autoPrint) {
+      printOrder()
+    }
+  }, [h.sucesso, printer.autoPrint, printOrder])
 
   return (
     <>

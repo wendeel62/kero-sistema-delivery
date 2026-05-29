@@ -7,8 +7,7 @@ import { useTenantId } from '@hooks/useTenantId'
 import { usePrinter } from '@hooks/usePrinter'
 import { ConfigInputField } from '@components/ConfigInputField'
 import { ConfigToggle } from '@components/ConfigToggle'
-import { PrinterOnboardingModal } from '@components/printer/PrinterOnboardingModal'
-import { PrinterSelectModal } from '@components/printer/PrinterSelectModal'
+import type { OrderData } from '../services/printService'
 
 
 const slugify = (text: string) => {
@@ -61,8 +60,6 @@ export default function ConfiguracoesPage() {
   const { user } = useAuth()
   const tenantId = useTenantId()
   const printer = usePrinter()
-  const [showDesktopOnboarding, setShowDesktopOnboarding] = useState(false)
-  const [showPrinterSelect, setShowPrinterSelect] = useState(false)
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const queryClient = useQueryClient()
@@ -273,158 +270,79 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Toggle unificado de impressão automática — aplica a ambos os módulos */}
+      {/* Impressão Térmica (QZ Tray) */}
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
-          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão
-        </h3>
-        <div className="space-y-4">
-          <ConfigToggle
-            label="Impressão automática ao receber pedido"
-            checked={config?.impressao_automatica ?? false}
-            onChange={v => update('impressao_automatica', v)}
-          />
-        </div>
-      </div>
-
-      {/* Seção: Impressora USB (WebUSB) */}
-      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
-        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
-          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressora USB
+          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão Térmica
         </h3>
         <div className="space-y-4">
           {/* Status */}
           <div className="flex items-center gap-2">
-            <span className={`inline-block w-2 h-2 rounded-full ${
-              printer.technology === 'webusb' && printer.status === 'conectada' ? 'bg-green-500' :
-              printer.technology === 'webusb' && printer.status === 'imprimindo' ? 'bg-yellow-500' :
-              printer.status === 'desconectada' ? 'bg-red-500' : 'bg-yellow-500'
-            }`}></span>
-            <span className="text-white">
-              {printer.technology === 'webusb' && printer.status === 'conectada'
-                ? `Conectado: ${printer.printerName || 'Impressora USB'}`
-                : printer.technology === 'webusb' && printer.status === 'imprimindo'
-                  ? `Imprimindo: ${printer.printerName || 'Impressora USB'}`
-                : printer.status === 'conectando' ? 'Conectando...' :
-                  printer.status === 'desconectada' ? 'Desconectado' :
-                  printer.status === 'erro' ? 'Erro na conexão' :
-                  'Impressora USB não conectada'}
-            </span>
+            <span className={`inline-block w-2 h-2 rounded-full ${printer.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            <span className="text-white">{printer.isConnected ? 'Conectada' : 'Desconectada'}</span>
           </div>
 
-          {!printer.isWebUSBSupported && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-              <p className="text-yellow-400 text-sm">
-                WebUSB funciona apenas no Chrome e Edge. Firefox não é suportado.
-              </p>
+          {/* Connect / Disconnect */}
+          {!printer.isConnected && (
+            <button
+              onClick={printer.connect}
+              disabled={printer.isConnecting}
+              className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50"
+            >
+              {printer.isConnecting ? 'Conectando...' : 'Conectar Impressora'}
+            </button>
+          )}
+          {printer.isConnected && (
+            <button
+              onClick={printer.disconnect}
+              className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
+            >
+              Desconectar
+            </button>
+          )}
+
+          {/* Error */}
+          {printer.error && (
+            <p className="text-red-400 text-sm">{printer.error}</p>
+          )}
+
+          {/* Printer selector */}
+          {printer.isConnected && (
+            <div className="space-y-2">
+              <select
+                value={printer.selectedPrinter ?? ''}
+                onChange={(e) => printer.selectPrinter(e.target.value)}
+                className="w-full bg-[#252830] text-white px-3 py-2 rounded-lg border border-[#303030] outline-none focus:border-[#e8391a]"
+              >
+                <option value="">Selecione uma impressora</option>
+                {printer.printers.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <button
+                onClick={printer.loadPrinters}
+                className="text-sm text-gray-400 hover:text-white"
+              >
+                Atualizar Lista
+              </button>
             </div>
           )}
 
-          <div className="flex gap-3">
-            {printer.technology !== 'webusb' && (
-              <button
-                onClick={printer.connectWebUSB}
-                disabled={!printer.isWebUSBSupported}
-                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Conectar USB
-              </button>
-            )}
-            {printer.technology === 'webusb' && printer.status === 'conectada' && (
-              <button
-                onClick={printer.disconnectWebUSB}
-                className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
-              >
-                Desconectar USB
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+          {/* Auto print toggle */}
+          <ConfigToggle
+            label="Impressão automática ao receber pedido"
+            checked={printer.autoPrint}
+            onChange={printer.setAutoPrint}
+          />
 
-      {/* Seção: Impressora Windows (Go Helper) */}
-      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
-        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
-          <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressora Windows
-        </h3>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className={`inline-block w-2 h-2 rounded-full ${
-              printer.technology === 'desktop' && printer.status === 'conectada' ? 'bg-green-500' :
-              printer.technology === 'desktop' && printer.status === 'imprimindo' ? 'bg-yellow-500' :
-              printer.status === 'available' ? 'bg-green-400' :
-              printer.status === 'checking' ? 'bg-yellow-500' :
-              printer.status === 'unavailable' ? 'bg-gray-500' : 'bg-red-500'
-            }`}></span>
-            <span className="text-white">
-              {printer.status === 'checking' ? 'Verificando...' :
-               printer.status === 'available' ? 'Módulo disponível — selecione uma impressora' :
-               printer.technology === 'desktop' && printer.status === 'conectada'
-                 ? `Conectado: ${printer.printerName}` :
-               printer.status === 'imprimindo' ? 'Imprimindo...' :
-               printer.status === 'unavailable' ? 'Módulo auxiliar não detectado' :
-               printer.status === 'desconectada' ? 'Desconectado' :
-               printer.status}
-            </span>
-          </div>
-
-          <div className="flex gap-3">
-            {printer.status === 'unavailable' && (
-              <button
-                onClick={() => setShowDesktopOnboarding(true)}
-                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
-              >
-                Baixar Módulo de Impressão
-              </button>
-            )}
-            {(printer.status === 'available' || (printer.status === 'conectada' && printer.technology !== 'desktop')) && (
-              <button
-                onClick={async () => {
-                  await printer.listPrinters()
-                  setShowPrinterSelect(true)
-                }}
-                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
-              >
-                Conectar Impressora
-              </button>
-            )}
-            {printer.technology === 'desktop' && printer.status === 'conectada' && (
-              <button
-                onClick={async () => {
-                  await printer.listPrinters()
-                  setShowPrinterSelect(true)
-                }}
-                className="bg-surface-container border border-outline px-4 py-2 rounded-lg font-medium text-white hover:bg-[#303030]"
-              >
-                Trocar Impressora
-              </button>
-            )}
-            {printer.technology === 'desktop' && printer.status === 'conectada' && (
-              <button
-                onClick={printer.disconnectDesktop}
-                className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
-              >
-                Desconectar
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Seção: Configuração de impressão */}
-      <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
-        <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
-          <span className="material-symbols-outlined text-[#e8391a]">settings</span> Configuração do Cupom
-        </h3>
-        <div className="space-y-4">
-          {/* Seletor largura papel */}
+          {/* Paper width */}
           <div>
             <span className="text-sm text-gray-400 mb-2 block">Largura do papel</span>
             <div className="flex gap-2">
               <button
-                onClick={() => update('largura_papel', 80)}
+                onClick={() => printer.setPaperWidth('80mm')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  (config?.largura_papel ?? 80) === 80
+                  printer.paperWidth === '80mm'
                     ? 'bg-[#e8391a] text-white'
                     : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
                 }`}
@@ -432,9 +350,9 @@ export default function ConfiguracoesPage() {
                 80mm
               </button>
               <button
-                onClick={() => update('largura_papel', 58)}
+                onClick={() => printer.setPaperWidth('58mm')}
                 className={`px-4 py-2 rounded-lg font-medium ${
-                  config?.largura_papel === 58
+                  printer.paperWidth === '58mm'
                     ? 'bg-[#e8391a] text-white'
                     : 'bg-[#252830] text-gray-300 hover:bg-[#303030]'
                 }`}
@@ -444,64 +362,34 @@ export default function ConfiguracoesPage() {
             </div>
           </div>
 
-          {/* Botão teste */}
-          {printer.status === 'conectada' && (
+          {/* Test print */}
+          {printer.isConnected && printer.selectedPrinter && (
             <button
               onClick={() => {
-                const testPedido = {
-                  id: 'test',
-                  numero: 999,
+                const testOrder: OrderData = {
+                  numero: 'TESTE',
                   cliente_nome: 'Cliente Teste',
-                  cliente_telefone: '11999999999',
-                  total: 25.90,
-                  tipo_tabela: 'pedidos' as const,
-                  raw_status: 'aberto',
-                  status_kanban: 'novo' as const,
-                  canal: 'balcao' as const,
-                  forma_pagamento: 'dinheiro',
-                  created_at: new Date().toISOString(),
-                  itens: [
-                    { qtd: 1, nome: 'Pizza Margherita', variacao: 'Grande', obs: 'Sem cebola' },
-                    { qtd: 2, nome: 'Coca-Cola 350ml' }
-                  ]
+                  cliente_telefone: '(11) 99999-9999',
+                  tipo_entrega: 'balcao',
+                  subtotal: 10,
+                  taxa_entrega: 0,
+                  desconto: 0,
+                  total: 10,
+                  forma_pagamento: 'Dinheiro',
+                  itens: [{ quantidade: 1, nome: 'Produto Teste', preco_unitario: 10 }],
+                  estabelecimento_nome: config?.nome_loja || 'Kero Delivery',
+                  estabelecimento_endereco: config?.endereco || '',
+                  estabelecimento_telefone: config?.telefone || '',
                 }
-                if (config) printer.print(testPedido, config)
+                printer.print(testOrder)
               }}
               className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a]"
             >
-              Imprimir Cupom de Teste
+              Imprimir Teste
             </button>
-          )}
-          {printer.status !== 'conectada' && (
-            <p className="text-sm text-gray-500 italic">
-              Conecte uma impressora USB ou Windows para testar a impressão.
-            </p>
           )}
         </div>
       </div>
-
-      {showDesktopOnboarding && (
-        <PrinterOnboardingModal
-          onClose={() => setShowDesktopOnboarding(false)}
-          onHelperReady={() => {
-            setShowDesktopOnboarding(false)
-            printer.checkHelper().then(ok => {
-              if (ok) showToast('Módulo de impressão detectado! Conecte sua impressora.')
-            })
-          }}
-        />
-      )}
-
-      {showPrinterSelect && (
-        <PrinterSelectModal
-          printers={printer.printers}
-          onSelect={(name) => {
-            printer.selectPrinterDesktop(name)
-            setShowPrinterSelect(false)
-          }}
-          onClose={() => setShowPrinterSelect(false)}
-        />
-      )}
 
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
