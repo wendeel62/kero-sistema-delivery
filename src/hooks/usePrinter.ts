@@ -5,6 +5,7 @@ import {
   getAvailablePrinters,
   printReceipt,
   buildOrderReceipt,
+  isConnected as checkConnection,
 } from '../services/printService'
 import type { OrderData } from '../services/printService'
 
@@ -35,8 +36,19 @@ export function usePrinter() {
     else setPaperWidthState(DEFAULT_PAPER_WIDTH)
 
     connectPrinter()
-      .then(() => setIsConnected(true))
+      .then(() => {
+        setIsConnected(true)
+        getAvailablePrinters().then(setPrinters).catch(() => setPrinters([]))
+      })
       .catch(() => { /* silent */ })
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const active = checkConnection()
+      setIsConnected(active)
+    }, 15_000)
+    return () => clearInterval(interval)
   }, [])
 
   const connect = useCallback(async () => {
@@ -45,6 +57,8 @@ export function usePrinter() {
     try {
       await connectPrinter()
       setIsConnected(true)
+      const list = await getAvailablePrinters()
+      setPrinters(list)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Falha ao conectar com QZ Tray'
       setError(message)
@@ -84,11 +98,12 @@ export function usePrinter() {
       }
       setError(null)
       try {
-        const lines = buildOrderReceipt(order)
+        const lines = buildOrderReceipt(order, paperWidth)
         await printReceipt(selectedPrinter, lines, paperWidth)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Falha ao imprimir'
         setError(message)
+        if (!checkConnection()) setIsConnected(false)
       }
     },
     [selectedPrinter, paperWidth],

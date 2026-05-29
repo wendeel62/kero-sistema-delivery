@@ -28,7 +28,7 @@ export default function PdvPage() {
     staleTime: 60_000,
   })
 
-  const printOrder = useCallback(() => {
+  const printOrder = useCallback(async () => {
     if (!printer.autoPrint || !printer.selectedPrinter || !config) return
     const orderData: OrderData = {
       numero: String(Date.now()),
@@ -53,7 +53,7 @@ export default function PdvPage() {
       estabelecimento_telefone: config.telefone || '',
     }
     try {
-      printer.print(orderData)
+      await printer.print(orderData)
     } catch { /* silent */ }
   }, [printer, config, h])
 

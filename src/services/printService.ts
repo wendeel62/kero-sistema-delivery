@@ -134,8 +134,9 @@ export async function printReceipt(
 // Receipt builder
 // ---------------------------------------------------------------------------
 
-export function buildOrderReceipt(order: OrderData): ReceiptLine[] {
+export function buildOrderReceipt(order: OrderData, paperWidth: '80mm' | '58mm' = '80mm'): ReceiptLine[] {
   const lines: ReceiptLine[] = []
+  const columns = paperWidth === '80mm' ? 42 : 32
 
   lines.push({ type: 'text', content: order.estabelecimento_nome, align: 'center', bold: true, size: 'large' })
   lines.push({ type: 'text', content: order.estabelecimento_endereco, align: 'center' })
@@ -162,8 +163,9 @@ export function buildOrderReceipt(order: OrderData): ReceiptLine[] {
   for (const item of order.itens) {
     const nomePart = `${item.quantidade}x ${item.nome}${item.variacao ? ` - ${item.variacao}` : ''}`
     const precoPart = `R$ ${(item.preco_unitario * item.quantidade).toFixed(2)}`
-    const paddedNome = nomePart.length > 32 ? nomePart.slice(0, 29) + '...' : nomePart
-    const spaces = ' '.repeat(Math.max(1, 42 - paddedNome.length - precoPart.length))
+    const maxNomeLen = columns - precoPart.length - 1
+    const paddedNome = nomePart.length > maxNomeLen ? nomePart.slice(0, maxNomeLen - 3) + '...' : nomePart
+    const spaces = ' '.repeat(Math.max(1, columns - paddedNome.length - precoPart.length))
     lines.push({ type: 'text', content: `${paddedNome}${spaces}${precoPart}` })
 
     if (item.adicionais && item.adicionais.length > 0) {
