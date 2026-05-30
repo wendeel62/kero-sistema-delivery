@@ -8,7 +8,6 @@ import { useTenantId } from '../hooks/useTenantId'
 // Import hooks especializados
 import { useSalesKpis } from './useSalesKpis'
 import { useCustomerKpis, type FunnelData } from './useCustomerKpis'
-import { useProductKpis } from './useProductKpis'
 import { useDeliveryKpis, type TemposMedios } from './useDeliveryKpis'
 import { useFinancialKpis } from './useFinancialKpis'
 
@@ -18,7 +17,6 @@ export type {
   SalesKpiData
 } from './useSalesKpis'
 export type { CustomerKpis, FunnelData } from './useCustomerKpis'
-export type { ProductKpis, ProdutoVendido } from './useProductKpis'
 export type { DeliveryKpis, TemposMedios } from './useDeliveryKpis'
 export type { FinancialKpis, ReceitaData } from './useFinancialKpis'
 
@@ -78,7 +76,6 @@ export function useDashboardKpis() {
 
   const [funilSelecionado, setFunilSelecionado] = useState<string>('todas')
   const [showFunilDropdown, setShowFunilDropdown] = useState(false)
-  const [_receitaDias, _setReceitaDias] = useState<number>(7)
   const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
 
   // Hooks especializados
@@ -86,21 +83,22 @@ export function useDashboardKpis() {
     salesKpis,
     kpiData: salesKpiData,
     isLoading: loadingSales,
+    isError: errorSales,
     formatCurrency
   } = useSalesKpis()
 
   const {
     customerKpis,
     kpiData: customerKpiData,
-    isLoading: loadingCustomer
+    isLoading: loadingCustomer,
+    isError: errorCustomer
   } = useCustomerKpis()
-
-  const { productKpis, isLoading: loadingProducts } = useProductKpis()
 
   const {
     deliveryKpis,
     kpiData: deliveryKpiData,
-    isLoading: loadingDelivery
+    isLoading: loadingDelivery,
+    isError: errorDelivery
   } = useDeliveryKpis()
 
   const {
@@ -112,31 +110,12 @@ export function useDashboardKpis() {
     lojaAberta,
     loadingLoja,
     isLoading: loadingFinancial,
-    formatCurrency: formatCurrencyFinancial
+    formatCurrency: formatCurrencyFinancial,
+    isError: errorFinancial
   } = useFinancialKpis()
 
-  // Combina KPIs para compatibilidade com código legado
-  const kpis: KPIs = {
-    faturamento: salesKpis.faturamento,
-    totalPedidos: salesKpis.totalPedidos,
-    ticketMedio: salesKpis.ticketMedio,
-    tempoEntrega: deliveryKpis.tempoEntrega,
-    visualizacoes: customerKpis.visualizacoes,
-    avaliacao: customerKpis.avaliacao,
-    totalAvaliacoes: customerKpis.totalAvaliacoes,
-    pedidosAbertos: salesKpis.pedidosAbertos,
-    totalEntregues: salesKpis.totalEntregues,
-    receita7Dias: financialKpis.receita7Dias,
-    temposMedios: deliveryKpis.temposMedios,
-    funnelData: customerKpis.funnelData,
-    pedidosPorHora: deliveryKpis.pedidosPorHora
-  }
-
-  // Combina todos os KPI cards
-  const kpiData: KpiData[] = [...salesKpiData, ...customerKpiData, ...deliveryKpiData]
-
   // Query para pedidos recentes (mantém separado para revalidação específica)
-  const { data: pedidosRecentes = [] as Pedido[], isLoading: loadingPedidos } = useQuery({
+  const { data: pedidosRecentes = [] as Pedido[], isLoading: loadingPedidos, isError: errorPedidos } = useQuery({
     queryKey: ['pedidos-recentes', tenantId],
     queryFn: async () => {
       const { data: pedidos } = await supabase
@@ -162,7 +141,7 @@ export function useDashboardKpis() {
   })
 
   // Funil em tempo real
-  const { data: funilData } = useQuery<FunnelRealtimeData>({
+  const { data: funilData, isLoading: loadingFunil } = useQuery<FunnelRealtimeData>({
     queryKey: ['funil-tempo-real', tenantId],
     queryFn: async () => {
       const now = new Date()
@@ -209,6 +188,28 @@ export function useDashboardKpis() {
     refetchInterval: 10000
   })
 
+  // Combina KPIs para compatibilidade com código legado
+  const kpis: KPIs = {
+    faturamento: salesKpis.faturamento,
+    totalPedidos: salesKpis.totalPedidos,
+    ticketMedio: salesKpis.ticketMedio,
+    tempoEntrega: deliveryKpis.tempoEntrega,
+    visualizacoes: funilData?.visualizacoes ?? customerKpis.visualizacoes,
+    avaliacao: customerKpis.avaliacao,
+    totalAvaliacoes: customerKpis.totalAvaliacoes,
+    pedidosAbertos: salesKpis.pedidosAbertos,
+    totalEntregues: salesKpis.totalEntregues,
+    receita7Dias: financialKpis.receita7Dias,
+    temposMedios: deliveryKpis.temposMedios,
+    funnelData: customerKpis.funnelData,
+    pedidosPorHora: deliveryKpis.pedidosPorHora
+  }
+
+  // Combina todos os KPI cards, usando dados do funil em tempo real
+  const kpiData: KpiData[] = [...salesKpiData, ...customerKpiData, ...deliveryKpiData].map(k =>
+    k.id === 'visualizacoes' && funilData ? { ...k, value: funilData.visualizacoes } : k
+  )
+
   // Dados de receita para o gráfico
   const receitaData = financialKpis.receitaData
 
@@ -244,13 +245,14 @@ export function useDashboardKpis() {
   })
 
   const isLoading =
-    loadingSales || loadingCustomer || loadingProducts || loadingDelivery || loadingFinancial || loadingPedidos
+    loadingSales || loadingCustomer || loadingDelivery || loadingFinancial || loadingPedidos || loadingFunil
+  const isError =
+    errorSales || errorCustomer || errorDelivery || errorFinancial || errorPedidos
 
   return {
     // Hooks especializados (para uso direto)
     salesKpis,
     customerKpis,
-    productKpis,
     deliveryKpis,
     financialKpis,
 
@@ -259,7 +261,6 @@ export function useDashboardKpis() {
     kpis,
     kpiData,
     pedidosRecentes,
-    topProdutos: productKpis.topProdutos,
     funilData,
     receitaData,
     receitaDias: financialReceitaDias,
@@ -275,6 +276,7 @@ export function useDashboardKpis() {
     toggleLoja,
     linkCardapio,
     isLoading,
+    isError,
     formatCurrency: formatCurrency || formatCurrencyFinancial
   }
 }

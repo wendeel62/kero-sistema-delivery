@@ -23,10 +23,15 @@ export default function ReceitaChart({
   onToggleDropdown,
   onSelectDias
 }: ReceitaChartProps) {
-  const chartData: ChartData[] = receitaData?.receitaPorDia?.map((valor: number, i: number) => ({
-    dia: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][6 - i],
-    valor
-  })).reverse() || []
+  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+  const chartData: ChartData[] = receitaData?.receitaPorDia?.map((valor: number, i: number) => {
+    const date = new Date()
+    date.setDate(date.getDate() - (receitaData.receitaPorDia.length - 1 - i))
+    return {
+      dia: dayNames[date.getDay()],
+      valor
+    }
+  }) || []
 
   return (
     <div className="p-6 lg:p-8 rounded-2xl border border-outline bg-surface-container hover:border-primary/50 shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-smooth animate-fade-in-up">

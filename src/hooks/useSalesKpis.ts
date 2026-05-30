@@ -33,7 +33,7 @@ export function useSalesKpis() {
   const { user: _user } = useAuth()
   const tenantId = useTenantId()
 
-  const { data: salesKpis = defaultSalesKpis, isLoading } = useQuery<SalesKpis>({
+  const { data: salesKpis = defaultSalesKpis, isLoading, isError } = useQuery<SalesKpis>({
     queryKey: ['sales-kpis', tenantId],
     queryFn: async () => {
       const now = new Date()
@@ -146,6 +146,7 @@ export function useSalesKpis() {
     salesKpis,
     kpiData,
     isLoading,
+    isError,
     formatCurrency
   }
 }

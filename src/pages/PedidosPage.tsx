@@ -8,7 +8,7 @@
  * - usePedidosFilters: Hook de filtros
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
@@ -22,6 +22,11 @@ import { PedidosList } from './pedidos/PedidosList'
 import { PedidoFilters } from './pedidos/PedidoFilters'
 import { PedidoModal } from './pedidos/PedidoModal'
 import { usePedidosFilters, type FiltroData } from './pedidos/usePedidosFilters'
+import { MesaGridPanel } from './pedidos/MesaGridPanel'
+import { MesaDetailModal } from './pedidos/MesaDetailModal'
+import { ProductSelector } from './pedidos/ProductSelector'
+import DivisaoConta from '../components/DivisaoConta'
+import type { Categoria, Produto } from '../types'
 
 // Types
 export type UnifiedPedido = {
@@ -83,13 +88,30 @@ export default function PedidosPage() {
         .select('*')
         .eq('tenant_id', tenantId)
         .single()
-      return data as { nome_loja: string; endereco: string; telefone: string } | null
+      return data as { nome_loja: string; endereco: string; telefone: string; total_mesas?: number; capacidade_mesa?: number } | null
     },
     enabled: !!tenantId,
     staleTime: 60_000,
   })
 
   const autoPrintedOrders = useRef(new Set<string>())
+
+  // Query de mesas
+  const { data: mesas } = useQuery({
+    queryKey: ['mesas', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('mesas').select('*').eq('tenant_id', tenantId)
+      return data as Array<{ id: string; numero: number; status: string; responsavel?: string; pessoas?: number; aberta_em?: string }> | null
+    },
+    enabled: !!tenantId,
+    staleTime: 30000,
+  })
+
+  const [viewMode, setViewMode] = useState<'pedidos' | 'mesas'>('pedidos')
+  const [mesaDetailNumero, setMesaDetailNumero] = useState<number | null>(null)
+  const [showProductSelector, setShowProductSelector] = useState(false)
+  const [productSelectorMesaNumero, setProductSelectorMesaNumero] = useState<number | null>(null)
+  const [mesaClosing, setMesaClosing] = useState<{ numero: number; pedidos: UnifiedPedido[] } | null>(null)
 
   const mapToOrderData = useCallback((pedido: UnifiedPedido): OrderData => {
     return {
@@ -116,7 +138,7 @@ export default function PedidosPage() {
     }
   }, [config])
 
-  // Hook de filtros
+  // Hook de filtros (antes da query pois getDateRange é usada no queryFn)
   const {
     filtroData,
     dataInicio,
@@ -138,16 +160,9 @@ export default function PedidosPage() {
   const [motoboyModalPedido, setMotoboyModalPedido] = useState<UnifiedPedido | null>(null)
   const [motoboysDisponiveis, setMotoboysDisponiveis] = useState<Array<Record<string, unknown>>>([])
   const [vinculandoMotoboy, setVinculandoMotoboy] = useState(false)
-  const [_currentTime, setCurrentTime] = useState(new Date())
-
-  // Timer para atualizar o tempo decorrido
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
-    return () => clearInterval(timer)
-  }, [])
 
   // Query de pedidos
-  const { data: pedidos = [] as UnifiedPedido[], isLoading, refetch: refetchPedidos } = useQuery({
+  const { data: pedidos = [] as UnifiedPedido[], isLoading, isError, refetch: refetchPedidos } = useQuery({
     queryKey: ['pedidos', tenantId, filtroData, dataInicio, dataFim],
     queryFn: async () => {
       const { inicio, fim } = getDateRange()
@@ -186,6 +201,7 @@ export default function PedidosPage() {
           itens: (p.itens_pedido as Array<Record<string, unknown>>)?.map((ip: Record<string, unknown>) => ({
             nome: ip.produto_nome as string,
             qtd: ip.quantidade as number,
+            preco: ip.preco_unitario as number,
             variacao: ip.tamanho as string,
             obs: ip.observacoes as string
           })) || []
@@ -202,6 +218,7 @@ export default function PedidosPage() {
               ? (parsedItens as Array<Record<string, unknown>>).map((ip: Record<string, unknown>) => ({
                   nome: (ip.produto_nome as string) || (ip.nome as string),
                   qtd: (ip.quantidade as number) || (ip.qtd as number),
+                  preco: (ip.preco as number) || (ip.preco_unitario as number) || 0,
                   variacao: (ip.tamanho as string) || (ip.variacao as string),
                   obs: (ip.observacoes as string) || (ip.obs as string)
                 }))
@@ -266,6 +283,20 @@ export default function PedidosPage() {
     ]
   })
 
+  // Filtragem local: exclui pedidos de mesa (vão na visão Mesas) + busca textual
+  const filteredPedidos = useMemo(() => {
+    let result = pedidos.filter(p => p.canal !== 'mesa')
+    if (busca) {
+      const buscaLower = busca.toLowerCase()
+      result = result.filter(p =>
+        p.cliente_nome?.toLowerCase().includes(buscaLower) ||
+        p.cliente_telefone?.includes(buscaLower) ||
+        p.numero.toString().includes(buscaLower)
+      )
+    }
+    return result
+  }, [pedidos, busca])
+
   // Ações
   const handleAvançarStatus = useCallback(async (pedido: UnifiedPedido) => {
     const isDelivery = ['entrega', 'app', 'ifood', 'rappi'].includes(pedido.canal)
@@ -311,8 +342,9 @@ export default function PedidosPage() {
       }
     } catch (err) {
       console.error(err)
+      toast.error('Erro ao avancar status do pedido')
     }
-  }, [selectedPedido, refetchPedidos, tenantId, printer, mapToOrderData])
+  }, [selectedPedido, refetchPedidos, tenantId, printer, mapToOrderData, toast])
 
   const { mutate: cancelarPedido } = useMutation({
     mutationFn: async ({ pedido, motivo }: { pedido: UnifiedPedido; motivo: string }) => {
@@ -354,10 +386,165 @@ export default function PedidosPage() {
       refetchPedidos()
     } catch (err) {
       console.error('Erro ao vincular motoboy:', err)
+      toast.error('Erro ao vincular motoboy ao pedido')
     }
 
     setVinculandoMotoboy(false)
   }
+
+  // ---- Fechar Mesa --------------------------------------------------------
+
+  const handleCloseMesa = useCallback(async (mesaNumero: number) => {
+    const mesaPedidos = pedidos.filter(p => p.mesa_numero === mesaNumero && p.status_kanban !== 'cancelado')
+    const allEntregue = mesaPedidos.length > 0 && mesaPedidos.every(p => p.status_kanban === 'entregue')
+    if (!allEntregue) {
+      toast.error('Todos os pedidos da mesa precisam estar como "Entregue" para fechar')
+      return
+    }
+    setMesaDetailNumero(null)
+    setMesaClosing({ numero: mesaNumero, pedidos: mesaPedidos })
+  }, [pedidos, toast])
+
+  const handleFinalizarMesa = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+    queryClient.invalidateQueries({ queryKey: ['mesas', tenantId] })
+    setMesaClosing(null)
+    refetchPedidos()
+  }, [queryClient, tenantId, refetchPedidos])
+
+  const handleCancelCloseMesa = useCallback(() => {
+    setMesaClosing(null)
+  }, [])
+
+  const mesaClosingData = useMemo(() => {
+    if (!mesaClosing) return null
+    const mesaData = mesas?.find(m => m.numero === mesaClosing.numero)
+    const mesaItens = mesaClosing.pedidos.flatMap((p, idx) =>
+      p.itens.map(item => ({
+        id: `${p.id}-${idx}`,
+        produto_nome: item.nome,
+        quantidade: item.qtd,
+        preco_unitario: item.preco || 0,
+        total: (item.preco || 0) * item.qtd,
+      }))
+    )
+    const totalGeral = mesaItens.reduce((sum, i) => sum + i.total, 0)
+    return {
+      mesa: {
+        id: mesaData?.id || `mesa-${mesaClosing.numero}`,
+        numero: mesaData?.numero || mesaClosing.numero,
+        responsavel: mesaData?.responsavel || 'Cliente',
+        pessoas: mesaData?.pessoas || 1,
+      },
+      itens: mesaItens,
+      totalGeral,
+      pedidos: mesaClosing.pedidos.map(p => ({ id: p.id, tabela: p.tipo_tabela })),
+    }
+  }, [mesaClosing, mesas])
+
+  // ---- Compute mesas ativas (com pedidos em aberto) ---------------------
+
+  const mesasAtivas = useMemo(() => {
+    const mesasOcupadas = new Set<number>()
+    ;(mesas || []).filter(m => m.status === 'ocupada').forEach(m => mesasOcupadas.add(m.numero))
+
+    const set = new Set<number>()
+    pedidos.filter(p => p.canal === 'mesa' && p.status_kanban !== 'cancelado').forEach(p => {
+      if (p.mesa_numero && mesasOcupadas.has(p.mesa_numero)) set.add(p.mesa_numero)
+    })
+    return set
+  }, [pedidos, mesas])
+
+  // ---- Mesa detail computed data ---------------------------------------
+
+  const mesaDetailPedidos = useMemo(() => {
+    if (mesaDetailNumero == null) return null
+    return pedidos.filter(
+      p => p.mesa_numero === mesaDetailNumero && p.canal === 'mesa' && p.status_kanban !== 'cancelado'
+    )
+  }, [pedidos, mesaDetailNumero])
+
+  // ---- Queries de produtos e categorias para ProductSelector ------------
+
+  const { data: produtosCardapio = [] as Produto[] } = useQuery({
+    queryKey: ['produtos-cardapio', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('produtos').select('*').eq('tenant_id', tenantId).eq('disponivel', true)
+      return (data || []) as Produto[]
+    },
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: categoriasCardapio = [] as Categoria[] } = useQuery({
+    queryKey: ['categorias-cardapio', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('categorias').select('*').eq('tenant_id', tenantId)
+      return (data || []) as Categoria[]
+    },
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // ---- ProductSelector handlers ------------------------------------------
+
+  const handleAddProdutoToMesa = useCallback((mesaNumero: number) => {
+    setProductSelectorMesaNumero(mesaNumero)
+    setShowProductSelector(true)
+  }, [])
+
+  const { mutateAsync: salvarPedidoMesa } = useMutation({
+    mutationFn: async ({ mesaNumero, itens, total }: { mesaNumero: number; itens: Array<{ produto_id: string; produto_nome: string; quantidade: number; preco_unitario: number }>; total: number }) => {
+      const maxNumero = await supabase
+        .from('pedidos')
+        .select('numero')
+        .eq('tenant_id', tenantId)
+        .order('numero', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const nextNumero = (maxNumero.data?.numero || 0) + 1
+
+      const { data: pedido, error } = await supabase.from('pedidos').insert({
+        tenant_id: tenantId,
+        numero: nextNumero,
+        cliente_nome: `Mesa ${mesaNumero}`,
+        tipo: 'mesa',
+        mesa_numero: mesaNumero,
+        subtotal: total,
+        total,
+        status: 'pendente',
+        forma_pagamento: '',
+      }).select().single()
+
+      if (error) throw error
+
+      const itensInsert = itens.map(i => ({
+        tenant_id: tenantId,
+        pedido_id: pedido.id,
+        produto_id: i.produto_id,
+        produto_nome: i.produto_nome,
+        quantidade: i.quantidade,
+        preco_unitario: i.preco_unitario,
+        total: i.preco_unitario * i.quantidade,
+      }))
+
+      const { error: itensError } = await supabase.from('itens_pedido').insert(itensInsert)
+      if (itensError) throw itensError
+
+      return pedido
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pedidos', tenantId] })
+      toast.success('Produtos adicionados com sucesso!')
+      setShowProductSelector(false)
+      setProductSelectorMesaNumero(null)
+    },
+    onError: (err) => {
+      console.error(err)
+      toast.error('Erro ao adicionar produtos')
+    }
+  })
 
   // ---- Manual print handler ------------------------------------------------
 
@@ -399,6 +586,7 @@ export default function PedidosPage() {
           itens: (pedidoCompleto.itens_pedido || []).map((ip: Record<string, unknown>) => ({
             nome: ip.produto_nome as string,
             qtd: ip.quantidade as number,
+            preco: ip.preco_unitario as number,
             variacao: ip.tamanho as string,
             observacoes: ip.observacoes as string,
           }))
@@ -416,6 +604,7 @@ export default function PedidosPage() {
             ? parsed.map((ip: Record<string, unknown>) => ({
                 nome: (ip.produto_nome as string) || (ip.nome as string),
                 qtd: (ip.quantidade as number) || (ip.qtd as number),
+                preco: (ip.preco as number) || (ip.preco_unitario as number) || 0,
                 variacao: (ip.tamanho as string) || (ip.variacao as string),
                 observacoes: (ip.observacoes as string) || (ip.obs as string),
               }))
@@ -452,11 +641,31 @@ export default function PedidosPage() {
       <header className="shrink-0 animate-slide-in-down">
         <div className="flex flex-col gap-3 md:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-            <div>
-              <h1 className="text-3xl lg:text-4xl font-bold font-headline text-on-background tracking-tight">
-                Pedidos
-              </h1>
-              <p className="text-on-surface-variant mt-1 text-lg">Kanban em tempo real — fluxo de cozinha e entrega</p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl lg:text-4xl font-bold font-headline text-on-background tracking-tight">
+                  {viewMode === 'pedidos' ? 'Pedidos' : 'Mesas'}
+                </h1>
+                <p className="text-on-surface-variant mt-1 text-lg">
+                  {viewMode === 'pedidos' ? 'Kanban em tempo real — fluxo de cozinha e entrega' : 'Mesas com pedidos ativos'}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewMode(v => v === 'pedidos' ? 'mesas' : 'pedidos')}
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                  viewMode === 'mesas'
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                    : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">table_restaurant</span>
+                MESA
+                {viewMode === 'pedidos' && mesasAtivas.size > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold min-w-[18px] text-center leading-tight">
+                    {mesasAtivas.size}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -476,15 +685,37 @@ export default function PedidosPage() {
         </div>
       </header>
 
-      {/* Lista de Pedidos (Kanban) */}
-      <PedidosList
-        pedidos={pedidos}
-        onAdvance={handleAvançarStatus}
-        onCancel={setCancelModalPedido}
-        onView={setSelectedPedido}
-        onPrint={handlePrint}
-        isLoading={isLoading}
-      />
+      {viewMode === 'mesas' ? (
+        <MesaGridPanel
+          totalMesas={config?.total_mesas ?? 10}
+          mesasAtivas={mesasAtivas}
+          onMesaClick={setMesaDetailNumero}
+          isLoading={isLoading}
+        />
+      ) : isError ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4 p-8 rounded-2xl border border-outline bg-surface-container max-w-md">
+            <span className="material-symbols-outlined text-5xl text-primary">error_outline</span>
+            <h2 className="text-xl font-bold text-on-background">Erro ao carregar pedidos</h2>
+            <p className="text-on-surface-variant text-sm">Nao foi possivel carregar os pedidos. Verifique sua conexao e tente novamente.</p>
+            <button
+              onClick={() => refetchPedidos()}
+              className="px-6 py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary-bright transition-smooth"
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        </div>
+      ) : (
+        <PedidosList
+          pedidos={filteredPedidos}
+          onAdvance={handleAvançarStatus}
+          onCancel={setCancelModalPedido}
+          onView={setSelectedPedido}
+          onPrint={handlePrint}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* Modal Cancelar Pedido */}
       {cancelModalPedido && (
@@ -558,12 +789,51 @@ export default function PedidosPage() {
         </div>
       )}
 
+      {/* Modal Detalhes da Mesa */}
+      {mesaDetailNumero != null && mesaDetailPedidos && (
+        <MesaDetailModal
+          mesaNumero={mesaDetailNumero}
+          pedidos={mesaDetailPedidos}
+          onClose={() => setMesaDetailNumero(null)}
+          onAddProduct={handleAddProdutoToMesa}
+          onCloseBill={handleCloseMesa}
+        />
+      )}
+
+      {/* Modal ProductSelector */}
+      {showProductSelector && productSelectorMesaNumero != null && (
+        <ProductSelector
+          produtos={produtosCardapio}
+          categorias={categoriasCardapio}
+          onConfirm={(itens) => {
+            const total = itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
+            salvarPedidoMesa({ mesaNumero: productSelectorMesaNumero, itens, total })
+          }}
+          onCancel={() => {
+            setShowProductSelector(false)
+            setProductSelectorMesaNumero(null)
+          }}
+        />
+      )}
+
       {/* Modal Detalhes do Pedido */}
       {selectedPedido && (
         <PedidoModal
           pedido={selectedPedido}
           onClose={() => setSelectedPedido(null)}
           onAdvance={handleAvançarStatus}
+        />
+      )}
+
+      {/* Modal Fechar Mesa */}
+      {mesaClosingData && (
+        <DivisaoConta
+          mesa={mesaClosingData.mesa}
+          itens={mesaClosingData.itens}
+          totalGeral={mesaClosingData.totalGeral}
+          pedidos={mesaClosingData.pedidos}
+          onFechar={handleFinalizarMesa}
+          onCancelar={handleCancelCloseMesa}
         />
       )}
     </div>

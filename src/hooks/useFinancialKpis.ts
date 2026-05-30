@@ -34,42 +34,37 @@ export function useFinancialKpis() {
 
   const queryClient = useQueryClient()
 
-  // Faturamento 7 Dias
-  const { data: faturamento7Dias = [0, 0, 0, 0, 0, 0, 0], isLoading: loadingFaturamento } = useQuery<number[]>({
+  // Faturamento 7 Dias (query única em vez de loop)
+  const { data: faturamento7Dias = [0, 0, 0, 0, 0, 0, 0], isLoading: loadingFaturamento, isError: errorFaturamento } = useQuery<number[]>({
     queryKey: ['faturamento-7dias', tenantId],
     queryFn: async () => {
       const now = new Date()
-      const resultado: number[] = [0, 0, 0, 0, 0, 0, 0]
+      const seteDiasAtras = new Date()
+      seteDiasAtras.setDate(now.getDate() - 7)
+      const isoSeteDias = seteDiasAtras.toISOString().split('T')[0]
 
-      for (let i = 6; i >= 0; i--) {
-        const data = new Date(now)
-        data.setDate(now.getDate() - i)
-        const dataStr = data.toISOString().split('T')[0]
-        const dataStrProx = new Date(data)
-        dataStrProx.setDate(data.getDate() + 1)
+      const { data: pedidos } = await supabase
+        .from('pedidos')
+        .select('total, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', isoSeteDias)
+        .neq('status', 'cancelado')
 
-        const { data: pedidosDia } = await supabase
-          .from('pedidos')
-          .select('total')
-          .eq('tenant_id', tenantId)
-          .gte('created_at', dataStr)
-          .lt('created_at', dataStrProx.toISOString().split('T')[0])
-          .neq('status', 'cancelado')
+      const { data: pedidosOnline } = await supabase
+        .from('pedidos_online')
+        .select('total, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', isoSeteDias)
+        .neq('status', 'cancelado')
 
-        const { data: pedidosOnlineDia } = await supabase
-          .from('pedidos_online')
-          .select('total')
-          .eq('tenant_id', tenantId)
-          .gte('created_at', dataStr)
-          .lt('created_at', dataStrProx.toISOString().split('T')[0])
-          .neq('status', 'cancelado')
-
-        resultado[6 - i] = [...(pedidosDia || []), ...(pedidosOnlineDia || [])].reduce(
-          (sum, p) => sum + Number(p.total || 0),
-          0
-        )
-      }
-
+      const all = [...(pedidos || []), ...(pedidosOnline || [])]
+      const resultado = [0, 0, 0, 0, 0, 0, 0]
+      all.forEach(p => {
+        const diff = Math.floor((now.getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        if (diff >= 0 && diff < 7) {
+          resultado[6 - diff] += Number(p.total || 0)
+        }
+      })
       return resultado
     },
     staleTime: 30000,
@@ -77,7 +72,7 @@ export function useFinancialKpis() {
   })
 
   // Receita por período
-  const { data: receitaData, isLoading: loadingReceita } = useQuery<ReceitaData>({
+  const { data: receitaData, isLoading: loadingReceita, isError: errorReceita } = useQuery<ReceitaData>({
     queryKey: ['receita-por-periodo', tenantId, receitaDias],
     queryFn: async () => {
       const now = new Date()
@@ -123,7 +118,7 @@ export function useFinancialKpis() {
   })
 
   // Configurações da loja
-  const { data: configData, isLoading: loadingConfig } = useQuery({
+  const { data: configData, isLoading: loadingConfig, isError: errorConfig } = useQuery({
     queryKey: ['configuracoes-loja', tenantId],
     queryFn: async () => {
       const { data } = await supabase
@@ -167,6 +162,7 @@ export function useFinancialKpis() {
     value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
   const isLoading = loadingFaturamento || loadingReceita || loadingConfig
+  const isError = errorFaturamento || errorReceita || errorConfig
 
   return {
     financialKpis: {
@@ -180,6 +176,7 @@ export function useFinancialKpis() {
     lojaAberta: configData?.loja_aberta ?? true,
     loadingLoja,
     isLoading,
+    isError,
     formatCurrency
   }
 }

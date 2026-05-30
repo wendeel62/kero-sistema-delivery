@@ -36,7 +36,7 @@ export function useDeliveryKpis() {
   const { user: _user } = useAuth()
   const tenantId = useTenantId()
 
-  const { data: deliveryKpis = defaultDeliveryKpis, isLoading } = useQuery<DeliveryKpis>({
+  const { data: deliveryKpis = defaultDeliveryKpis, isLoading, isError } = useQuery<DeliveryKpis>({
     queryKey: ['delivery-kpis', tenantId],
     queryFn: async () => {
       const now = new Date()
@@ -170,7 +170,8 @@ export function useDeliveryKpis() {
   return {
     deliveryKpis,
     kpiData,
-    isLoading
+    isLoading,
+    isError
   }
 }
 

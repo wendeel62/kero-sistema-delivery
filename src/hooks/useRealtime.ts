@@ -25,6 +25,7 @@ export function useRealtime(options: UseRealtimeOptions) {
   const { configs, enabled = true } = options
   const channelRef = useRef<RealtimeChannel | null>(null)
   const mountedRef = useRef(true)
+  const retryCountRef = useRef(0)
   const callbacksRef = useRef<Map<string, (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void>>(new Map())
 
   // Stabilize callbacks map
@@ -74,14 +75,21 @@ export function useRealtime(options: UseRealtimeOptions) {
       )
     })
 
-    // Subscribe with error handling
+    // Subscribe with error handling (exponential backoff)
+    const maxRetries = 5
+    retryCountRef.current = 0
     channel.subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        retryCountRef.current++
+        if (retryCountRef.current > maxRetries) return
+        const delay = Math.min(1000 * Math.pow(2, retryCountRef.current - 1), 30000)
         setTimeout(() => {
           if (mountedRef.current && enabled) {
             channel.subscribe()
           }
-        }, 3000)
+        }, delay)
+      } else if (status === 'SUBSCRIBED') {
+        retryCountRef.current = 0
       }
     })
 

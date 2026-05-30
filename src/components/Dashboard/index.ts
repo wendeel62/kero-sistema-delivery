@@ -1,2 +1,1 @@
-// Dashboard Components
-export { DashboardGrid } from './DashboardGrid';
+// Dashboard Components (vazio intencionalmente)

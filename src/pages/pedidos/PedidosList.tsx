@@ -244,6 +244,7 @@ const PedidoCard = memo(function PedidoCard({
               </button>
             </>
           )}
+
         </div>
       </div>
     </div>

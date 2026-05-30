@@ -38,7 +38,7 @@ export function useCustomerKpis() {
   const tenantId = useTenantId()
 
   // KPIs de clientes e funnel
-  const { data: customerKpis = defaultCustomerKpis, isLoading } = useQuery<CustomerKpis>({
+  const { data: customerKpis = defaultCustomerKpis, isLoading, isError } = useQuery<CustomerKpis>({
     queryKey: ['customer-kpis', tenantId],
     queryFn: async () => {
       const now = new Date()
@@ -67,41 +67,11 @@ export function useCustomerKpis() {
           ? Math.round((allNpsData.reduce((sum, p) => sum + (p.nps_nota || 0), 0) / allNpsData.length) * 10) / 10
           : 0
 
-      // Eventos jornada (funnel)
-      let visualizacoes = 0
-      let addCarrinho = 0
-      let checkoutIniciado = 0
-      let compras = 0
-
-      try {
-        const { data: eventosData } = await supabase
-          .from('eventos_jornada')
-          .select('tipo_evento, quantidade')
-          .eq('tenant_id', tenantId)
-          .gte('data', today)
-
-        const eventos = eventosData || []
-        visualizacoes = eventos
-          .filter(e => e.tipo_evento === 'visualizacao')
-          .reduce((sum, e) => sum + e.quantidade, 0)
-        addCarrinho = eventos
-          .filter(e => e.tipo_evento === 'add_carrinho')
-          .reduce((sum, e) => sum + e.quantidade, 0)
-        checkoutIniciado = eventos
-          .filter(e => e.tipo_evento === 'checkout_iniciado')
-          .reduce((sum, e) => sum + e.quantidade, 0)
-        compras = eventos
-          .filter(e => e.tipo_evento === 'compra')
-          .reduce((sum, e) => sum + e.quantidade, 0)
-      } catch {
-        // tabela pode não existir
-      }
-
       return {
-        visualizacoes,
+        visualizacoes: 0,
         avaliacao: avaliacaoMedia,
         totalAvaliacoes: allNpsData.length,
-        funnelData: { visualizacoes, addCarrinho, checkoutIniciado, compras }
+        funnelData: { visualizacoes: 0, addCarrinho: 0, checkoutIniciado: 0, compras: 0 }
       }
     },
     staleTime: 30000,
@@ -128,7 +98,8 @@ export function useCustomerKpis() {
   return {
     customerKpis,
     kpiData,
-    isLoading
+    isLoading,
+    isError
   }
 }
 

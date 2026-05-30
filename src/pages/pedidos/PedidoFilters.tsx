@@ -17,7 +17,7 @@ export interface PedidoFiltersProps {
 
 const FILTROS = [
   { id: 'hoje', label: 'Hoje', icon: 'today' },
-  { id: 'ontem', label: '7 Dias', icon: 'history' },
+  { id: 'ontem', label: 'Ontem', icon: 'history' },
   { id: 'semana', label: '7 Dias', icon: 'date_range' },
   { id: 'mes', label: 'Mês', icon: 'calendar_month' },
   { id: 'personalizado', label: 'Personalizado', icon: 'tune' }

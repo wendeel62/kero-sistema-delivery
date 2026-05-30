@@ -10,6 +10,24 @@ import TempoPedidos from '../components/Dashboard/TempoPedidos'
 export default function DashboardPage() {
   const h = useDashboardKpis()
 
+  if (h.isError && !h.isLoading) {
+    return (
+      <div className="min-h-screen py-8 px-4 lg:px-8 flex items-center justify-center">
+        <div className="p-8 rounded-2xl border border-outline bg-surface-container text-center max-w-md animate-fade-in-up">
+          <span className="material-symbols-outlined text-5xl text-primary mb-4">error_outline</span>
+          <h2 className="text-xl font-bold text-on-background mb-2">Erro ao carregar dados</h2>
+          <p className="text-on-surface-variant mb-6">Nao foi possivel carregar o dashboard. Verifique sua conexao e tente novamente.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary-bright transition-smooth"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (h.isLoading) {
     return (
       <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">

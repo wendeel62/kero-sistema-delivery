@@ -27,7 +27,7 @@ export function useProductKpis() {
   const tenantId = useTenantId()
 
   // Top Produtos
-  const { data: productKpis = defaultProductKpis, isLoading } = useQuery<ProductKpis>({
+  const { data: productKpis = defaultProductKpis, isLoading, isError } = useQuery<ProductKpis>({
     queryKey: ['product-kpis', tenantId],
     queryFn: async () => {
       const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -94,7 +94,8 @@ export function useProductKpis() {
 
   return {
     productKpis,
-    isLoading
+    isLoading,
+    isError
   }
 }
 

@@ -25,20 +25,34 @@ interface PagamentoPessoa {
   itens: string[]
 }
 
+interface PedidoRef {
+  id: string
+  tabela: string
+}
+
+const OPCOES_PAGAMENTO = [
+  { value: 'dinheiro', label: 'Dinheiro', icon: 'payments' },
+  { value: 'pix', label: 'Pix', icon: 'qr_code' },
+  { value: 'cartao_credito', label: 'Cartão Crédito', icon: 'credit_card' },
+  { value: 'cartao_debito', label: 'Cartão Débito', icon: 'credit_card' },
+]
+
 interface Props {
   mesa: Mesa
   itens: ItemPedido[]
   totalGeral: number
+  pedidos?: PedidoRef[]
   onFechar: () => void
   onCancelar: () => void
 }
 
-export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCancelar }: Props) {
+export default function DivisaoConta({ mesa, itens, totalGeral, pedidos = [], onFechar, onCancelar }: Props) {
   const [tipoDivisao, setTipoDivisao] = useState<TipoDivisao>('sem_divisao')
   const [numPessoas, setNumPessoas] = useState(mesa.pessoas || 2)
   const [pessoas, setPessoas] = useState<PagamentoPessoa[]>([])
   const [itensSelecionados, setItensSelecionados] = useState<Record<number, string[]>>({})
   const [salvando, setSalvando] = useState(false)
+  const [formaPagamento, setFormaPagamento] = useState('dinheiro')
 
   const valorPorPessoa = totalGeral / numPessoas
 
@@ -65,7 +79,7 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
     const newItems = current.includes(itemId)
       ? current.filter(id => id !== itemId)
       : [...current, itemId]
-    
+
     const newSelection = { ...itensSelecionados, [pessoaIndex]: newItems }
     setItensSelecionados(newSelection)
 
@@ -74,13 +88,13 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
       return sum + (item?.total || 0)
     }, 0)
 
-    setPessoas(prev => prev.map((p, i) => 
+    setPessoas(prev => prev.map((p, i) =>
       i === pessoaIndex ? { ...p, valor: valorItens, itens: newItems } : p
     ))
   }
 
   const togglePago = (index: number) => {
-    setPessoas(prev => prev.map((p, i) => 
+    setPessoas(prev => prev.map((p, i) =>
       i === index ? { ...p, pago: !p.pago } : p
     ))
   }
@@ -92,12 +106,20 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
     if (!todosPagos) return
     setSalvando(true)
 
-    await supabase.from('mesas').update({
-      status: 'livre',
-      responsavel: null,
-      pessoas: 0,
-      aberta_em: null
-    }).eq('id', mesa.id)
+    try {
+      await supabase.from('mesas').update({
+        status: 'livre',
+        responsavel: null,
+        pessoas: 0,
+        aberta_em: null
+      }).eq('id', mesa.id)
+
+      for (const ped of pedidos) {
+        await supabase.from(ped.tabela).update({ forma_pagamento: formaPagamento }).eq('id', ped.id)
+      }
+    } catch (err) {
+      console.error('Erro ao finalizar conta:', err)
+    }
 
     setSalvando(false)
     onFechar()
@@ -150,7 +172,7 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
         {/* Lista de Pessoas */}
         <div className="space-y-4 mb-6">
           <h4 className="text-sm font-bold text-on-surface-variant">Pagamentos</h4>
-          
+
           {pessoas.map((pessoa, index) => (
             <div key={index} className={`p-4 rounded-xl border ${pessoa.pago ? 'bg-green-500/10 border-green-500/30' : 'bg-surface-container border-outline-variant/10'}`}>
               <div className="flex justify-between items-center mb-2">
@@ -163,7 +185,7 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
                   {pessoa.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
               </div>
-              
+
               {tipoDivisao === 'itens' && (
                 <div className="mt-3 pt-3 border-t border-outline-variant/10">
                   <p className="text-xs text-on-surface-variant mb-2">Selecione os itens:</p>
@@ -213,13 +235,34 @@ export default function DivisaoConta({ mesa, itens, totalGeral, onFechar, onCanc
           </div>
         </div>
 
+        {/* Forma de Pagamento */}
+        <div className="mb-6">
+          <h4 className="text-sm font-bold text-on-surface-variant mb-3">Forma de Pagamento</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {OPCOES_PAGAMENTO.map((opcao) => (
+              <button
+                key={opcao.value}
+                onClick={() => setFormaPagamento(opcao.value)}
+                className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+                  formaPagamento === opcao.value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-outline-variant/20 text-on-surface-variant hover:border-outline-variant/40'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xl">{opcao.icon}</span>
+                <span>{opcao.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Ações */}
         <div className="flex gap-3">
           <button onClick={onCancelar} className="flex-1 py-3 rounded-xl border border-outline-variant/20 text-on-surface-variant font-bold text-sm">
             Cancelar
           </button>
-          <button 
-            onClick={finalizarConta} 
+          <button
+            onClick={finalizarConta}
             disabled={!todosPagos || salvando}
             className="flex-1 py-3 rounded-xl bg-primary-container text-on-primary-fixed font-bold text-sm disabled:opacity-50"
           >

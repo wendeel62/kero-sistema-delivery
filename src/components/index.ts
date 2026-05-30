@@ -33,7 +33,6 @@ export { ErrorBoundary } from './error-boundary/ErrorBoundary'
 export { default as ProtectedRoute } from './ProtectedRoute'
 
 // Dashboard Components
-export { DashboardGrid } from './Dashboard/DashboardGrid'
 export { default as DashboardHeader } from './Dashboard/DashboardHeader'
 export { default as KpiCards } from './Dashboard/KpiCards'
 export { default as PicosChart } from './Dashboard/PicosChart'
