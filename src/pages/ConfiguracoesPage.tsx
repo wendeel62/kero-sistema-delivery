@@ -5,6 +5,7 @@ import { useRealtime } from '@hooks/useRealtime'
 import { useAuth } from '@contexts/AuthContext'
 import { useTenantId } from '@hooks/useTenantId'
 import { usePrinter } from '@hooks/usePrinter'
+import { useThermalPrinter } from '@hooks/useThermalPrinter'
 import { ConfigInputField } from '@components/ConfigInputField'
 import { ConfigToggle } from '@components/ConfigToggle'
 import type { OrderData } from '../services/printService'
@@ -60,6 +61,7 @@ export default function ConfiguracoesPage() {
   const { user } = useAuth()
   const tenantId = useTenantId()
   const printer = usePrinter()
+  const usbPrinter = useThermalPrinter()
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const queryClient = useQueryClient()
@@ -270,65 +272,135 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Impressão Térmica (QZ Tray) */}
+      {/* Impressão Térmica */}
       <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-[#252830] mb-6">
         <h3 className="font-[Outfit] font-bold text-lg mb-6 flex items-center gap-2 text-white">
           <span className="material-symbols-outlined text-[#e8391a]">print</span> Impressão Térmica
         </h3>
         <div className="space-y-4">
-          {/* Status */}
-          <div className="flex items-center gap-2">
-            <span className={`inline-block w-2 h-2 rounded-full ${printer.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="text-white">{printer.isConnected ? 'Conectada' : 'Desconectada'}</span>
+
+          {/* ---- Modo QZ Tray ---- */}
+          <div className="bg-[#252830]/50 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-300">Modo: QZ Tray (desktop)</span>
+              <div className="flex items-center gap-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${printer.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="text-sm text-white">{printer.isConnected ? 'Conectado' : 'Desconectado'}</span>
+              </div>
+            </div>
+
+            {!printer.isConnected && (
+              <button
+                onClick={printer.connect}
+                disabled={printer.isConnecting}
+                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50"
+              >
+                {printer.isConnecting ? 'Conectando...' : 'Conectar via QZ Tray'}
+              </button>
+            )}
+            {printer.isConnected && (
+              <button
+                onClick={printer.disconnect}
+                className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
+              >
+                Desconectar
+              </button>
+            )}
+
+            {printer.error && (
+              <p className="text-red-400 text-sm">{printer.error}</p>
+            )}
+
+            {!printer.isConnected && !printer.error && (
+              <p className="text-xs text-gray-500">
+                QZ Tray é um programa que precisa estar instalado e rodando no desktop.
+                Baixe em <a href="https://qz.io/download" target="_blank" rel="noopener noreferrer" className="text-[#e8391a] underline">qz.io/download</a>
+              </p>
+            )}
+
+            {/* Dropdown de impressoras do Windows */}
+            {printer.isConnected && (
+              <div className="space-y-2">
+                <select
+                  value={printer.selectedPrinter ?? ''}
+                  onChange={(e) => printer.selectPrinter(e.target.value)}
+                  className="w-full bg-[#252830] text-white px-3 py-2 rounded-lg border border-[#303030] outline-none focus:border-[#e8391a]"
+                >
+                  <option value="">Selecione uma impressora</option>
+                  {printer.printers.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={printer.loadPrinters}
+                  className="text-sm text-gray-400 hover:text-white"
+                >
+                  Atualizar Lista
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Connect / Disconnect */}
-          {!printer.isConnected && (
-            <button
-              onClick={printer.connect}
-              disabled={printer.isConnecting}
-              className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50"
-            >
-              {printer.isConnecting ? 'Conectando...' : 'Conectar Impressora'}
-            </button>
-          )}
-          {printer.isConnected && (
-            <button
-              onClick={printer.disconnect}
-              className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
-            >
-              Desconectar
-            </button>
-          )}
+          {/* ---- Separador ---- */}
+          <div className="flex items-center gap-3 py-1">
+            <div className="flex-1 h-px bg-[#303030]"></div>
+            <span className="text-xs text-gray-500">ou</span>
+            <div className="flex-1 h-px bg-[#303030]"></div>
+          </div>
 
-          {/* Error */}
-          {printer.error && (
-            <p className="text-red-400 text-sm">{printer.error}</p>
-          )}
-
-          {/* Printer selector */}
-          {printer.isConnected && (
-            <div className="space-y-2">
-              <select
-                value={printer.selectedPrinter ?? ''}
-                onChange={(e) => printer.selectPrinter(e.target.value)}
-                className="w-full bg-[#252830] text-white px-3 py-2 rounded-lg border border-[#303030] outline-none focus:border-[#e8391a]"
-              >
-                <option value="">Selecione uma impressora</option>
-                {printer.printers.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-              <button
-                onClick={printer.loadPrinters}
-                className="text-sm text-gray-400 hover:text-white"
-              >
-                Atualizar Lista
-              </button>
+          {/* ---- Modo WebUSB ---- */}
+          <div className="bg-[#252830]/50 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-300">Modo: USB direto (browser)</span>
+              <div className="flex items-center gap-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${
+                  usbPrinter.status === 'conectada' ? 'bg-green-500'
+                  : usbPrinter.status === 'conectando' ? 'bg-yellow-500'
+                  : usbPrinter.status === 'imprimindo' ? 'bg-blue-500'
+                  : 'bg-red-500'
+                }`}></span>
+                <span className="text-sm text-white capitalize">{usbPrinter.status}</span>
+              </div>
             </div>
-          )}
 
-          {/* Auto print toggle */}
+            {!usbPrinter.isSupported && (
+              <p className="text-xs text-yellow-400">
+                WebUSB não suportado neste navegador. Use Chrome ou Edge.
+              </p>
+            )}
+
+            {usbPrinter.isSupported && usbPrinter.status !== 'conectada' && (
+              <button
+                onClick={usbPrinter.connect}
+                disabled={usbPrinter.status === 'conectando'}
+                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50"
+              >
+                {usbPrinter.status === 'conectando' ? 'Conectando...' : 'Conectar Impressora USB'}
+              </button>
+            )}
+
+            {usbPrinter.status === 'conectada' && (
+              <>
+                <div className="text-sm text-gray-300">
+                  {usbPrinter.deviceInfo
+                    ? `${usbPrinter.deviceInfo.manufacturerName ?? 'USB'} ${usbPrinter.deviceInfo.productName ?? ''}`
+                    : 'Impressora USB conectada'}
+                </div>
+                <button
+                  onClick={usbPrinter.disconnect}
+                  className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
+                >
+                  Desconectar
+                </button>
+              </>
+            )}
+
+            <p className="text-xs text-gray-500">
+              Conecta directly via USB — não precisa instalar nada. Funciona com qualquer impressora térmica USB no Chrome/Edge.
+            </p>
+          </div>
+
+          {/* ---- Configurações gerais (ambos os modos) ---- */}
           <ConfigToggle
             label="Impressão automática ao receber pedido"
             checked={printer.autoPrint}

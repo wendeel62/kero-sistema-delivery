@@ -40,7 +40,10 @@ export function usePrinter() {
         setIsConnected(true)
         getAvailablePrinters().then(setPrinters).catch(() => setPrinters([]))
       })
-      .catch(() => { /* silent */ })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : 'QZ Tray não encontrado'
+        setError(msg)
+      })
   }, [])
 
   useEffect(() => {
