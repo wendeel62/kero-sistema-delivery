@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
-import FloatingAgentChat from './FloatingAgentChat'
+import { FloatingAgentChat } from './chat/FloatingAgentChat'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Layout() {

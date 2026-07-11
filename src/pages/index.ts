@@ -26,7 +26,6 @@ export { default as AdminDashboard } from './admin/AdminDashboard'
 
 // Config Pages
 export { default as ConfiguracoesPage } from './ConfiguracoesPage'
-export { default as FixRLSPage } from './FixRLSPage'
 
 // Pedido Status Page
 export { default as PedidoStatusPage } from './PedidoStatusPage'
