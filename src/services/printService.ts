@@ -1,4 +1,5 @@
 import qz from 'qz-tray'
+import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,6 +39,30 @@ export interface OrderData {
 }
 
 // ---------------------------------------------------------------------------
+// Retry + timeout helpers
+// ---------------------------------------------------------------------------
+
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 2000
+const PRINT_TIMEOUT_MS = 15_000
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    clearTimeout(timer!)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Connection
 // ---------------------------------------------------------------------------
 
@@ -69,65 +94,67 @@ export async function getAvailablePrinters(): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
-// ESC/POS helpers
+// ESC/POS encoding — usa ReceiptPrinterEncoder (suporta caracteres brasileiros)
 // ---------------------------------------------------------------------------
 
-function stringToBytes(str: string): number[] {
-  const bytes: number[] = []
-  for (let i = 0; i < str.length; i++) {
-    const code = str.charCodeAt(i)
-    if (code <= 0xFF) {
-      bytes.push(code)
-    } else if (code === 0x2013 || code === 0x2014) {
-      bytes.push(0x2D)
-    } else {
-      bytes.push(0x3F)
-    }
-  }
-  return bytes
-}
-
-function buildEscPosCommands(lines: ReceiptLine[], columns: number): number[][] {
-  const commands: number[][] = []
-
-  commands.push([0x1B, 0x40])
+function encodeLines(lines: ReceiptLine[], columns: number): Uint8Array {
+  const encoder = new ReceiptPrinterEncoder({
+    columns,
+    language: 'esc-pos',
+    codepageMapping: 'epson',
+  })
 
   for (const line of lines) {
     if (line.type === 'text') {
-      if (line.align === 'center') commands.push([0x1B, 0x61, 0x01])
-      else if (line.align === 'right') commands.push([0x1B, 0x61, 0x02])
-      else commands.push([0x1B, 0x61, 0x00])
+      if (line.align === 'center') encoder.align('center')
+      else if (line.align === 'right') encoder.align('right')
+      else encoder.align('left')
 
-      if (line.bold) commands.push([0x1B, 0x45, 0x01])
-      if (line.size === 'large') commands.push([0x1D, 0x21, 0x11])
+      if (line.bold) encoder.bold(true)
 
-      commands.push(stringToBytes(line.content))
-      commands.push([0x0A])
+      if (line.size === 'large') encoder.size(2, 2)
 
-      if (line.size === 'large') commands.push([0x1D, 0x21, 0x00])
-      if (line.bold) commands.push([0x1B, 0x45, 0x00])
+      encoder.line(line.content)
+
+      if (line.bold) encoder.bold(false)
+      if (line.size === 'large') encoder.size(1, 1)
     } else if (line.type === 'divider') {
-      commands.push(stringToBytes('-'.repeat(columns)))
-      commands.push([0x0A])
+      encoder.rule({ style: 'dashed' })
     } else if (line.type === 'spacer') {
-      commands.push([0x0A])
+      encoder.newLine()
     } else if (line.type === 'cut') {
-      commands.push([0x1D, 0x56, 0x00])
+      encoder.cut()
     }
   }
 
-  return commands
+  return encoder.encode()
 }
+
+// ---------------------------------------------------------------------------
+// Print with retry + timeout
+// ---------------------------------------------------------------------------
 
 export async function printReceipt(
   printerName: string,
   lines: ReceiptLine[],
   paperWidth: '80mm' | '58mm',
 ): Promise<void> {
-  const config = qz.configs.create(printerName)
   const columns = paperWidth === '80mm' ? 42 : 32
-  const commands = buildEscPosCommands(lines, columns)
-  await qz.print(config, commands)
+  const bytes = encodeLines(lines, columns)
+
+  let lastError: unknown
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const config = qz.configs.create(printerName)
+      await withTimeout(qz.print(config, [bytes]), PRINT_TIMEOUT_MS, 'Timeout ao imprimir — impressora não respondeu')
+      return // sucesso
+    } catch (err) {
+      lastError = err
+      console.warn(`[KeroPrint] Tentativa ${attempt}/${MAX_RETRIES} falhou:`, err)
+      if (attempt < MAX_RETRIES) await sleep(RETRY_DELAY_MS)
+    }
+  }
+  throw lastError
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +229,7 @@ export function buildOrderReceipt(order: OrderData, paperWidth: '80mm' | '58mm' 
   lines.push({ type: 'divider' })
 
   lines.push({ type: 'text', content: `/pedido/${order.numero}`, align: 'center' })
-  lines.push({ type: 'text', content: 'Obrigado pela preferência!', align: 'center' })
+  lines.push({ type: 'text', content: 'Obrigado pela preferencia!', align: 'center' })
   lines.push({ type: 'spacer' })
   lines.push({ type: 'spacer' })
   lines.push({ type: 'spacer' })
