@@ -14,10 +14,6 @@ vi.mock('../../lib/supabase', () => ({
   },
 }))
 
-vi.mock('../../lib/getTenantId', () => ({
-  getTenantIdSafe: () => 'tenant-1',
-}))
-
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: {
