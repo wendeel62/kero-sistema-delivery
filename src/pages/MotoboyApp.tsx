@@ -6,6 +6,7 @@ import type { Motoboy } from '../types'
 interface EntregaMotoboy {
   id: string
   pedido_id: string
+  tenant_id: string
   status: 'atribuido' | 'coletado' | 'entregue'
   atribuido_em: string
   coletado_em: string | null
@@ -62,6 +63,7 @@ export default function MotoboyApp() {
                 longitude: position.coords.longitude,
               })
               .eq('id', data.id)
+              .eq('tenant_id', data.tenant_id)
           },
           // () => console.log('Permissão de geolocalização negada')
         )
@@ -77,6 +79,7 @@ export default function MotoboyApp() {
     const { data: entregasData } = await supabase
       .from('entregas')
       .select('*')
+      .eq('tenant_id', motoboy.tenant_id)
       .eq('motoboy_id', motoboy.id)
       .in('status', ['atribuido', 'coletado'])
       .order('atribuido_em', { ascending: false })
@@ -88,6 +91,7 @@ export default function MotoboyApp() {
         ? await supabase
             .from('pedidos')
             .select('id, numero, cliente_nome, endereco_entrega, total, observacoes')
+            .eq('tenant_id', motoboy.tenant_id)
             .in('id', pedidoIds)
         : { data: [] }
 
@@ -120,7 +124,7 @@ export default function MotoboyApp() {
           event: '*',
           schema: 'public',
           table: 'entregas',
-          filter: `motoboy_id=eq.${motoboy.id}`,
+          filter: `tenant_id=eq.${motoboy.tenant_id}&motoboy_id=eq.${motoboy.id}`,
         },
         () => {
           fetchEntregas()
@@ -134,6 +138,7 @@ export default function MotoboyApp() {
   }, [motoboy, fetchEntregas])
 
   const coletarPedido = async (entregaId: string) => {
+    if (!motoboy) return
     setAtualizando(entregaId)
     await supabase
       .from('entregas')
@@ -142,19 +147,20 @@ export default function MotoboyApp() {
         coletado_em: new Date().toISOString(),
       })
       .eq('id', entregaId)
+      .eq('tenant_id', motoboy.tenant_id)
 
-    if (motoboy) {
-      await supabase
-        .from('motoboys')
-        .update({ status: 'em_entrega' })
-        .eq('id', motoboy.id)
-    }
+    await supabase
+      .from('motoboys')
+      .update({ status: 'em_entrega' })
+      .eq('id', motoboy.id)
+      .eq('tenant_id', motoboy.tenant_id)
 
     setAtualizando(null)
     fetchEntregas()
   }
 
   const confirmarEntrega = async (entregaId: string) => {
+    if (!motoboy) return
     setAtualizando(entregaId)
     await supabase
       .from('entregas')
@@ -163,6 +169,7 @@ export default function MotoboyApp() {
         entregue_em: new Date().toISOString(),
       })
       .eq('id', entregaId)
+      .eq('tenant_id', motoboy.tenant_id)
 
     // Atualizar status do pedido
     const entrega = entregas.find(e => e.id === entregaId)
@@ -171,20 +178,23 @@ export default function MotoboyApp() {
         .from('pedidos')
         .update({ status: 'entregue' })
         .eq('id', entrega.pedido_id)
+        .eq('tenant_id', motoboy.tenant_id)
     }
 
     // Verificar se ainda há entregas pendentes
     const { data: pendentes } = await supabase
       .from('entregas')
       .select('id')
-      .eq('motoboy_id', motoboy?.id)
+      .eq('tenant_id', motoboy.tenant_id)
+      .eq('motoboy_id', motoboy.id)
       .in('status', ['atribuido', 'coletado'])
 
-    if (pendentes?.length === 0 && motoboy) {
+    if (pendentes?.length === 0) {
       await supabase
         .from('motoboys')
         .update({ status: 'disponivel' })
         .eq('id', motoboy.id)
+        .eq('tenant_id', motoboy.tenant_id)
     }
 
     setAtualizando(null)

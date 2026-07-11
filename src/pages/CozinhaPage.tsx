@@ -1,25 +1,30 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCozinha } from '../hooks/useCozinha'
+import { useTenantId } from '../hooks/useTenantId'
 import CardPedidoCozinha from '../components/cozinha/CardPedidoCozinha'
 
 export default function CozinhaPage() {
   const [searchParams] = useSearchParams()
-  const tenantId = searchParams.get('tenant') || ''
-  
-  const [hora, setHora] = useState('')
+  const urlTenantId = searchParams.get('tenant') || ''
+  const authTenantId = useTenantId()
   const [erro, setErro] = useState('')
 
-  const { 
-    pedidosNovos, 
-    pedidosEmPreparo, 
-    iniciarPreparo, 
+  // Validate tenant ownership: URL tenant must match authenticated user's tenant
+  const tenantId = authTenantId && urlTenantId === authTenantId ? urlTenantId : ''
+
+  const [hora, setHora] = useState('')
+
+  const {
+    pedidosNovos,
+    pedidosEmPreparo,
+    iniciarPreparo,
     marcarPronto
   } = useCozinha({ tenantId })
 
   useEffect(() => {
     if (!tenantId) {
-      setErro('Tenant não informado. Use ?tenant=UUID na URL.')
+      setErro('Tenant não informado ou não corresponde ao usuário logado.')
       return
     }
     setErro('')
@@ -67,11 +72,11 @@ export default function CozinhaPage() {
           <span className="text-white/30">—</span>
           <span className="text-white/60 font-medium">Cozinha</span>
         </div>
-        
+
         <div className="text-2xl font-mono font-bold text-white" style={{ fontFamily: 'DM Sans, sans-serif' }}>
           {hora}
         </div>
-        
+
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-[#f57c24]">restaurant_menu</span>
           <span className="text-white/80 font-medium">
@@ -90,7 +95,7 @@ export default function CozinhaPage() {
               {pedidosNovos.length} {pedidosNovos.length === 1 ? 'pedido' : 'pedidos'}
             </span>
           </div>
-          
+
           <div className="flex-1 p-4 overflow-y-auto">
             {pedidosNovos.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
@@ -130,7 +135,7 @@ export default function CozinhaPage() {
               {pedidosEmPreparo.length} {pedidosEmPreparo.length === 1 ? 'pedido' : 'pedidos'}
             </span>
           </div>
-          
+
           <div className="flex-1 p-4 overflow-y-auto">
             {pedidosEmPreparo.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-40">

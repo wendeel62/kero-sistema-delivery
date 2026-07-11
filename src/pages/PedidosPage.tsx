@@ -10,8 +10,8 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
 import { useRealtime } from '../hooks/useRealtime'
+import { useTenantId } from '../hooks/useTenantId'
 import { usePrinter } from '../hooks/usePrinter'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -60,22 +60,8 @@ const mapKanbanStatus = (rawStatus: string): UnifiedPedido['status_kanban'] => {
   return 'cancelado'
 }
 
-function getTenantId(): string {
-  const configStr = localStorage.getItem('supabase.auth.token')
-  if (configStr) {
-    try {
-      const config = JSON.parse(configStr)
-      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
-    } catch {
-      return ''
-    }
-  }
-  return ''
-}
-
 export default function PedidosPage() {
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantId() || user?.id || ''
+  const tenantId = useTenantId() ?? ''
   const queryClient = useQueryClient()
   const toast = useToast()
   const printer = usePrinter()

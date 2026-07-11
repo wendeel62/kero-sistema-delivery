@@ -1,22 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
-import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from '../hooks/useTenantId'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-function getTenantId(): string {
-  const configStr = localStorage.getItem('supabase.auth.token')
-  if (configStr) {
-    try {
-      const config = JSON.parse(configStr)
-      return config.access_token?.user_metadata?.tenant_id || config.user?.user_metadata?.tenant_id || ''
-    } catch {
-      return ''
-    }
-  }
-  return ''
-}
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { clienteSchema } from '../schemas/clienteSchema'
@@ -65,8 +53,7 @@ interface Cupom {
 }
 
 export default function ClientesPage() {
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || getTenantId()
+  const tenantId = useTenantId()
   const [activeTab, setActiveTab] = useState<'gestao' | 'fidelidade' | 'cupons'>('gestao')
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)

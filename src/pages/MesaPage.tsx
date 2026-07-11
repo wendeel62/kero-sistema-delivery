@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from '../hooks/useTenantId'
 import { useParams } from 'react-router-dom'
 import type { Produto, Categoria, PrecoTamanho, Sabor, Mesa } from '../types'
 
@@ -10,8 +10,7 @@ type Step = 'menu' | 'carrinho'
 
 export default function MesaPage() {
   const { numero } = useParams<{ numero: string }>()
-  const { user } = useAuth()
-  const tenantId = user?.user_metadata?.tenant_id || user?.id
+  const tenantId = useTenantId() ?? ''
   const [mesa, setMesa] = useState<Mesa | null>(null)
   const [mesaNaoEncontrada, setMesaNaoEncontrada] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])

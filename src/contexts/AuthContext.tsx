@@ -32,11 +32,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role | null>(null)
 
   // Fetch user role from database
-  const fetchRole = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role, tenant_id')
-      .eq('user_id', userId)
+    const fetchRole = useCallback(async (userId: string, tenantId?: string) => {
+      let query = supabase
+        .from('user_roles')
+        .select('role, tenant_id')
+        .eq('user_id', userId)
+
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId)
+      }
+
+      const { data, error } = await query
 
     if (data && data.length > 0 && !error) {
       const roles = data.map(r => r.role);

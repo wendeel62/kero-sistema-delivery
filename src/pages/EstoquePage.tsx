@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from '../hooks/useTenantId'
 import { useRealtime } from '../hooks/useRealtime'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -30,8 +30,7 @@ interface Fornecedor {
 }
 
 export default function EstoquePage() {
-  const { user } = useAuth()
-  const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
   const [activeTab, setActiveTab] = useState<'movimentacao' | 'ficha_tecnica' | 'fornecedores'>('movimentacao')
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([])
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
@@ -265,8 +264,7 @@ function FornecedoresContent({ fornecedores, onUpdate }: { fornecedores: Fornece
 }
 
 function FichaTecnicaContent() {
-  const { user } = useAuth()
-  const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
   const [produtos, setProdutos] = useState<Array<{ id: string; nome: string }>>([])
   const [ingredientesList, setIngredientesList] = useState<Array<{ id: string; nome: string; unidade: string }>>([])
   const [selectedProduto, setSelectedProduto] = useState('')
@@ -551,8 +549,7 @@ function FichaTecnicaContent() {
 }
 
 function InsumoModal({ data, onClose, onSave }: { data: Partial<Ingrediente> | null; onClose: () => void; onSave: () => void }) {
-   const { user } = useAuth()
-   const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
    const [saving, setSaving] = useState(false)
 
 const { register, handleSubmit, formState: { errors } } = useForm({
@@ -638,8 +635,7 @@ const onSubmit = async (formData: Record<string, unknown>) => {
 }
 
 function EntradaEstoqueModal({ ingredientes, onClose, onSave }: { ingredientes: Ingrediente[]; onClose: () => void; onSave: () => void }) {
-   const { user } = useAuth()
-   const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
    const [form, setForm] = useState({ ingrediente_id: '', quantidade: 0, valor_total: 0 })
    const [saving, setSaving] = useState(false)
 
@@ -706,8 +702,7 @@ function EntradaEstoqueModal({ ingredientes, onClose, onSave }: { ingredientes: 
 }
 
 function FornecedorModal({ data, onClose, onSave }: { data: Partial<Fornecedor>; onClose: () => void; onSave: () => void }) {
-   const { user } = useAuth()
-   const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
    const [form, setForm] = useState(data)
    const [saving, setSaving] = useState(false)
 

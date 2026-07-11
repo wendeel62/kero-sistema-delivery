@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { useAuth } from '../contexts/AuthContext'
+import { useTenantId } from '../hooks/useTenantId'
 import { useMetaPeriodo } from '../contexts/MetaPeriodoContext'
 import { useMetasFaturamento, type MetaPeriodo } from '../hooks/useMetasFaturamento'
 import { useFinancialKpis } from '../hooks/useFinancialKpis'
@@ -76,22 +76,21 @@ interface Caixa {
 
 export default function FinanceiroPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'contas_pagar' | 'caixa'>('dashboard')
-  const [contas, setContas] = useState<ContaPagar[]>([])
-  const { user } = useAuth()
-  const tenantId = user?.id
-  const [caixaAtivo, setCaixaAtivo] = useState<Caixa | null>(null)
-  const [faturamentoTotal, setFaturamentoTotal] = useState(0)
-  const [dateRange, setDateRange] = useState({ 
-    start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-    end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
-  })
-  const [editingMeta, setEditingMeta] = useState(false)
-  const [metaInput, setMetaInput] = useState('')
-  const [toast, setToast] = useState<string | null>(null)
-  const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
-  const [pagamentoPorForma, setPagamentoPorForma] = useState<Record<string, number>>({})
-  const { periodo, setPeriodo } = useMetaPeriodo()
-  const { data: metasData, saveMeta } = useMetasFaturamento(user?.id ?? '', true)
+    const [contas, setContas] = useState<ContaPagar[]>([])
+    const tenantId = useTenantId() ?? ''
+    const [caixaAtivo, setCaixaAtivo] = useState<Caixa | null>(null)
+    const [faturamentoTotal, setFaturamentoTotal] = useState(0)
+    const [dateRange, setDateRange] = useState({
+      start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+      end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
+    })
+    const [editingMeta, setEditingMeta] = useState(false)
+    const [metaInput, setMetaInput] = useState('')
+    const [toast, setToast] = useState<string | null>(null)
+    const [showReceitaDropdown, setShowReceitaDropdown] = useState(false)
+    const [pagamentoPorForma, setPagamentoPorForma] = useState<Record<string, number>>({})
+    const { periodo, setPeriodo } = useMetaPeriodo()
+    const { data: metasData, saveMeta } = useMetasFaturamento(tenantId, true)
   const financialKpis = useFinancialKpis()
 
   const fetchData = useCallback(async () => {
@@ -400,8 +399,7 @@ export default function FinanceiroPage() {
 }
 
 function ContasPagarContent({ contas, onUpdate }: { contas: ContaPagar[], onUpdate: () => void }) {
-   const { user } = useAuth()
-   const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
    const [isModalOpen, setIsModalOpen] = useState(false)
    const [newConta, setNewConta] = useState({ descricao: '', valor: 0, data_vencimento: '', categoria: 'Fixo' })
 
@@ -472,8 +470,7 @@ function ContasPagarContent({ contas, onUpdate }: { contas: ContaPagar[], onUpda
 }
 
 function CaixaContent({ caixaAtivo, onUpdate }: { caixaAtivo: Caixa | null, onUpdate: () => void }) {
-   const { user } = useAuth()
-   const tenantId = user?.id
+  const tenantId = useTenantId() ?? ''
    const [valAbertura, setValAbertura] = useState(0)
 
    const abrirCaixa = async () => {

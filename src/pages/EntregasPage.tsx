@@ -64,23 +64,26 @@ export default function EntregasPage() {
   }, [tenantId])
 
   const fetchEntregasAtivas = useCallback(async () => {
-    const { data: entregasData } = await supabase
-      .from('entregas')
-      .select('*')
-      .in('status', ['atribuido', 'coletado'])
-      .order('atribuido_em', { ascending: false })
+      const { data: entregasData } = await supabase
+        .from('entregas')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .in('status', ['atribuido', 'coletado'])
+        .order('atribuido_em', { ascending: false })
 
-    const { data: pedidosSaiuEntrega } = await supabase
-      .from('pedidos')
-      .select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total, motoboy_id, created_at, status')
-      .eq('status', 'saiu_entrega')
-      .order('created_at', { ascending: false })
+      const { data: pedidosSaiuEntrega } = await supabase
+        .from('pedidos')
+        .select('id, numero, cliente_nome, cliente_telefone, endereco_entrega, total, motoboy_id, created_at, status')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'saiu_entrega')
+        .order('created_at', { ascending: false })
 
-    const { data: pedidosOnlineSaiuEntrega } = await supabase
-      .from('pedidos_online')
-      .select('id, numero, cliente_nome, cliente_telefone, endereco, numero_endereco, bairro, total, motoboy_id, created_at, status')
-      .eq('status', 'saiu_entrega')
-      .order('created_at', { ascending: false })
+      const { data: pedidosOnlineSaiuEntrega } = await supabase
+        .from('pedidos_online')
+        .select('id, numero, cliente_nome, cliente_telefone, endereco, numero_endereco, bairro, total, motoboy_id, created_at, status')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'saiu_entrega')
+        .order('created_at', { ascending: false })
 
     const todasEntregas: Entrega[] = []
 
