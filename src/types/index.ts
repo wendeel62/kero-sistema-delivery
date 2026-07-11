@@ -81,6 +81,7 @@ export interface ItemPedido {
 // --------------------
 export interface Motoboy {
   id: string
+  tenant_id: string
   nome: string
   telefone: string
   status: string

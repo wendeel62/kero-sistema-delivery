@@ -18,7 +18,6 @@ export { default as ProductCard } from './ProductCard'
 export { default as NpsWidget } from './NpsWidget'
 export { default as DivisaoConta } from './DivisaoConta'
 export { default as AgentAvatar } from './AgentAvatar'
-export { FloatingAgentChat } from './FloatingAgentChat'
 export { default as LoadingSpinner, LoadingSkeleton, TableSkeleton } from './LoadingSpinner'
 
 // Admin Components

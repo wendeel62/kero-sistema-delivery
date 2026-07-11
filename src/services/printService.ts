@@ -121,7 +121,7 @@ function encodeLines(lines: ReceiptLine[], columns: number): Uint8Array {
     } else if (line.type === 'divider') {
       encoder.rule({ style: 'dashed' })
     } else if (line.type === 'spacer') {
-      encoder.newLine()
+      encoder.newline()
     } else if (line.type === 'cut') {
       encoder.cut()
     }
@@ -146,7 +146,7 @@ export async function printReceipt(
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const config = qz.configs.create(printerName)
-      await withTimeout(qz.print(config, [bytes]), PRINT_TIMEOUT_MS, 'Timeout ao imprimir — impressora não respondeu')
+      await withTimeout(qz.print(config, [Array.from(bytes)]), PRINT_TIMEOUT_MS, 'Timeout ao imprimir — impressora não respondeu')
       return // sucesso
     } catch (err) {
       lastError = err

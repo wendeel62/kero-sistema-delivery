@@ -275,11 +275,11 @@ export default function ClientesPage() {
         </>
       )}
 
-      {activeTab === 'fidelidade' && <FidelidadeContent config={config} onUpdate={fetchConfig} tenantId={tenantId} />}
-      {activeTab === 'cupons' && <CuponsContent cupons={cupons} onUpdate={fetchCupons} tenantId={tenantId} />}
+      {activeTab === 'fidelidade' && <FidelidadeContent config={config} onUpdate={fetchConfig} tenantId={tenantId ?? ''} />}
+            {activeTab === 'cupons' && <CuponsContent cupons={cupons} onUpdate={fetchCupons} tenantId={tenantId ?? ''} />}
 
-      {isDrawerOpen && selectedCliente && <ClienteDrawer cliente={selectedCliente} onClose={() => setIsDrawerOpen(false)} onUpdate={fetchClientes} tenantId={tenantId} />}
-      {isModalOpen && <ClienteModal cliente={null} onClose={() => setIsModalOpen(false)} onSave={fetchClientes} tenantId={tenantId} />}
+            {isDrawerOpen && selectedCliente && <ClienteDrawer cliente={selectedCliente} onClose={() => setIsDrawerOpen(false)} onUpdate={fetchClientes} tenantId={tenantId ?? ''} />}
+            {isModalOpen && <ClienteModal cliente={null} onClose={() => setIsModalOpen(false)} onSave={fetchClientes} tenantId={tenantId ?? ''} />}
     </div>
   )
 }
