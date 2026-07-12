@@ -121,18 +121,24 @@ export default function ProdutoFormSidebar({
             <div className="relative w-full max-w-[200px] aspect-[4/5] my-4">
               <input type="file" accept="image/*" onChange={onFileChange} className="hidden" id="produto-foto" disabled={uploading} />
               {(imagePreview || editProduto?.imagem_url) ? (
-                <div className="relative w-full h-full rounded-xl overflow-hidden">
-                  <img src={imagePreview || editProduto?.imagem_url} alt="Preview" className="w-full h-full object-cover" />
-                  <button type="button" onClick={onRemovePhoto} className="absolute top-2 right-2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-all">
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                </div>
-              ) : (
-                <label htmlFor="produto-foto" className="flex flex-col items-center justify-center w-full h-full bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-xl cursor-pointer hover:border-[#555] transition-all">
-                  <span className="material-symbols-outlined text-4xl text-[#555]">photo_camera</span>
-                  <span className="text-sm text-[#555] mt-2">Adicionar foto</span>
-                </label>
-              )}
+                              <div className="relative w-full h-full rounded-xl overflow-hidden group/camera">
+                                <img src={imagePreview || editProduto?.imagem_url} alt="Preview" className="w-full h-full object-cover" />
+                                {!uploading && (
+                                  <label htmlFor="produto-foto" className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 opacity-0 group-hover/camera:opacity-100 transition-opacity cursor-pointer">
+                                    <span className="material-symbols-outlined text-3xl text-white">photo_camera</span>
+                                    <span className="text-xs text-white mt-1">Alterar foto</span>
+                                  </label>
+                                )}
+                                <button type="button" onClick={onRemovePhoto} className="absolute top-2 right-2 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-all">
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <label htmlFor="produto-foto" className="flex flex-col items-center justify-center w-full h-full bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-xl cursor-pointer hover:border-[#555] transition-all">
+                                <span className="material-symbols-outlined text-4xl text-[#555]">photo_camera</span>
+                                <span className="text-sm text-[#555] mt-2">Adicionar foto</span>
+                              </label>
+                            )}
             </div>
           </div>
 
