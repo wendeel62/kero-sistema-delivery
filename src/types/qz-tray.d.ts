@@ -33,10 +33,17 @@ declare module 'qz-tray' {
     create(printer: string, options?: Partial<QZConfig['prefs']>): QZConfig
   }
 
+  interface QZSecurity {
+    setSignatureAlgorithm(algorithm: 'SHA1' | 'SHA256' | 'SHA512'): void
+    setCertificatePromise(fn: (resolve: (cert: string) => void) => void): void
+    setSignaturePromise(fn: (toSign: string, resolve: (signature: string) => void) => void): void
+  }
+
   interface QZ {
     websocket: QZWebSocket
     printers: QZPrinters
     configs: QZConfigs
+    security: QZSecurity
     print(config: QZConfig, data: number[][]): Promise<void>
   }
 

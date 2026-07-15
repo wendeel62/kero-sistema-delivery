@@ -1,6 +1,14 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { usePwa } from '../../contexts/PwaContext'
-import { PrinterOnboardingModal } from '../printer/PrinterOnboardingModal'
+import { usePrinter } from '../../hooks/usePrinter'
+import { QzTrayOnboardingModal } from '../printer/QzTrayOnboardingModal'
+
+const LS_QZ_DISMISSED = 'qz_onboarding_dismissed'
+
+function isDesktop(): boolean {
+  const ua = navigator.userAgent.toLowerCase()
+  return /win|mac|linux/.test(ua)
+}
 
 function getOS(): 'ios' | 'android' | 'windows' | 'mac' | 'linux' | 'other' {
   const ua = navigator.userAgent.toLowerCase()
@@ -25,12 +33,25 @@ function getBrowser(): 'chrome' | 'safari' | 'firefox' | 'edge' | 'samsung' | 'o
 const OS = getOS()
 const browser = getBrowser()
 
-const LS_ONBOARDING_DISMISSED = 'printer_onboarding_dismissed'
-
 export function PwaInstallPrompt() {
-  const { isInstallable, isInstalled, justInstalled, install, dismissInstall, clearJustInstalled } = usePwa()
+  const { isInstallable, isInstalled, install, dismissInstall, justInstalled, clearJustInstalled } = usePwa()
+  const printer = usePrinter()
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [installing, setInstalling] = useState(false)
+  const [showQzOnboarding, setShowQzOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!justInstalled || printer.isConnected) return
+    if (localStorage.getItem(LS_QZ_DISMISSED)) return
+    if (!isDesktop()) return
+    const timer = setTimeout(() => setShowQzOnboarding(true), 3000)
+    return () => clearTimeout(timer)
+  }, [justInstalled, printer.isConnected])
+
+  const handleQzOnboardingClose = useCallback(() => {
+    setShowQzOnboarding(false)
+    clearJustInstalled()
+  }, [clearJustInstalled])
 
   const handleInstall = useCallback(async () => {
     setInstalling(true)
@@ -43,18 +64,8 @@ export function PwaInstallPrompt() {
     dismissInstall(dontShowAgain)
   }, [dismissInstall, dontShowAgain])
 
-  // Show printer onboarding right after PWA install (only once)
-  if (isInstalled && justInstalled && !localStorage.getItem(LS_ONBOARDING_DISMISSED)) {
-    return (
-      <PrinterOnboardingModal
-        onClose={() => {
-          clearJustInstalled()
-        }}
-        onHelperReady={() => {
-          clearJustInstalled()
-        }}
-      />
-    )
+  if (isInstalled && showQzOnboarding) {
+    return <QzTrayOnboardingModal onClose={handleQzOnboardingClose} />
   }
 
   if (isInstalled) return null

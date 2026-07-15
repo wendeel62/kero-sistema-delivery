@@ -5,7 +5,6 @@ import { useRealtime } from '@hooks/useRealtime'
 import { useAuth } from '@contexts/AuthContext'
 import { useTenantId } from '@hooks/useTenantId'
 import { usePrinter } from '@hooks/usePrinter'
-import { useThermalPrinter } from '@hooks/useThermalPrinter'
 import { ConfigInputField } from '@components/ConfigInputField'
 import { ConfigToggle } from '@components/ConfigToggle'
 import type { OrderData } from '../services/printService'
@@ -61,7 +60,6 @@ export default function ConfiguracoesPage() {
   const { user } = useAuth()
   const tenantId = useTenantId()
   const printer = usePrinter()
-  const usbPrinter = useThermalPrinter()
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const queryClient = useQueryClient()
@@ -341,66 +339,49 @@ export default function ConfiguracoesPage() {
             )}
           </div>
 
-          {/* ---- Separador ---- */}
-          <div className="flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-[#303030]"></div>
-            <span className="text-xs text-gray-500">ou</span>
-            <div className="flex-1 h-px bg-[#303030]"></div>
-          </div>
-
-          {/* ---- Modo WebUSB ---- */}
-          <div className="bg-[#252830]/50 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-300">Modo: USB direto (browser)</span>
+          {/* ---- Fallback USB ---- */}
+          <div className="flex items-center justify-between bg-[#252830]/30 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm text-gray-500">usb</span>
+              <span className="text-sm text-gray-400">Fallback USB</span>
+            </div>
+            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className={`inline-block w-2 h-2 rounded-full ${
-                  usbPrinter.status === 'conectada' ? 'bg-green-500'
-                  : usbPrinter.status === 'conectando' ? 'bg-yellow-500'
-                  : usbPrinter.status === 'imprimindo' ? 'bg-blue-500'
-                  : 'bg-red-500'
-                }`}></span>
-                <span className="text-sm text-white capitalize">{usbPrinter.status}</span>
+                  printer.fallbackStatus === 'conectada' ? 'bg-green-500'
+                  : printer.fallbackStatus === 'conectando' ? 'bg-yellow-500'
+                  : 'bg-gray-500'
+                }`} />
+                <span className="text-sm text-gray-300 capitalize">
+                  {printer.fallbackStatus === 'conectada'
+                    ? 'Conectada'
+                    : printer.fallbackStatus === 'conectando'
+                      ? 'Conectando...'
+                      : printer.deviceInfo
+                        ? 'Disponível'
+                        : 'Não conectada'}
+                </span>
               </div>
-            </div>
-
-            {!usbPrinter.isSupported && (
-              <p className="text-xs text-yellow-400">
-                WebUSB não suportado neste navegador. Use Chrome ou Edge.
-              </p>
-            )}
-
-            {usbPrinter.isSupported && usbPrinter.status !== 'conectada' && (
-              <button
-                onClick={usbPrinter.connect}
-                disabled={usbPrinter.status === 'conectando'}
-                className="bg-[#e8391a] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d6331a] disabled:opacity-50"
-              >
-                {usbPrinter.status === 'conectando' ? 'Conectando...' : 'Conectar Impressora USB'}
-              </button>
-            )}
-
-            {usbPrinter.status === 'conectada' && (
-              <>
-                <div className="text-sm text-gray-300">
-                  {usbPrinter.deviceInfo
-                    ? `${usbPrinter.deviceInfo.manufacturerName ?? 'USB'} ${usbPrinter.deviceInfo.productName ?? ''}`
-                    : 'Impressora USB conectada'}
-                </div>
+              {printer.fallbackStatus !== 'conectada' && (
                 <button
-                  onClick={usbPrinter.disconnect}
-                  className="border border-red-500 text-red-500 px-4 py-2 rounded-lg font-medium hover:bg-red-500 hover:text-white"
+                  onClick={printer.connectFallback}
+                  className="text-xs text-[#e8391a] hover:text-white font-medium transition-colors"
+                >
+                  Conectar
+                </button>
+              )}
+              {printer.fallbackStatus === 'conectada' && (
+                <button
+                  onClick={printer.disconnectFallback}
+                  className="text-xs text-gray-500 hover:text-red-400 font-medium transition-colors"
                 >
                   Desconectar
                 </button>
-              </>
-            )}
-
-            <p className="text-xs text-gray-500">
-              Conecta directly via USB — não precisa instalar nada. Funciona com qualquer impressora térmica USB no Chrome/Edge.
-            </p>
+              )}
+            </div>
           </div>
 
-          {/* ---- Configurações gerais (ambos os modos) ---- */}
+          {/* ---- Configurações gerais ---- */}
           <ConfigToggle
             label="Impressão automática ao receber pedido"
             checked={printer.autoPrint}

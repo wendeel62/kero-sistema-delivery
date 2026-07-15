@@ -17,7 +17,8 @@
     "supabase": {
       "type": "local",
       "command": ["node", "C:\\Users\\usuario\\AppData\\Local\\npm-cache\\_npx\\53c4795544aaa350\\node_modules\\@supabase\\mcp-server-supabase\\dist\\transports\\stdio.js", "--access-token", "{env:SUPABASE_ACCESS_TOKEN}"],
-      "enabled": true
+      "enabled": true,
+      "timeout": 60000
     },
     "browsermcp": {
       "type": "local",
@@ -40,5 +41,8 @@
       },
       "enabled": false
     }
+  },
+  "experimental": {
+    "mcp_timeout": 120000
   }
 }

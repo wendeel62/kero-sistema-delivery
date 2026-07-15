@@ -1,5 +1,6 @@
 import qz from 'qz-tray'
 import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder'
+import { getCertPem, signData } from '../lib/qz-crypto'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,9 +70,16 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, message: string):
 export async function connectPrinter(): Promise<void> {
   if (qz.websocket.isActive()) return
   try {
+    qz.security.setSignatureAlgorithm('SHA256')
+    qz.security.setCertificatePromise((resolve) => {
+      resolve(getCertPem())
+    })
+    qz.security.setSignaturePromise((toSign, resolve) => {
+      resolve(signData(toSign))
+    })
     await qz.websocket.connect()
   } catch {
-    throw new Error('QZ Tray não encontrado. Verifique se o programa está instalado e em execução.')
+    throw new Error('QZ Tray recusou a conexão. Verifique as configurações de segurança.')
   }
 }
 
@@ -131,8 +139,44 @@ function encodeLines(lines: ReceiptLine[], columns: number): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
-// Print with retry + timeout
+// Low-level: send raw bytes via QZ Tray
 // ---------------------------------------------------------------------------
+
+export async function printBytes(
+  printerName: string,
+  bytes: Uint8Array,
+): Promise<void> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const config = qz.configs.create(printerName)
+      await withTimeout(
+        qz.print(config, [Array.from(bytes)]),
+        PRINT_TIMEOUT_MS,
+        'Timeout ao imprimir — impressora não respondeu',
+      )
+      return
+    } catch (err) {
+      lastError = err
+      console.warn(`[KeroPrint] Tentativa ${attempt}/${MAX_RETRIES} falhou:`, err)
+      if (attempt < MAX_RETRIES) await sleep(RETRY_DELAY_MS)
+    }
+  }
+  throw lastError
+}
+
+// ---------------------------------------------------------------------------
+// Convenience: encode OrderData to bytes, then print via QZ Tray
+// ---------------------------------------------------------------------------
+
+export function encodeOrderToBytes(
+  order: OrderData,
+  paperWidth: '80mm' | '58mm',
+): Uint8Array {
+  const lines = buildOrderReceipt(order, paperWidth)
+  const columns = paperWidth === '80mm' ? 42 : 32
+  return encodeLines(lines, columns)
+}
 
 export async function printReceipt(
   printerName: string,
@@ -141,20 +185,7 @@ export async function printReceipt(
 ): Promise<void> {
   const columns = paperWidth === '80mm' ? 42 : 32
   const bytes = encodeLines(lines, columns)
-
-  let lastError: unknown
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const config = qz.configs.create(printerName)
-      await withTimeout(qz.print(config, [Array.from(bytes)]), PRINT_TIMEOUT_MS, 'Timeout ao imprimir — impressora não respondeu')
-      return // sucesso
-    } catch (err) {
-      lastError = err
-      console.warn(`[KeroPrint] Tentativa ${attempt}/${MAX_RETRIES} falhou:`, err)
-      if (attempt < MAX_RETRIES) await sleep(RETRY_DELAY_MS)
-    }
-  }
-  throw lastError
+  await printBytes(printerName, bytes)
 }
 
 // ---------------------------------------------------------------------------
