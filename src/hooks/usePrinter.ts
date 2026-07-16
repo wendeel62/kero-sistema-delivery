@@ -24,6 +24,7 @@ const MAX_RETRIES = 2
 const RETRY_DELAY_MS = 2000
 
 export type FallbackStatus = 'disponivel' | 'conectada' | 'desconectada' | 'conectando' | 'erro'
+export type UsePrinterReturn = ReturnType<typeof usePrinter>
 
 export function usePrinter() {
   const toast = useToast()
@@ -67,9 +68,18 @@ export function usePrinter() {
 
     setIsDetecting(true)
     connectPrinter()
-      .then(() => {
+      .then(async () => {
         setIsConnected(true)
-        getAvailablePrinters().then(setPrinters).catch(() => setPrinters([]))
+        try {
+          const list = await getAvailablePrinters()
+          setPrinters(list)
+          if (list.length === 0) {
+            console.warn('[KeroPrint] QZ Tray conectado mas nenhuma impressora encontrada')
+          }
+        } catch (loadErr) {
+          console.error('[KeroPrint] Falha ao carregar lista de impressoras:', loadErr)
+          setPrinters([])
+        }
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : 'QZ Tray não encontrado'
@@ -215,6 +225,8 @@ export function usePrinter() {
       return
     }
 
+    setFallbackActive(false)
+
     try {
       setFallbackStatus('conectando')
 
@@ -266,6 +278,7 @@ export function usePrinter() {
   // ---- WebUSB: disconnect fallback -----------------------------------------
 
   const disconnectFallback = useCallback(async () => {
+    setFallbackActive(false)
     try {
       if (webusbRef.current) {
         await webusbRef.current.disconnect()

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { usePwa } from '../../contexts/PwaContext'
-import { usePrinter } from '../../hooks/usePrinter'
+import { usePrinter } from '@/contexts/PrinterContext'
 import { QzTrayOnboardingModal } from '../printer/QzTrayOnboardingModal'
 
 const LS_QZ_DISMISSED = 'qz_onboarding_dismissed'
@@ -57,12 +57,12 @@ export function PwaInstallPrompt() {
     setInstalling(true)
     const success = await install()
     if (success) setInstalling(false)
-    setInstalling(false)
   }, [install])
 
   const handleDismiss = useCallback(() => {
+    clearJustInstalled()
     dismissInstall(dontShowAgain)
-  }, [dismissInstall, dontShowAgain])
+  }, [clearJustInstalled, dismissInstall, dontShowAgain])
 
   if (isInstalled && showQzOnboarding) {
     return <QzTrayOnboardingModal onClose={handleQzOnboardingClose} />

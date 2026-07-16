@@ -87,7 +87,6 @@ export function usePwaInstall(): UsePwaInstallReturn {
   const install = useCallback(async (): Promise<boolean> => {
     if (import.meta.env.DEV) {
       setIsInstalled(true)
-      setJustInstalled(true)
       return true
     }
 

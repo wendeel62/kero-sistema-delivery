@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { usePrinter } from '../../hooks/usePrinter'
+import { usePrinter } from '@/contexts/PrinterContext'
 
 const LS_DISMISSED_PERM = 'qz_banner_dismissed_permanent'
 

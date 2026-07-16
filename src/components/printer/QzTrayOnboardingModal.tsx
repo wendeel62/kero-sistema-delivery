@@ -23,6 +23,7 @@ export function QzTrayOnboardingModal({ onClose }: QzTrayOnboardingModalProps) {
         setConnectError('Nenhuma impressora encontrada no sistema.')
         return
       }
+      localStorage.setItem(LS_KEY_DISMISSED, 'true')
       onClose()
     } catch {
       setConnectError(
@@ -34,24 +35,16 @@ export function QzTrayOnboardingModal({ onClose }: QzTrayOnboardingModalProps) {
     }
   }, [onClose])
 
-  const handleDownload = useCallback(async () => {
+  const handleDownload = useCallback(() => {
     setDownloading(true)
-    try {
-      const res = await fetch(QZ_DOWNLOAD_URL)
-      if (!res.ok) throw new Error('Instalador não encontrado')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'Kero-Printer-Setup.exe'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('[KeroPrint] Falha ao baixar instalador:', err)
-    }
-    setDownloading(false)
+    localStorage.setItem(LS_KEY_DISMISSED, 'true')
+    const a = document.createElement('a')
+    a.href = QZ_DOWNLOAD_URL
+    a.download = 'Kero-Printer-Setup.exe'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => setDownloading(false), 1000)
   }, [])
 
   const handleLater = useCallback(() => {

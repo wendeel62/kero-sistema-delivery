@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useRealtime } from '@hooks/useRealtime'
 import { useAuth } from '@contexts/AuthContext'
 import { useTenantId } from '@hooks/useTenantId'
-import { usePrinter } from '@hooks/usePrinter'
+import { usePrinter } from '@/contexts/PrinterContext'
 import { ConfigInputField } from '@components/ConfigInputField'
 import { ConfigToggle } from '@components/ConfigToggle'
 import type { OrderData } from '../services/printService'
@@ -321,10 +321,17 @@ export default function ConfiguracoesPage() {
               <div className="space-y-2">
                 <select
                   value={printer.selectedPrinter ?? ''}
-                  onChange={(e) => printer.selectPrinter(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (val) printer.selectPrinter(val)
+                  }}
                   className="w-full bg-[#252830] text-white px-3 py-2 rounded-lg border border-[#303030] outline-none focus:border-[#e8391a]"
                 >
-                  <option value="">Selecione uma impressora</option>
+                  <option value="" disabled>
+                    {printer.printers.length === 0
+                      ? 'Nenhuma impressora encontrada — clique em Atualizar Lista'
+                      : 'Selecione uma impressora'}
+                  </option>
                   {printer.printers.map((name) => (
                     <option key={name} value={name}>{name}</option>
                   ))}

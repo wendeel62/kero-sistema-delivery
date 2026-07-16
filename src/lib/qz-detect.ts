@@ -34,6 +34,7 @@ async function probePort(port: number): Promise<QzDetectStatus> {
       if (!settled) {
         settled = true
         clearTimeout(timer)
+        try { ws.close() } catch { /* ignore */ }
         resolve({ status: 'nao_executando' })
       }
     }
@@ -54,9 +55,22 @@ async function probePort(port: number): Promise<QzDetectStatus> {
 }
 
 export async function detectQzTray(): Promise<QzDetectStatus> {
-  for (const port of PROBE_PORTS) {
-    const result = await probePort(port)
-    if (result.status !== 'nao_executando') return result
-  }
+  const probes = PROBE_PORTS.map(port => probePort(port))
+
+  const timeout = new Promise<QzDetectStatus>((resolve) => {
+    setTimeout(() => resolve({ status: 'nao_executando' }), PROBE_TIMEOUT_MS)
+  })
+
+  const result = await Promise.race([timeout, ...probes])
+
+  if (result.status !== 'nao_executando') return result
+
+  const settled = await Promise.allSettled(probes)
+  const firstNonTimeout = settled.find(
+    (r): r is PromiseFulfilledResult<QzDetectStatus> =>
+      r.status === 'fulfilled' && r.value.status !== 'nao_executando'
+  )
+  if (firstNonTimeout) return firstNonTimeout.value
+
   return { status: 'nao_executando' }
 }

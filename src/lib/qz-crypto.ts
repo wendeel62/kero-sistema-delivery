@@ -3,15 +3,24 @@ import forge from 'node-forge'
 const LS_KEY_KEYPAIR = 'kero_qz_keypair'
 const LS_KEY_CERT = 'kero_qz_cert'
 
+interface StoredKeyPair {
+  privateKeyPem: string
+  publicKeyPem: string
+}
+
 let keyPair: forge.pki.rsa.KeyPair | null = null
 let certPem: string | null = null
 
-function saveToStorage(): void {
-  if (!keyPair) return
-  const privateKeyPem = forge.pki.privateKeyToPem(keyPair.privateKey)
-  const publicKeyPem = forge.pki.publicKeyToPem(keyPair.publicKey)
-  localStorage.setItem(LS_KEY_KEYPAIR, JSON.stringify({ privateKeyPem, publicKeyPem }))
-  if (certPem) localStorage.setItem(LS_KEY_CERT, certPem)
+let initPromise: Promise<void> | null = null
+
+function saveToStorage(privateKeyPem: string, publicKeyPem: string, cert: string): void {
+  const stored: StoredKeyPair = { privateKeyPem, publicKeyPem }
+  try {
+    localStorage.setItem(LS_KEY_KEYPAIR, JSON.stringify(stored))
+    localStorage.setItem(LS_KEY_CERT, cert)
+  } catch {
+    // Storage may be full or unavailable — proceed without persistence
+  }
 }
 
 function loadFromStorage(): boolean {
@@ -20,7 +29,7 @@ function loadFromStorage(): boolean {
   if (!raw || !storedCert) return false
 
   try {
-    const { privateKeyPem, publicKeyPem } = JSON.parse(raw)
+    const { privateKeyPem, publicKeyPem } = JSON.parse(raw) as StoredKeyPair
     keyPair = {
       privateKey: forge.pki.privateKeyFromPem(privateKeyPem),
       publicKey: forge.pki.publicKeyFromPem(publicKeyPem),
@@ -28,20 +37,80 @@ function loadFromStorage(): boolean {
     certPem = storedCert
     return true
   } catch {
-    localStorage.removeItem(LS_KEY_KEYPAIR)
-    localStorage.removeItem(LS_KEY_CERT)
+    try {
+      localStorage.removeItem(LS_KEY_KEYPAIR)
+      localStorage.removeItem(LS_KEY_CERT)
+    } catch {
+      // ignore
+    }
     return false
   }
 }
 
-function lazyInit(): void {
-  if (keyPair && certPem) return
-  if (loadFromStorage()) return
+async function generateViaWorker(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let worker: Worker | null = null
+    try {
+      worker = new Worker(new URL('./qz-crypto-worker.ts', import.meta.url), { type: 'module' })
+    } catch {
+      // Worker creation failed — fallback to sync generation (blocking)
+      generateSync()
+      resolve()
+      return
+    }
 
-  keyPair = forge.pki.rsa.generateKeyPair(2048)
+    const cleanup = () => {
+      worker?.terminate()
+      worker = null
+    }
+
+    worker.onmessage = (e: MessageEvent<{ type: string; privateKeyPem?: string; publicKeyPem?: string; certPem?: string; message?: string }>) => {
+      const data = e.data
+      if (data.type === 'success' && data.privateKeyPem && data.publicKeyPem && data.certPem) {
+        try {
+          keyPair = {
+            privateKey: forge.pki.privateKeyFromPem(data.privateKeyPem),
+            publicKey: forge.pki.publicKeyFromPem(data.publicKeyPem),
+          }
+          certPem = data.certPem
+          saveToStorage(data.privateKeyPem, data.publicKeyPem, data.certPem)
+        } catch {
+          // Fallback to sync if importing PEM fails
+          generateSync()
+        }
+        cleanup()
+        resolve()
+      } else if (data.type === 'error') {
+        cleanup()
+        // Fallback to sync if worker errors
+        try {
+          generateSync()
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      }
+    }
+
+    worker.onerror = () => {
+      cleanup()
+      try {
+        generateSync()
+        resolve()
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    worker.postMessage({ type: 'generate' })
+  })
+}
+
+function generateSync(): void {
+  const freshKeyPair = forge.pki.rsa.generateKeyPair(2048)
 
   const cert = forge.pki.createCertificate()
-  cert.publicKey = keyPair.publicKey
+  cert.publicKey = freshKeyPair.publicKey
   cert.serialNumber = '01'
 
   const now = new Date()
@@ -51,15 +120,37 @@ function lazyInit(): void {
   const attrs = [{ name: 'commonName', value: 'Kero Delivery' }]
   cert.setSubject(attrs)
   cert.setIssuer(attrs)
+  cert.sign(freshKeyPair.privateKey, forge.md.sha256.create())
 
-  cert.sign(keyPair.privateKey, forge.md.sha256.create())
-
+  keyPair = freshKeyPair
   certPem = forge.pki.certificateToPem(cert)
-  saveToStorage()
+  saveToStorage(
+    forge.pki.privateKeyToPem(freshKeyPair.privateKey),
+    forge.pki.publicKeyToPem(freshKeyPair.publicKey),
+    certPem,
+  )
 }
 
-export function signData(toSign: string): string {
-  lazyInit()
+async function lazyInit(): Promise<void> {
+  // Fast path: already initialized
+  if (keyPair && certPem) return
+
+  // Try loading from storage (synchronous)
+  if (loadFromStorage()) return
+
+  // Mutex: prevent concurrent initialization (e.g. React StrictMode double-invoke)
+  if (initPromise) return initPromise
+
+  initPromise = generateViaWorker().catch((err) => {
+    initPromise = null
+    throw err
+  })
+
+  return initPromise
+}
+
+export async function signDataAsync(toSign: string): Promise<string> {
+  await lazyInit()
   if (!keyPair) throw new Error('[KeroPrint] Key pair not generated yet')
   const md = forge.md.sha256.create()
   md.update(toSign, 'utf8')
@@ -67,7 +158,12 @@ export function signData(toSign: string): string {
   return forge.util.encode64(signature)
 }
 
-export function getCertPem(): string {
-  lazyInit()
-  return certPem!
+export async function getCertPemAsync(): Promise<string> {
+  await lazyInit()
+  if (!certPem) throw new Error('[KeroPrint] Certificate not generated yet')
+  return certPem
+}
+
+export function isReady(): boolean {
+  return keyPair !== null && certPem !== null
 }

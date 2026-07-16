@@ -35,8 +35,8 @@ declare module 'qz-tray' {
 
   interface QZSecurity {
     setSignatureAlgorithm(algorithm: 'SHA1' | 'SHA256' | 'SHA512'): void
-    setCertificatePromise(fn: (resolve: (cert: string) => void) => void): void
-    setSignaturePromise(fn: (toSign: string, resolve: (signature: string) => void) => void): void
+    setCertificatePromise(fn: (resolve: (cert: string) => void, reject: (err: unknown) => void) => void): void
+    setSignaturePromise(fn: (toSign: string) => (resolve: (signature: string) => void, reject: (err: unknown) => void) => void): void
   }
 
   interface QZ {

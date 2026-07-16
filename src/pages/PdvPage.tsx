@@ -1,8 +1,10 @@
 import { useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { usePrinter } from '../hooks/usePrinter'
+import { usePrinter } from '@/contexts/PrinterContext'
 import { usePdv } from '../hooks/usePdv'
+import { useToast } from '../contexts/ToastContext'
+import { useTenantId } from '../hooks/useTenantId'
 import type { Produto } from '../hooks/usePdv'
 import type { OrderData } from '../services/printService'
 import MesasGrid from '../components/pdv/MesasGrid'
@@ -15,17 +17,21 @@ import DivisaoConta from '../components/DivisaoConta'
 export default function PdvPage() {
   const h = usePdv()
   const printer = usePrinter()
+  const toast = useToast()
+  const tenantId = useTenantId() ?? ''
 
   const { data: config } = useQuery({
-    queryKey: ['configuracoes_print'],
+    queryKey: ['configuracoes_print', tenantId],
     queryFn: async () => {
       const { data } = await supabase
         .from('configuracoes')
         .select('*')
+        .eq('tenant_id', tenantId)
         .single()
-      return data as { nome_loja: string; endereco: string; telefone: string } | null
+      return data as { nome_loja: string; endereco: string; telefone: string; taxa_entrega?: number } | null
     },
     staleTime: 60_000,
+    enabled: !!tenantId,
   })
 
   const printOrder = useCallback(async () => {
@@ -44,7 +50,7 @@ export default function PdvPage() {
         preco_unitario: item.produto.preco || 0,
       })),
       subtotal: h.subtotal,
-      taxa_entrega: h.tipo === 'entrega' ? 5 : 0,
+      taxa_entrega: h.tipo === 'entrega' ? (config.taxa_entrega ?? 5) : 0,
       desconto: h.desconto,
       total: h.total,
       forma_pagamento: h.formaPagamento || 'Dinheiro',
@@ -54,8 +60,11 @@ export default function PdvPage() {
     }
     try {
       await printer.print(orderData)
-    } catch { /* silent */ }
-  }, [printer, config, h])
+    } catch (printErr: unknown) {
+      console.warn('[KeroPrint] Falha ao imprimir no PDV:', printErr)
+      toast.error('Falha ao imprimir pedido — verifique a impressora')
+    }
+  }, [printer, config, h, toast])
 
   useEffect(() => {
     if (h.sucesso && printer.autoPrint) {

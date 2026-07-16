@@ -1,6 +1,6 @@
 import qz from 'qz-tray'
 import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder'
-import { getCertPem, signData } from '../lib/qz-crypto'
+import { getCertPemAsync, signDataAsync } from '../lib/qz-crypto'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,11 +71,13 @@ export async function connectPrinter(): Promise<void> {
   if (qz.websocket.isActive()) return
   try {
     qz.security.setSignatureAlgorithm('SHA256')
-    qz.security.setCertificatePromise((resolve) => {
-      resolve(getCertPem())
+    qz.security.setCertificatePromise((resolve: (cert: string) => void, reject: (err: unknown) => void) => {
+      getCertPemAsync().then(resolve).catch(reject)
     })
-    qz.security.setSignaturePromise((toSign, resolve) => {
-      resolve(signData(toSign))
+    qz.security.setSignaturePromise((toSign: string) => {
+      return (resolve: (signature: string) => void, reject: (err: unknown) => void) => {
+        signDataAsync(toSign).then(resolve).catch(reject)
+      }
     })
     await qz.websocket.connect()
   } catch {
@@ -178,17 +180,7 @@ export function encodeOrderToBytes(
   return encodeLines(lines, columns)
 }
 
-export async function printReceipt(
-  printerName: string,
-  lines: ReceiptLine[],
-  paperWidth: '80mm' | '58mm',
-): Promise<void> {
-  const columns = paperWidth === '80mm' ? 42 : 32
-  const bytes = encodeLines(lines, columns)
-  await printBytes(printerName, bytes)
-}
-
-// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Receipt builder
 // ---------------------------------------------------------------------------
 
@@ -254,8 +246,9 @@ export function buildOrderReceipt(order: OrderData, paperWidth: '80mm' | '58mm' 
   lines.push({ type: 'text', content: `PAGAMENTO: ${order.forma_pagamento}` })
 
   if (order.troco_para !== undefined) {
+    const trocoValor = Math.max(0, order.troco_para - order.total)
     lines.push({ type: 'text', content: `TROCO PARA: R$ ${order.troco_para.toFixed(2)}` })
-    lines.push({ type: 'text', content: `TROCO: R$ ${(order.troco_para - order.total).toFixed(2)}` })
+    lines.push({ type: 'text', content: `TROCO: R$ ${trocoValor.toFixed(2)}` })
   }
   lines.push({ type: 'divider' })
 

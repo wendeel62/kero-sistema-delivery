@@ -8,6 +8,7 @@ import { ErrorBoundary } from './components/error-boundary'
 import { MetaPeriodoProvider } from './contexts/MetaPeriodoContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PwaProvider } from './contexts/PwaContext'
+import { PrinterProvider } from './contexts/PrinterContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import AdminGuard from './components/admin/AdminGuard'
@@ -85,7 +86,9 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <MetaPeriodoProvider>
-              <Layout />
+              <PrinterProvider>
+                <Layout />
+              </PrinterProvider>
             </MetaPeriodoProvider>
           </ProtectedRoute>
         }

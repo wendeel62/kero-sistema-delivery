@@ -12,7 +12,7 @@ import { useState, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRealtime } from '../hooks/useRealtime'
 import { useTenantId } from '../hooks/useTenantId'
-import { usePrinter } from '../hooks/usePrinter'
+import { usePrinter } from '@/contexts/PrinterContext'
 import { useToast } from '../contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { OrderData } from '../services/printService'
@@ -39,12 +39,15 @@ export type UnifiedPedido = {
   raw_status: string
   status_kanban: 'novo' | 'em_preparo' | 'saiu_entrega' | 'entregue' | 'cancelado'
   created_at: string
-  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'ifood' | 'rappi'
+  canal: 'balcao' | 'entrega' | 'mesa' | 'app' | 'telefone' | 'ifood' | 'rappi'
   forma_pagamento: string
   itens: Array<{ qtd: number; nome: string; preco?: number; observacoes?: string; tamanho?: string; variacao?: string }>
   endereco_entrega?: string
   updated_at?: string
   mesa_numero?: number
+  taxa_entrega?: number
+  desconto?: number
+  troco_para?: number
 }
 
 const playAlertSound = () => {
@@ -100,6 +103,9 @@ export default function PedidosPage() {
   const [mesaClosing, setMesaClosing] = useState<{ numero: number; pedidos: UnifiedPedido[] } | null>(null)
 
   const mapToOrderData = useCallback((pedido: UnifiedPedido): OrderData => {
+    const taxaEntrega = pedido.taxa_entrega ?? 0
+    const desconto = pedido.desconto ?? 0
+    const subtotal = Math.max(0, pedido.total - taxaEntrega + desconto)
     return {
       numero: String(pedido.numero),
       cliente_nome: pedido.cliente_nome,
@@ -113,11 +119,12 @@ export default function PedidosPage() {
         observacao: item.observacoes,
         preco_unitario: item.preco || 0,
       })),
-      subtotal: pedido.total,
-      taxa_entrega: 0,
-      desconto: 0,
+      subtotal,
+      taxa_entrega: taxaEntrega,
+      desconto,
       total: pedido.total,
       forma_pagamento: pedido.forma_pagamento,
+      troco_para: pedido.troco_para,
       estabelecimento_nome: config?.nome_loja || '',
       estabelecimento_endereco: config?.endereco || '',
       estabelecimento_telefone: config?.telefone || '',
@@ -241,6 +248,117 @@ export default function PedidosPage() {
     enabled: !!tenantId
   })
 
+  // ---- Manual print handler ------------------------------------------------
+
+  const handlePrint = useCallback((pedido: UnifiedPedido) => {
+    if (config) {
+      printer.print(mapToOrderData(pedido))
+    }
+  }, [config, printer, mapToOrderData])
+
+  // ---- Auto-print on new order -----------------------------------------------
+
+  const handleAutoPrint = useCallback(async (payload: { new: Record<string, unknown> }, origemTabela: 'pedidos' | 'pedidos_online') => {
+    if (!config || !printer.autoPrint) return
+
+    const pedidoId = (payload.new.id as string) || ''
+    if (!pedidoId) return
+
+    // Deduplicacao: se ja tentou imprimir este pedido nesta sessao, ignora.
+    if (autoPrintedOrders.current.has(pedidoId)) return
+    autoPrintedOrders.current.add(pedidoId)
+
+    // Prevent unbounded memory growth — keep last 500 printed order ids
+    if (autoPrintedOrders.current.size > 500) {
+      const entries = [...autoPrintedOrders.current]
+      autoPrintedOrders.current = new Set(entries.slice(entries.length - 250))
+    }
+
+    try {
+      if (origemTabela === 'pedidos') {
+        const { data: pedidoCompleto } = await supabase
+          .from('pedidos')
+          .select('*, itens_pedido(*)')
+          .eq('id', payload.new.id)
+          .single()
+
+        if (!pedidoCompleto) return
+
+        const unified: UnifiedPedido = {
+          id: pedidoCompleto.id,
+          numero: pedidoCompleto.numero,
+          cliente_nome: pedidoCompleto.cliente_nome || '',
+          cliente_telefone: pedidoCompleto.cliente_telefone || '',
+          total: Number(pedidoCompleto.total),
+          tipo_tabela: 'pedidos',
+          raw_status: pedidoCompleto.status,
+          status_kanban: mapKanbanStatus(pedidoCompleto.status),
+          created_at: pedidoCompleto.created_at,
+          canal: pedidoCompleto.tipo || 'balcao',
+          forma_pagamento: pedidoCompleto.forma_pagamento || '',
+          endereco_entrega: pedidoCompleto.endereco_entrega,
+          mesa_numero: pedidoCompleto.mesa_numero,
+          taxa_entrega: Number(pedidoCompleto.taxa_entrega) || 0,
+          desconto: Number(pedidoCompleto.desconto) || 0,
+          troco_para: pedidoCompleto.troco_para != null ? Number(pedidoCompleto.troco_para) : undefined,
+          itens: (pedidoCompleto.itens_pedido || []).map((ip: Record<string, unknown>) => ({
+            nome: ip.produto_nome as string,
+            qtd: ip.quantidade as number,
+            preco: ip.preco_unitario as number,
+            variacao: ip.tamanho as string,
+            observacoes: ip.observacoes as string,
+          }))
+        }
+
+        await printer.print(mapToOrderData(unified))
+      } else {
+        const p = payload.new
+        let itensArray: UnifiedPedido['itens'] = []
+
+        if (p.itens) {
+          try {
+            const parsed = typeof p.itens === 'string' ? JSON.parse(p.itens as string) : p.itens
+            itensArray = Array.isArray(parsed)
+              ? parsed.map((ip: Record<string, unknown>) => ({
+                  nome: (ip.produto_nome as string) || (ip.nome as string),
+                  qtd: (ip.quantidade as number) || (ip.qtd as number),
+                  preco: (ip.preco as number) || (ip.preco_unitario as number) || 0,
+                  variacao: (ip.tamanho as string) || (ip.variacao as string),
+                  observacoes: (ip.observacoes as string) || (ip.obs as string),
+                }))
+              : []
+          } catch {
+            console.warn('[KeroPrint] Falha ao fazer parse de itens do pedido online:', p.itens)
+          }
+        }
+
+        const unified: UnifiedPedido = {
+          id: p.id as string,
+          numero: p.numero as number,
+          cliente_nome: p.cliente_nome as string,
+          cliente_telefone: p.cliente_telefone as string,
+          total: Number(p.total),
+          tipo_tabela: 'pedidos_online',
+          raw_status: p.status as string,
+          status_kanban: mapKanbanStatus(p.status as string),
+          created_at: p.created_at as string,
+          canal: 'app',
+          forma_pagamento: p.forma_pagamento as string,
+          endereco_entrega: p.endereco_entrega as string | undefined,
+          taxa_entrega: Number(p.taxa_entrega) || 0,
+          desconto: Number(p.desconto) || 0,
+          troco_para: p.troco_para != null ? Number(p.troco_para) : undefined,
+          itens: itensArray,
+        }
+
+        await printer.print(mapToOrderData(unified))
+      }
+    } catch (err) {
+      console.error('[KeroPrint] Erro na impressao automatica:', err)
+      toast.error('Falha ao imprimir pedido automaticamente — verifique a impressora')
+    }
+  }, [config, printer, toast, mapToOrderData])
+
   // Realtime
   useRealtime({
     configs: [
@@ -324,7 +442,10 @@ export default function PedidosPage() {
       if (printer.autoPrint && !autoPrintedOrders.current.has(pedido.id)) {
         try {
           await printer.print(mapToOrderData(pedido))
-        } catch { /* silent */ }
+        } catch (printErr: unknown) {
+          console.warn('[KeroPrint] Falha ao imprimir no avanco de status:', printErr)
+          toast.error('Falha ao imprimir pedido — verifique a impressora')
+        }
       }
     } catch (err) {
       console.error(err)
@@ -531,104 +652,6 @@ export default function PedidosPage() {
       toast.error('Erro ao adicionar produtos')
     }
   })
-
-  // ---- Manual print handler ------------------------------------------------
-
-  const handlePrint = useCallback((pedido: UnifiedPedido) => {
-    if (config) {
-      printer.print(mapToOrderData(pedido))
-    }
-  }, [config, printer, mapToOrderData])
-
-  // ---- Auto-print on new order
-
-    const handleAutoPrint = useCallback(async (payload: { new: Record<string, unknown> }, origemTabela: 'pedidos' | 'pedidos_online') => {
-      if (!config || !printer.autoPrint) return
-
-      const pedidoId = (payload.new.id as string) || ''
-      if (!pedidoId) return
-
-      // Deduplicacao: se ja tentou imprimir este pedido nesta sessao, ignora.
-      if (autoPrintedOrders.current.has(pedidoId)) return
-      autoPrintedOrders.current.add(pedidoId)
-
-      try {
-        if (origemTabela === 'pedidos') {
-          const { data: pedidoCompleto } = await supabase
-            .from('pedidos')
-            .select('*, itens_pedido(*)')
-            .eq('id', payload.new.id)
-            .single()
-
-          if (!pedidoCompleto) return
-
-          const unified: UnifiedPedido = {
-            id: pedidoCompleto.id,
-            numero: pedidoCompleto.numero,
-            cliente_nome: pedidoCompleto.cliente_nome || '',
-            cliente_telefone: pedidoCompleto.cliente_telefone || '',
-            total: Number(pedidoCompleto.total),
-            tipo_tabela: 'pedidos',
-            raw_status: pedidoCompleto.status,
-            status_kanban: mapKanbanStatus(pedidoCompleto.status),
-            created_at: pedidoCompleto.created_at,
-            canal: pedidoCompleto.tipo || 'balcao',
-            forma_pagamento: pedidoCompleto.forma_pagamento || '',
-            endereco_entrega: pedidoCompleto.endereco_entrega,
-            mesa_numero: pedidoCompleto.mesa_numero,
-            itens: (pedidoCompleto.itens_pedido || []).map((ip: Record<string, unknown>) => ({
-              nome: ip.produto_nome as string,
-              qtd: ip.quantidade as number,
-              preco: ip.preco_unitario as number,
-              variacao: ip.tamanho as string,
-              observacoes: ip.observacoes as string,
-            }))
-          }
-
-          await printer.print(mapToOrderData(unified))
-        } else {
-          const p = payload.new
-          let itensArray: UnifiedPedido['itens'] = []
-
-          if (p.itens) {
-            try {
-              const parsed = typeof p.itens === 'string' ? JSON.parse(p.itens as string) : p.itens
-              itensArray = Array.isArray(parsed)
-                ? parsed.map((ip: Record<string, unknown>) => ({
-                    nome: (ip.produto_nome as string) || (ip.nome as string),
-                    qtd: (ip.quantidade as number) || (ip.qtd as number),
-                    preco: (ip.preco as number) || (ip.preco_unitario as number) || 0,
-                    variacao: (ip.tamanho as string) || (ip.variacao as string),
-                    observacoes: (ip.observacoes as string) || (ip.obs as string),
-                  }))
-                : []
-            } catch {
-              console.warn('[KeroPrint] Falha ao fazer parse de itens do pedido online:', p.itens)
-            }
-          }
-
-          const unified: UnifiedPedido = {
-            id: p.id as string,
-            numero: p.numero as number,
-            cliente_nome: p.cliente_nome as string,
-            cliente_telefone: p.cliente_telefone as string,
-            total: Number(p.total),
-            tipo_tabela: 'pedidos_online',
-            raw_status: p.status as string,
-            status_kanban: mapKanbanStatus(p.status as string),
-            created_at: p.created_at as string,
-            canal: 'app',
-            forma_pagamento: p.forma_pagamento as string,
-            itens: itensArray,
-          }
-
-          await printer.print(mapToOrderData(unified))
-        }
-      } catch (err) {
-        console.error('[KeroPrint] Erro na impressao automatica:', err)
-        toast.error('Falha ao imprimir pedido automaticamente — verifique a impressora')
-      }
-    }, [config, printer, toast, mapToOrderData])
 
   return (
     <div className="min-h-screen py-8 px-4 lg:px-8 space-y-8 animate-fade-in-up">

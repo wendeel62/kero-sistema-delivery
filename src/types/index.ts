@@ -164,6 +164,9 @@ export interface UnifiedPedido {
   endereco_entrega?: string
   updated_at?: string
   mesa_numero?: number
+  taxa_entrega?: number
+  desconto?: number
+  troco_para?: number
 }
 
 // --------------------
